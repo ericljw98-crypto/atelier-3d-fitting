@@ -500,6 +500,104 @@ function smoothstep(a, b, x) {
   return t * t * (3 - 2 * t);
 }
 
+
+/* ============================================================
+   按档案三围塑形
+   ------------------------------------------------------------
+   扫描本体的腰只有 63cm，档案要 85cm，靠整体缩放永远对不上。
+   这里做「逐高度径向塑形」：以自身轮廓为基准，按高度取一个
+   径向倍率，把胸/腰/臀三个截面分别拉到目标围度，其余高度平滑
+   过渡回原样。手臂不同源，改为按同一高度的人体半径平移推开，
+   避免腰一加粗、垂着的小臂就陷进身体里。
+   ============================================================ */
+function applyShaping(mesh, anchors) {
+  // anchors: [{u, targetCm, currentCm}]，按 u 递增
+  if (!anchors || !anchors.length) return null;
+  const geo = mesh.geometry;
+  const pos = geo.attributes.position;
+  const n = pos.count;
+  const H_LOCAL = 1.68;              // 模型自身净身高（几何坐标单位）
+
+  // 因子曲线：锚点处取目标/当前，锚点之间用 smoothstep 过渡，两端回落到 1
+  const knots = anchors.map(a => ({ u: a.u, k: Math.max(0.6, Math.min(1.8, a.targetCm / a.currentCm)) }));
+  knots.sort((a, b) => a.u - b.u);
+  const curve = u => {
+    if (u <= knots[0].u - 0.16 || u >= knots[knots.length - 1].u + 0.10) return 1;
+    if (u < knots[0].u) {
+      const t = (u - (knots[0].u - 0.16)) / 0.16;
+      return 1 + (knots[0].k - 1) * (t * t * (3 - 2 * t));
+    }
+    for (let i = 1; i < knots.length; i++) {
+      const a = knots[i - 1], b = knots[i];
+      if (u <= b.u) {
+        const t = (u - a.u) / Math.max(b.u - a.u, 1e-4);
+        const e = t * t * (3 - 2 * t);
+        return a.k + (b.k - a.k) * e;
+      }
+    }
+    const last = knots[knots.length - 1];
+    const t = Math.min(1, (u - last.u) / 0.10);
+    return last.k + (1 - last.k) * (t * t * (3 - 2 * t));
+  };
+
+  // 每层的截面中心（z）与人体平均半径（用于手臂平移量）
+  const NYL = 120;
+  const zSum = new Float64Array(NYL), zCnt = new Uint32Array(NYL);
+  const rSum = new Float64Array(NYL), rCnt = new Uint32Array(NYL);
+  const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+  const bones = mesh.skeleton.bones;
+  const isArm = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const iy = Math.min(NYL - 1, Math.max(0, Math.floor(y / H_LOCAL * NYL)));
+    const w0 = sw.getX(i), w1 = sw.getY(i), w2 = sw.getZ(i), w3 = sw.getW(i);
+    let bw = w0, bk = 0;
+    if (w1 > bw) { bw = w1; bk = 1; }
+    if (w2 > bw) { bw = w2; bk = 2; }
+    if (w3 > bw) { bw = w3; bk = 3; }
+    const bi = bk === 0 ? si.getX(i) : bk === 1 ? si.getY(i) : bk === 2 ? si.getZ(i) : si.getW(i);
+    const name = (bones[bi] && bones[bi].name) || '';
+    if (/Arm|Hand/.test(name)) { isArm[i] = 1; continue; }
+    zSum[iy] += z; zCnt[iy]++;
+    rSum[iy] += Math.hypot(x, z); rCnt[iy]++;
+  }
+  const czL = new Float32Array(NYL), rL = new Float32Array(NYL);
+  for (let i = 0; i < NYL; i++) {
+    czL[i] = zCnt[i] ? zSum[i] / zCnt[i] : 0;
+    rL[i] = rCnt[i] ? rSum[i] / rCnt[i] : 0;
+  }
+  for (let pass = 0; pass < 4; pass++) {
+    const a = czL.slice(), b2 = rL.slice();
+    for (let i = 1; i < NYL - 1; i++) {
+      czL[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4;
+      rL[i] = (b2[i - 1] + b2[i] * 2 + b2[i + 1]) / 4;
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    const y = pos.getY(i);
+    const u = Math.min(1, Math.max(0, y / H_LOCAL));
+    const k = curve(u);
+    if (Math.abs(k - 1) < 1e-4) continue;
+    const iy = Math.min(NYL - 1, Math.floor(u * NYL));
+    if (isArm[i] === 1) {
+      // 手臂：按该高度人体表面的外移量平移，保持与身体的距离
+      const dx = (k - 1) * rL[iy];
+      const x = pos.getX(i);
+      pos.setX(i, x + Math.sign(x || 1) * dx);
+      continue;
+    }
+    const z = pos.getZ(i), x = pos.getX(i);
+    pos.setX(i, x * k);
+    pos.setZ(i, czL[iy] + (z - czL[iy]) * k);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return true;
+}
+
 /* ---------------- 构建人体 ---------------- */
 
 export async function buildSmoothBody(model) {
@@ -514,15 +612,24 @@ export async function buildSmoothBody(model) {
   const root = skeletonClone(gltf.scene);
   root.updateMatrixWorld(true);
   const norm = root.scale.clone();           // 归一化基准（身高 1）
-  const hf = horizontalFactor(p);
 
-  root.scale.set(norm.x * H * hf, norm.y * H, norm.z * H * hf);
+  root.scale.set(norm.x * H, norm.y * H, norm.z * H);
   root.position.set(0, FOOT_Y, 0);
   root.updateMatrixWorld(true);
 
   let mesh = null;
   root.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
-  // 关键：在最终尺度（含横向比例）上量真实轮廓
+  mesh.geometry = mesh.geometry.clone();     // 塑形只改副本，不动缓存
+
+  // 先按档案三围塑形，再量轮廓 —— 顺序不能反
+  const gcm = NORM ? NORM.girthCm : null;
+  if (gcm) {
+    applyShaping(mesh, [
+      { u: NORM.hipU, targetCm: p.hip, currentCm: gcm.hip },
+      { u: NORM.waistU, targetCm: p.waist, currentCm: gcm.waist },
+      { u: NORM.bustU, targetCm: p.bust, currentCm: gcm.bust },
+    ]);
+  }
   WL = bakeSilhouette(mesh, H, FOOT_Y);
 
   root.traverse(o => {
@@ -530,12 +637,17 @@ export async function buildSmoothBody(model) {
     o.frustumCulled = false;
     o.castShadow = true;
     o.receiveShadow = true;
-    if (o.material) { o.material.side = THREE.FrontSide; o.material.needsUpdate = true; }
+    if (o.material) {
+      o.material.side = THREE.FrontSide;
+      // 塑形会横向拉伸贴图，法线强度略降可减轻皮肤被"拉丝"的观感
+      if (o.material.normalScale) o.material.normalScale.set(0.65, 0.65);
+      o.material.needsUpdate = true;
+    }
   });
   figure.add(root);
 
   return {
-    group, figure, root, hf,
+    group, figure, root,
     applyProfile: () => { },                 // 档案固定：尺度不变
     footY: () => FOOT_Y,
   };
