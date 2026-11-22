@@ -830,3 +830,125 @@ input[type="range"]::-moz-range-thumb {
   .stage { height: 520px; order: -1; }
   .controls { border-left: none; border-top: 1px solid var(--border); }
 }
+
+/* ============================================================
+   数据库款式卡片
+   ============================================================ */
+.tab-count {
+  margin-left: 5px; font-size: 10px; color: var(--text-faint);
+  font-weight: 500;
+}
+.category-tab.active .tab-count { color: var(--accent); }
+.garment-card.db-card {
+  padding: 12px 12px 11px; min-height: 118px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.db-card-head { display: flex; justify-content: space-between; align-items: center; }
+.db-code {
+  font-size: 9.5px; letter-spacing: .05em; color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+.db-fit {
+  font-size: 9.5px; color: var(--text-dim); padding: 1px 6px;
+  border: 1px solid var(--border); border-radius: 3px;
+}
+.db-card .garment-name { font-size: 12.5px; text-align: left; line-height: 1.35; }
+.db-meta { font-size: 10px; color: var(--text-faint); text-align: left; line-height: 1.4; }
+.db-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+.db-swatches { display: flex; gap: 3px; }
+.db-swatches i {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.18);
+}
+.db-spec { font-size: 9.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   模特信息条 / 尺码
+   ============================================================ */
+.model-chip {
+  margin: 0 0 4px; padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(201,168,124,.12), rgba(201,168,124,.03));
+  border: 1px solid rgba(201,168,124,.25); border-radius: 6px;
+  font-size: 11px; color: var(--accent); line-height: 1.5;
+}
+.size-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.size-buttons button {
+  position: relative; flex: 1 0 auto; min-width: 46px;
+  padding: 7px 4px; font-size: 11px; font-family: inherit;
+  background: var(--panel-2); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  transition: all .18s;
+}
+.size-buttons button:hover { color: var(--text); border-color: var(--accent); }
+.size-buttons button.active {
+  background: var(--accent); color: #14161c; font-weight: 600;
+  border-color: var(--accent);
+}
+.rec-dot {
+  position: absolute; top: 3px; right: 4px; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--accent);
+}
+.size-buttons button.active .rec-dot { background: #14161c; }
+.size-hint { margin-top: 7px; font-size: 10px; color: var(--text-faint); line-height: 1.5; }
+.outfit-row .label small {
+  display: block; font-size: 9px; color: var(--text-faint); font-weight: 400; margin-top: 2px;
+}
+
+/* ============================================================
+   建档向导
+   ============================================================ */
+.profile-backdrop { z-index: 60; }
+.profile-modal { max-width: 620px; max-height: 88vh; display: flex; flex-direction: column; }
+.profile-live {
+  margin: 16px 26px 4px; padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(201,168,124,.12), rgba(201,168,124,.02));
+  border: 1px solid rgba(201,168,124,.28); border-radius: 6px;
+}
+.profile-live-label { font-size: 10px; color: var(--text-faint); margin-bottom: 4px; }
+.profile-live-value { font-size: 13px; color: var(--accent); line-height: 1.5; }
+.profile-rec { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.profile-form {
+  padding: 8px 26px 16px; overflow-y: auto; flex: 1;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px;
+}
+.profile-group h4 {
+  font-size: 11px; color: var(--accent); font-weight: 600;
+  letter-spacing: .08em; margin-bottom: 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.profile-group:first-child { grid-column: 1 / -1; }
+.profile-group:first-child .profile-field { display: inline-block; width: calc(50% - 11px); vertical-align: top; }
+.profile-group:first-child .profile-field:first-of-type { margin-right: 18px; }
+.profile-field { margin-bottom: 9px; }
+.profile-field-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.profile-field-label label { font-size: 11px; color: var(--text); }
+.pf-hint { font-size: 9px; color: var(--text-faint); }
+.profile-input-row { display: flex; align-items: center; gap: 10px; }
+.profile-input-row input[type=range] {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: linear-gradient(to right, var(--accent) var(--fill, 50%), #313745 var(--fill, 50%));
+  border-radius: 3px; cursor: pointer;
+}
+.profile-input-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #161a22; cursor: pointer;
+}
+.number-wrap {
+  display: flex; align-items: center; gap: 3px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 6px; min-width: 72px;
+}
+.number-wrap input {
+  width: 40px; background: none; border: none; outline: none;
+  color: var(--text); font-size: 12px; font-family: inherit; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.number-wrap span { font-size: 10px; color: var(--text-faint); }
+.scan-detected-spec { font-size: 11px; color: var(--text); margin-bottom: 6px; }
+
+@media (max-width: 820px) {
+  .profile-form { grid-template-columns: 1fr; }
+  .profile-group:first-child { grid-column: auto; }
+  .profile-group:first-child .profile-field { display: block; width: 100%; margin-right: 0; }
+  .profile-modal { max-height: 92vh; }
+}

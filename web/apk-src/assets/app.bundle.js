@@ -2774,9 +2774,9 @@
     intersectsBox(box) {
       return box.max.x < this.min.x || box.min.x > this.max.x || box.max.y < this.min.y || box.min.y > this.max.y || box.max.z < this.min.z || box.min.z > this.max.z ? false : true;
     }
-    intersectsSphere(sphere2) {
-      this.clampPoint(sphere2.center, _vector$b);
-      return _vector$b.distanceToSquared(sphere2.center) <= sphere2.radius * sphere2.radius;
+    intersectsSphere(sphere) {
+      this.clampPoint(sphere.center, _vector$b);
+      return _vector$b.distanceToSquared(sphere.center) <= sphere.radius * sphere.radius;
     }
     intersectsPlane(plane) {
       let min, max;
@@ -2966,9 +2966,9 @@
       this.radius = Math.sqrt(maxRadiusSq);
       return this;
     }
-    copy(sphere2) {
-      this.center.copy(sphere2.center);
-      this.radius = sphere2.radius;
+    copy(sphere) {
+      this.center.copy(sphere.center);
+      this.radius = sphere.radius;
       return this;
     }
     isEmpty() {
@@ -2985,9 +2985,9 @@
     distanceToPoint(point) {
       return point.distanceTo(this.center) - this.radius;
     }
-    intersectsSphere(sphere2) {
-      const radiusSum = this.radius + sphere2.radius;
-      return sphere2.center.distanceToSquared(this.center) <= radiusSum * radiusSum;
+    intersectsSphere(sphere) {
+      const radiusSum = this.radius + sphere.radius;
+      return sphere.center.distanceToSquared(this.center) <= radiusSum * radiusSum;
     }
     intersectsBox(box) {
       return box.intersectsSphere(this);
@@ -3038,25 +3038,25 @@
       }
       return this;
     }
-    union(sphere2) {
-      if (sphere2.isEmpty()) {
+    union(sphere) {
+      if (sphere.isEmpty()) {
         return this;
       }
       if (this.isEmpty()) {
-        this.copy(sphere2);
+        this.copy(sphere);
         return this;
       }
-      if (this.center.equals(sphere2.center) === true) {
-        this.radius = Math.max(this.radius, sphere2.radius);
+      if (this.center.equals(sphere.center) === true) {
+        this.radius = Math.max(this.radius, sphere.radius);
       } else {
-        _v2$3.subVectors(sphere2.center, this.center).setLength(sphere2.radius);
-        this.expandByPoint(_v1$6.copy(sphere2.center).add(_v2$3));
-        this.expandByPoint(_v1$6.copy(sphere2.center).sub(_v2$3));
+        _v2$3.subVectors(sphere.center, this.center).setLength(sphere.radius);
+        this.expandByPoint(_v1$6.copy(sphere.center).add(_v2$3));
+        this.expandByPoint(_v1$6.copy(sphere.center).sub(_v2$3));
       }
       return this;
     }
-    equals(sphere2) {
-      return sphere2.center.equals(this.center) && sphere2.radius === this.radius;
+    equals(sphere) {
+      return sphere.center.equals(this.center) && sphere.radius === this.radius;
     }
     clone() {
       return new this.constructor().copy(this);
@@ -3174,11 +3174,11 @@
       }
       return sqrDist;
     }
-    intersectSphere(sphere2, target) {
-      _vector$a.subVectors(sphere2.center, this.origin);
+    intersectSphere(sphere, target) {
+      _vector$a.subVectors(sphere.center, this.origin);
       const tca = _vector$a.dot(this.direction);
       const d2 = _vector$a.dot(_vector$a) - tca * tca;
-      const radius2 = sphere2.radius * sphere2.radius;
+      const radius2 = sphere.radius * sphere.radius;
       if (d2 > radius2) return null;
       const thc = Math.sqrt(radius2 - d2);
       const t0 = tca - thc;
@@ -3187,8 +3187,8 @@
       if (t0 < 0) return this.at(t1, target);
       return this.at(t0, target);
     }
-    intersectsSphere(sphere2) {
-      return this.distanceSqToPoint(sphere2.center) <= sphere2.radius * sphere2.radius;
+    intersectsSphere(sphere) {
+      return this.distanceSqToPoint(sphere.center) <= sphere.radius * sphere.radius;
     }
     distanceToPlane(plane) {
       const denominator = plane.normal.dot(this.direction);
@@ -7588,8 +7588,8 @@
     distanceToPoint(point) {
       return this.normal.dot(point) + this.constant;
     }
-    distanceToSphere(sphere2) {
-      return this.distanceToPoint(sphere2.center) - sphere2.radius;
+    distanceToSphere(sphere) {
+      return this.distanceToPoint(sphere.center) - sphere.radius;
     }
     projectPoint(point, target) {
       return target.copy(point).addScaledVector(this.normal, -this.distanceToPoint(point));
@@ -7617,8 +7617,8 @@
     intersectsBox(box) {
       return box.intersectsPlane(this);
     }
-    intersectsSphere(sphere2) {
-      return sphere2.intersectsPlane(this);
+    intersectsSphere(sphere) {
+      return sphere.intersectsPlane(this);
     }
     coplanarPoint(target) {
       return target.copy(this.normal).multiplyScalar(-this.constant);
@@ -7702,10 +7702,10 @@
       _sphere$5.applyMatrix4(sprite.matrixWorld);
       return this.intersectsSphere(_sphere$5);
     }
-    intersectsSphere(sphere2) {
+    intersectsSphere(sphere) {
       const planes = this.planes;
-      const center = sphere2.center;
-      const negRadius = -sphere2.radius;
+      const center = sphere.center;
+      const negRadius = -sphere.radius;
       for (let i = 0; i < 6; i++) {
         const distance = planes[i].distanceToPoint(center);
         if (distance < negRadius) {
@@ -20215,315 +20215,1342 @@
     }
   };
 
-  // app.js
-  var ICONS = {
-    tshirt: '<path d="M8 4 4 6 2 10 5.2 11.3 5.2 20 18.8 20 18.8 11.3 22 10 20 6 16 4C15 6.2 9 6.2 8 4Z"/>',
-    shirt: '<path d="M8 4 4 6 2 10 5.2 11.3 5.2 20 18.8 20 18.8 11.3 22 10 20 6 16 4 12 7 8 4Z"/><path d="M12 7V20"/>',
-    hoodie: '<path d="M8 4 4 6 2 10 5.2 11.3 5.2 20 18.8 20 18.8 11.3 22 10 20 6 16 4C15.5 6.5 8.5 6.5 8 4Z"/><path d="M9.5 5.5C9.5 7 14.5 7 14.5 5.5"/><path d="M9 13H15"/>',
-    tank: '<path d="M8 4C8 6 9 7 9.5 7L9 20H15L14.5 7C15 7 16 6 16 4"/><path d="M9 20H15"/>',
-    jeans: '<path d="M7 3H17L18 21H13.2L12 11.5L10.8 21H6Z"/><path d="M7 8H17"/>',
-    chinos: '<path d="M7 3H17L18 21H13L12 12L11 21H6Z"/><path d="M7 8H17"/>',
-    shorts: '<path d="M7 3H17L17.5 15H13V11H11V15H6.5Z"/>',
-    skirt: '<path d="M8 4H16L20 20H4Z"/><path d="M8 4H16"/>',
-    slip: '<path d="M9 3H15L15.5 9L20 20H4L8.5 9Z"/>',
-    aline: '<path d="M9 3H15L16 10L21 21H3L8 10Z"/>',
-    evening: '<path d="M9 3H15L16 9C19 13 21 18 21 21H3C3 18 5 13 8 9Z"/>',
-    jacket: '<path d="M8 4 4 6 2 10 5.2 11.5 5.2 20 18.8 20 18.8 11.5 22 10 20 6 16 4 12 7 8 4Z"/><path d="M12 7V20M8 11H16"/>',
-    trench: '<path d="M8 4 4 6 2 10 5.2 11.5 5.2 21 18.8 21 18.8 11.5 22 10 20 6 16 4 12 7 8 4Z"/><path d="M12 7V21M7 14H17"/>'
+  // data.js
+  var SIZE_CHART = {
+    "IT 34": { bust: 78, waist: 58, hip: 84, label: "XS" },
+    "IT 36": { bust: 82, waist: 62, hip: 88, label: "S" },
+    "IT 38": { bust: 86, waist: 66, hip: 92, label: "S/M" },
+    "IT 40": { bust: 90, waist: 70, hip: 96, label: "M" },
+    "IT 42": { bust: 94, waist: 74, hip: 100, label: "L" },
+    "IT 44": { bust: 98, waist: 78, hip: 104, label: "XL" },
+    "IT 46": { bust: 102, waist: 82, hip: 108, label: "XXL" }
   };
-  var COLORS = [
-    { name: "\u66DC\u77F3\u9ED1", hex: 1842466 },
-    { name: "\u8C61\u7259\u767D", hex: 15657696 },
-    { name: "\u96FE\u7070", hex: 9146528 },
-    { name: "\u85CF\u84DD", hex: 2833771 },
-    { name: "\u9152\u7EA2", hex: 9120570 },
-    { name: "\u58A8\u7EFF", hex: 3038030 },
-    { name: "\u9A7C\u8272", hex: 11570266 },
-    { name: "\u73AB\u7470\u7C89", hex: 12876688 }
+  var SIZES = Object.keys(SIZE_CHART);
+  var PALETTE = {
+    black: { name: "\u66DC\u77F3\u9ED1", hex: 1447707 },
+    ivory: { name: "\u8C61\u7259\u767D", hex: 15789281 },
+    red: { name: "\u6B63\u7EA2", hex: 10821420 },
+    wine: { name: "\u9152\u7EA2", hex: 7216940 },
+    leopard: { name: "\u8C79\u7EB9\u68D5", hex: 10119735 },
+    gold: { name: "\u938F\u91D1", hex: 13214556 },
+    olive: { name: "\u6A44\u6984\u7EFF", hex: 4936512 },
+    navy: { name: "\u6DF1\u6D77\u519B\u84DD", hex: 2240858 },
+    nude: { name: "\u88F8\u7C89", hex: 14264729 },
+    emerald: { name: "\u7956\u6BCD\u7EFF", hex: 2055242 },
+    powder: { name: "\u85D5\u7C89", hex: 13209498 },
+    chocolate: { name: "\u5DE7\u514B\u529B", hex: 4861734 },
+    camel: { name: "\u9A7C\u8272", hex: 11570266 },
+    lilac: { name: "\u6DE1\u7D2B", hex: 10127024 },
+    sky: { name: "\u96FE\u84DD", hex: 9415101 }
+  };
+  var DB_CATEGORIES = [
+    { id: "dresses", name: "\u8FDE\u8863\u88D9", en: "Dresses" },
+    { id: "tops", name: "\u4E0A\u88C5", en: "Tops" },
+    { id: "bottoms", name: "\u4E0B\u88C5", en: "Bottoms" },
+    { id: "outer", name: "\u5916\u5957", en: "Outerwear" }
   ];
-  var CATEGORIES = [
-    { id: "tops", name: "\u4E0A\u88C5" },
-    { id: "bottoms", name: "\u4E0B\u88C5" },
-    { id: "dresses", name: "\u8FDE\u8863\u88D9" },
-    { id: "outer", name: "\u5916\u5957" }
+  var SILHOUETTE_NAMES = {
+    fitted: "\u4FEE\u8EAB",
+    aline: "A \u5B57",
+    flared: "\u5927\u6446",
+    straight: "\u76F4\u7B52",
+    slip: "\u540A\u5E26",
+    wrap: "\u88F9\u8EAB",
+    peplum: "\u8377\u53F6\u8170",
+    blouse: "\u886C\u886B\u5F0F",
+    skinny: "\u7D27\u8EAB",
+    wide: "\u9614\u817F",
+    pencil: "\u94C5\u7B14",
+    mini: "\u77ED\u6B3E",
+    oversize: "\u5ED3\u5F62",
+    blazer: "\u897F\u88C5",
+    trench: "\u98CE\u8863",
+    biker: "\u673A\u8F66",
+    knit: "\u9488\u7EC7",
+    cape: "\u6597\u7BF7"
+  };
+  var C = PALETTE;
+  var ALL = SIZES;
+  var DB = [
+    /* ================= 连衣裙 Dresses ================= */
+    {
+      id: "dg-dr-001",
+      code: "DG-SS25-DR-001",
+      name: "\u897F\u897F\u91CC\u5370\u82B1\u540A\u5E26\u957F\u88D9",
+      nameEn: "Sicilian Print Slip Dress",
+      category: "dresses",
+      silhouette: "slip",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Sicilia",
+      fabric: "\u771F\u4E1D\u7F0E\u9762",
+      colors: [C.black, C.red, C.nude, C.emerald],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 72, hip: 96, shoulder: 0, sleeve: 0, length: 112 },
+      ease: { bust: 0, waist: 2, hip: 0 }
+    },
+    {
+      id: "dg-dr-002",
+      code: "DG-SS25-DR-002",
+      name: "\u857E\u4E1D\u62FC\u63A5\u4FEE\u8EAB\u8FDE\u8863\u88D9",
+      nameEn: "Lace Panel Fitted Dress",
+      category: "dresses",
+      silhouette: "fitted",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Lace",
+      fabric: "\u5F39\u529B\u857E\u4E1D / \u771F\u4E1D\u91CC\u886C",
+      colors: [C.black, C.ivory, C.wine, C.navy],
+      sizes: ALL,
+      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 39, sleeve: 20, length: 100 },
+      ease: { bust: -2, waist: -2, hip: -2 }
+    },
+    {
+      id: "dg-dr-003",
+      code: "DG-SS25-DR-003",
+      name: "\u7ECF\u5178 A \u5B57\u8FDE\u8863\u88D9",
+      nameEn: "Classic A-Line Dress",
+      category: "dresses",
+      silhouette: "aline",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Tailoring",
+      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
+      colors: [C.black, C.red, C.camel, C.olive],
+      sizes: ALL,
+      measurements: { bust: 92, waist: 74, hip: 100, shoulder: 40, sleeve: 0, length: 96 },
+      ease: { bust: 2, waist: 4, hip: 4 }
+    },
+    {
+      id: "dg-dr-004",
+      code: "DG-FW25-DR-004",
+      name: "\u5927\u6446\u793C\u670D\u957F\u88D9",
+      nameEn: "Ball Gown Evening Dress",
+      category: "dresses",
+      silhouette: "flared",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u5854\u592B\u7EF8 / \u63D0\u82B1",
+      colors: [C.black, C.gold, C.wine, C.emerald],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 70, hip: 98, shoulder: 39, sleeve: 0, length: 140 },
+      ease: { bust: 0, waist: 0, hip: 2 }
+    },
+    {
+      id: "dg-dr-005",
+      code: "DG-SS25-DR-005",
+      name: "\u88F9\u8EAB\u5F0F\u4E2D\u957F\u88D9",
+      nameEn: "Wrap Midi Dress",
+      category: "dresses",
+      silhouette: "wrap",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Sicilia",
+      fabric: "\u771F\u4E1D\u4E54\u5176\u7EB1",
+      colors: [C.red, C.navy, C.leopard, C.powder],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 71, hip: 97, shoulder: 39, sleeve: 58, length: 108 },
+      ease: { bust: 0, waist: 1, hip: 1 }
+    },
+    {
+      id: "dg-dr-006",
+      code: "DG-SS25-DR-006",
+      name: "\u8377\u53F6\u8170\u77ED\u6B3E\u8FDE\u8863\u88D9",
+      nameEn: "Peplum Mini Dress",
+      category: "dresses",
+      silhouette: "peplum",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Tailoring",
+      fabric: "\u68C9\u8D28\u659C\u7EB9",
+      colors: [C.ivory, C.black, C.sky, C.nude],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 72, hip: 98, shoulder: 40, sleeve: 22, length: 88 },
+      ease: { bust: 0, waist: 2, hip: 2 }
+    },
+    {
+      id: "dg-dr-007",
+      code: "DG-FW25-DR-007",
+      name: "\u9AD8\u9886\u9488\u7EC7\u8FDE\u8863\u88D9",
+      nameEn: "Turtleneck Knit Dress",
+      category: "dresses",
+      silhouette: "fitted",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Knitwear",
+      fabric: "\u7F8A\u7ED2\u6DF7\u7EBA",
+      colors: [C.black, C.camel, C.olive, C.chocolate],
+      sizes: ALL,
+      measurements: { bust: 86, waist: 68, hip: 92, shoulder: 38, sleeve: 60, length: 104 },
+      ease: { bust: -4, waist: -2, hip: -4 }
+    },
+    {
+      id: "dg-dr-008",
+      code: "DG-SS25-DR-008",
+      name: "\u6CE2\u70B9\u886C\u886B\u5F0F\u8FDE\u8863\u88D9",
+      nameEn: "Polka Dot Shirt Dress",
+      category: "dresses",
+      silhouette: "blouse",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Retro",
+      fabric: "\u771F\u4E1D\u53CC\u7EC9",
+      colors: [C.ivory, C.black, C.red, C.sky],
+      sizes: ALL,
+      measurements: { bust: 94, waist: 76, hip: 102, shoulder: 41, sleeve: 56, length: 100 },
+      ease: { bust: 4, waist: 6, hip: 6 }
+    },
+    {
+      id: "dg-dr-009",
+      code: "DG-FW25-DR-009",
+      name: "\u5929\u9E45\u7ED2\u665A\u793C\u670D",
+      nameEn: "Velvet Evening Gown",
+      category: "dresses",
+      silhouette: "fitted",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u5F39\u529B\u5929\u9E45\u7ED2",
+      colors: [C.emerald, C.wine, C.black, C.navy],
+      sizes: ALL,
+      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 39, sleeve: 0, length: 132 },
+      ease: { bust: -2, waist: -2, hip: -2 }
+    },
+    {
+      id: "dg-dr-010",
+      code: "DG-SS25-DR-010",
+      name: "\u76AE\u9769\u4FEE\u8EAB\u77ED\u88D9",
+      nameEn: "Leather Mini Dress",
+      category: "dresses",
+      silhouette: "straight",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Biker",
+      fabric: "\u8F6F\u7F8A\u76AE",
+      colors: [C.black, C.chocolate, C.red],
+      sizes: ALL,
+      measurements: { bust: 88, waist: 70, hip: 94, shoulder: 39, sleeve: 0, length: 82 },
+      ease: { bust: -2, waist: 0, hip: -2 }
+    },
+    {
+      id: "dg-dr-011",
+      code: "DG-SS25-DR-011",
+      name: "\u788E\u82B1\u5EA6\u5047\u957F\u88D9",
+      nameEn: "Floral Beach Maxi Dress",
+      category: "dresses",
+      silhouette: "flared",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Sicilia",
+      fabric: "\u68C9\u9EBB\u5370\u82B1",
+      colors: [C.ivory, C.sky, C.powder, C.olive],
+      sizes: ALL,
+      measurements: { bust: 94, waist: 76, hip: 104, shoulder: 40, sleeve: 0, length: 130 },
+      ease: { bust: 4, waist: 6, hip: 8 }
+    },
+    {
+      id: "dg-dr-012",
+      code: "DG-FW25-DR-012",
+      name: "\u7F0E\u9762\u9732\u80A9\u793C\u670D",
+      nameEn: "Satin Off-Shoulder Gown",
+      category: "dresses",
+      silhouette: "fitted",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u91CD\u78C5\u771F\u4E1D\u7F0E",
+      colors: [C.gold, C.black, C.wine, C.emerald],
+      sizes: ALL,
+      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 0, sleeve: 0, length: 136 },
+      ease: { bust: -2, waist: -2, hip: -2 }
+    },
+    {
+      id: "dg-dr-013",
+      code: "DG-SS25-DR-013",
+      name: "\u6761\u7EB9\u6C34\u624B\u8FDE\u8863\u88D9",
+      nameEn: "Breton Stripe Dress",
+      category: "dresses",
+      silhouette: "straight",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Retro",
+      fabric: "\u68C9\u8D28\u9488\u7EC7",
+      colors: [C.ivory, C.navy, C.red],
+      sizes: ALL,
+      measurements: { bust: 92, waist: 74, hip: 98, shoulder: 40, sleeve: 20, length: 94 },
+      ease: { bust: 2, waist: 4, hip: 2 }
+    },
+    {
+      id: "dg-dr-014",
+      code: "DG-FW25-DR-014",
+      name: "\u6597\u7BF7\u5F0F\u665A\u88C5\u88D9",
+      nameEn: "Cape Evening Dress",
+      category: "dresses",
+      silhouette: "cape",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u7F8A\u6BDB\u7ED2 / \u771F\u4E1D",
+      colors: [C.black, C.red, C.gold, C.navy],
+      sizes: ALL,
+      measurements: { bust: 92, waist: 72, hip: 98, shoulder: 40, sleeve: 0, length: 118 },
+      ease: { bust: 2, waist: 2, hip: 2 }
+    },
+    /* ================= 上装 Tops ================= */
+    {
+      id: "dg-tp-001",
+      code: "DG-SS25-TP-001",
+      name: "\u5706\u9886\u5370\u82B1 T \u6064",
+      nameEn: "Printed Crew Tee",
+      category: "tops",
+      silhouette: "fitted",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Casual",
+      fabric: "\u7EAF\u68C9\u5E73\u7EB9",
+      colors: [C.ivory, C.black, C.red, C.sky],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 86, shoulder: 40, sleeve: 18, length: 62 },
+      ease: { bust: 0, waist: 0 }
+    },
+    {
+      id: "dg-tp-002",
+      code: "DG-SS25-TP-002",
+      name: "\u771F\u4E1D\u4FEE\u8EAB\u886C\u886B",
+      nameEn: "Silk Fitted Shirt",
+      category: "tops",
+      silhouette: "blouse",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Tailoring",
+      fabric: "\u771F\u4E1D\u53CC\u7EC9",
+      colors: [C.ivory, C.black, C.wine, C.nude],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 80, shoulder: 40, sleeve: 59, length: 66 },
+      ease: { bust: 0, waist: -2 }
+    },
+    {
+      id: "dg-tp-003",
+      code: "DG-FW25-TP-003",
+      name: "\u9AD8\u9886\u7F8A\u7ED2\u886B",
+      nameEn: "Cashmere Turtleneck",
+      category: "tops",
+      silhouette: "knit",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Knitwear",
+      fabric: "\u7F8A\u7ED2",
+      colors: [C.black, C.camel, C.ivory, C.olive],
+      sizes: ALL,
+      measurements: { bust: 86, waist: 80, shoulder: 38, sleeve: 61, length: 60 },
+      ease: { bust: -4, waist: 0 }
+    },
+    {
+      id: "dg-tp-004",
+      code: "DG-SS25-TP-004",
+      name: "\u857E\u4E1D\u540A\u5E26\u4E0A\u8863",
+      nameEn: "Lace Camisole",
+      category: "tops",
+      silhouette: "slip",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Lace",
+      fabric: "\u5F39\u529B\u857E\u4E1D",
+      colors: [C.black, C.ivory, C.powder, C.red],
+      sizes: ALL,
+      measurements: { bust: 86, waist: 76, shoulder: 0, sleeve: 0, length: 50 },
+      ease: { bust: -4, waist: -2 }
+    },
+    {
+      id: "dg-tp-005",
+      code: "DG-SS25-TP-005",
+      name: "\u8377\u53F6\u8FB9\u7F69\u886B",
+      nameEn: "Ruffle Blouse",
+      category: "tops",
+      silhouette: "blouse",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Romantic",
+      fabric: "\u96EA\u7EBA",
+      colors: [C.ivory, C.powder, C.sky, C.lilac],
+      sizes: ALL,
+      measurements: { bust: 98, waist: 96, shoulder: 41, sleeve: 56, length: 64 },
+      ease: { bust: 8, waist: 8 }
+    },
+    {
+      id: "dg-tp-006",
+      code: "DG-FW25-TP-006",
+      name: "\u5ED3\u5F62\u9488\u7EC7\u5F00\u886B",
+      nameEn: "Oversize Knit Cardigan",
+      category: "tops",
+      silhouette: "oversize",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Knitwear",
+      fabric: "\u7C97\u7EBA\u7F8A\u6BDB",
+      colors: [C.camel, C.chocolate, C.black, C.ivory],
+      sizes: ALL,
+      measurements: { bust: 110, waist: 108, shoulder: 46, sleeve: 60, length: 70 },
+      ease: { bust: 20, waist: 20 }
+    },
+    {
+      id: "dg-tp-007",
+      code: "DG-SS25-TP-007",
+      name: "\u62B9\u80F8\u5F0F\u77ED\u4E0A\u8863",
+      nameEn: "Bandeau Top",
+      category: "tops",
+      silhouette: "slip",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Casual",
+      fabric: "\u5F39\u529B\u9488\u7EC7",
+      colors: [C.black, C.red, C.nude, C.leopard],
+      sizes: ALL,
+      measurements: { bust: 84, waist: 74, shoulder: 0, sleeve: 0, length: 34 },
+      ease: { bust: -6, waist: -4 }
+    },
+    {
+      id: "dg-tp-008",
+      code: "DG-SS25-TP-008",
+      name: "\u6761\u7EB9 Polo \u886B",
+      nameEn: "Striped Polo",
+      category: "tops",
+      silhouette: "fitted",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Retro",
+      fabric: "\u73E0\u5730\u68C9",
+      colors: [C.navy, C.ivory, C.red, C.olive],
+      sizes: ALL,
+      measurements: { bust: 92, waist: 88, shoulder: 41, sleeve: 20, length: 64 },
+      ease: { bust: 2, waist: 2 }
+    },
+    {
+      id: "dg-tp-009",
+      code: "DG-FW25-TP-009",
+      name: "\u7F0E\u9762\u886C\u886B",
+      nameEn: "Satin Blouse",
+      category: "tops",
+      silhouette: "blouse",
+      fit: "\u5408\u4F53",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u7F0E\u9762",
+      colors: [C.gold, C.black, C.wine, C.emerald],
+      sizes: ALL,
+      measurements: { bust: 94, waist: 88, shoulder: 41, sleeve: 59, length: 66 },
+      ease: { bust: 4, waist: 2 }
+    },
+    {
+      id: "dg-tp-010",
+      code: "DG-SS25-TP-010",
+      name: "\u9542\u7A7A\u9488\u7EC7\u4E0A\u8863",
+      nameEn: "Crochet Knit Top",
+      category: "tops",
+      silhouette: "knit",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Knitwear",
+      fabric: "\u68C9\u7EBF\u94A9\u7EC7",
+      colors: [C.ivory, C.nude, C.sky, C.powder],
+      sizes: ALL,
+      measurements: { bust: 88, waist: 82, shoulder: 39, sleeve: 24, length: 56 },
+      ease: { bust: -2, waist: 0 }
+    },
+    {
+      id: "dg-tp-011",
+      code: "DG-SS25-TP-011",
+      name: "\u5370\u82B1\u96EA\u7EBA\u886C\u886B",
+      nameEn: "Printed Chiffon Shirt",
+      category: "tops",
+      silhouette: "blouse",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Sicilia",
+      fabric: "\u771F\u4E1D\u96EA\u7EBA",
+      colors: [C.leopard, C.red, C.ivory, C.navy],
+      sizes: ALL,
+      measurements: { bust: 100, waist: 98, shoulder: 42, sleeve: 57, length: 68 },
+      ease: { bust: 10, waist: 10 }
+    },
+    {
+      id: "dg-tp-012",
+      code: "DG-FW25-TP-012",
+      name: "\u7F57\u7EB9\u4FEE\u8EAB\u80CC\u5FC3",
+      nameEn: "Ribbed Fitted Vest",
+      category: "tops",
+      silhouette: "fitted",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Knitwear",
+      fabric: "\u7F57\u7EB9\u5F39\u529B\u9488\u7EC7",
+      colors: [C.black, C.ivory, C.olive, C.wine],
+      sizes: ALL,
+      measurements: { bust: 82, waist: 76, shoulder: 0, sleeve: 0, length: 58 },
+      ease: { bust: -8, waist: -4 }
+    },
+    /* ================= 下装 Bottoms ================= */
+    {
+      id: "dg-bt-001",
+      code: "DG-SS25-BT-001",
+      name: "\u9AD8\u8170\u76F4\u7B52\u725B\u4ED4\u88E4",
+      nameEn: "High-Rise Straight Jeans",
+      category: "bottoms",
+      silhouette: "straight",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Denim",
+      fabric: "\u5F39\u529B\u4E39\u5B81",
+      colors: [C.navy, C.black, C.sky, C.ivory],
+      sizes: ALL,
+      measurements: { waist: 72, hip: 96, length: 104, opening: 40 },
+      ease: { waist: 2, hip: 0 }
+    },
+    {
+      id: "dg-bt-002",
+      code: "DG-SS25-BT-002",
+      name: "\u897F\u5F0F\u9614\u817F\u88E4",
+      nameEn: "Tailored Wide-Leg Trousers",
+      category: "bottoms",
+      silhouette: "wide",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Tailoring",
+      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
+      colors: [C.black, C.camel, C.navy, C.ivory],
+      sizes: ALL,
+      measurements: { waist: 74, hip: 100, length: 108, opening: 56 },
+      ease: { waist: 4, hip: 4 }
+    },
+    {
+      id: "dg-bt-003",
+      code: "DG-SS25-BT-003",
+      name: "A \u5B57\u76AE\u9769\u77ED\u88D9",
+      nameEn: "Leather A-Line Mini",
+      category: "bottoms",
+      silhouette: "aline",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Biker",
+      fabric: "\u8F6F\u7F8A\u76AE",
+      colors: [C.black, C.chocolate, C.red],
+      sizes: ALL,
+      measurements: { waist: 72, hip: 96, length: 42, opening: 108 },
+      ease: { waist: 2, hip: 0 }
+    },
+    {
+      id: "dg-bt-004",
+      code: "DG-FW25-BT-004",
+      name: "\u94C5\u7B14\u4E2D\u957F\u88D9",
+      nameEn: "Pencil Midi Skirt",
+      category: "bottoms",
+      silhouette: "pencil",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Tailoring",
+      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
+      colors: [C.black, C.wine, C.navy, C.leopard],
+      sizes: ALL,
+      measurements: { waist: 70, hip: 94, length: 68, opening: 92 },
+      ease: { waist: 0, hip: -2 }
+    },
+    {
+      id: "dg-bt-005",
+      code: "DG-SS25-BT-005",
+      name: "\u7D27\u8EAB\u6253\u5E95\u88E4",
+      nameEn: "Skinny Leggings",
+      category: "bottoms",
+      silhouette: "skinny",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Casual",
+      fabric: "\u5F39\u529B\u68C9",
+      colors: [C.black, C.navy, C.olive, C.chocolate],
+      sizes: ALL,
+      measurements: { waist: 68, hip: 92, length: 100, opening: 26 },
+      ease: { waist: -2, hip: -4 }
+    },
+    {
+      id: "dg-bt-006",
+      code: "DG-SS25-BT-006",
+      name: "\u767E\u8936\u4E2D\u957F\u88D9",
+      nameEn: "Pleated Midi Skirt",
+      category: "bottoms",
+      silhouette: "flared",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Retro",
+      fabric: "\u538B\u8936\u96EA\u7EBA",
+      colors: [C.ivory, C.red, C.navy, C.lilac],
+      sizes: ALL,
+      measurements: { waist: 72, hip: 98, length: 76, opening: 160 },
+      ease: { waist: 2, hip: 2 }
+    },
+    {
+      id: "dg-bt-007",
+      code: "DG-SS25-BT-007",
+      name: "\u9AD8\u8170\u77ED\u88E4",
+      nameEn: "High-Rise Shorts",
+      category: "bottoms",
+      silhouette: "mini",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Casual",
+      fabric: "\u68C9\u8D28\u659C\u7EB9",
+      colors: [C.ivory, C.black, C.camel, C.sky],
+      sizes: ALL,
+      measurements: { waist: 72, hip: 96, length: 40, opening: 54 },
+      ease: { waist: 2, hip: 0 }
+    },
+    {
+      id: "dg-bt-008",
+      code: "DG-FW25-BT-008",
+      name: "\u5370\u82B1\u9614\u817F\u957F\u88E4",
+      nameEn: "Printed Palazzo Pants",
+      category: "bottoms",
+      silhouette: "wide",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Sicilia",
+      fabric: "\u771F\u4E1D",
+      colors: [C.leopard, C.black, C.wine, C.olive],
+      sizes: ALL,
+      measurements: { waist: 74, hip: 100, length: 110, opening: 62 },
+      ease: { waist: 4, hip: 4 }
+    },
+    {
+      id: "dg-bt-009",
+      code: "DG-SS25-BT-009",
+      name: "\u725B\u4ED4\u8FF7\u4F60\u88D9",
+      nameEn: "Denim Mini Skirt",
+      category: "bottoms",
+      silhouette: "aline",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Denim",
+      fabric: "\u4E39\u5B81\u5E03",
+      colors: [C.sky, C.navy, C.black, C.ivory],
+      sizes: ALL,
+      measurements: { waist: 72, hip: 96, length: 38, opening: 106 },
+      ease: { waist: 2, hip: 0 }
+    },
+    {
+      id: "dg-bt-010",
+      code: "DG-FW25-BT-010",
+      name: "\u7F8A\u6BDB\u9525\u5F62\u88E4",
+      nameEn: "Wool Tapered Trousers",
+      category: "bottoms",
+      silhouette: "straight",
+      fit: "\u5408\u4F53",
+      season: "FW 2025",
+      collection: "Tailoring",
+      fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
+      colors: [C.camel, C.black, C.navy, C.chocolate],
+      sizes: ALL,
+      measurements: { waist: 74, hip: 98, length: 102, opening: 36 },
+      ease: { waist: 4, hip: 2 }
+    },
+    {
+      id: "dg-bt-011",
+      code: "DG-SS25-BT-011",
+      name: "\u857E\u4E1D\u94C5\u7B14\u88D9",
+      nameEn: "Lace Pencil Skirt",
+      category: "bottoms",
+      silhouette: "pencil",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Lace",
+      fabric: "\u5F39\u529B\u857E\u4E1D",
+      colors: [C.black, C.ivory, C.wine, C.nude],
+      sizes: ALL,
+      measurements: { waist: 70, hip: 94, length: 62, opening: 92 },
+      ease: { waist: 0, hip: -2 }
+    },
+    {
+      id: "dg-bt-012",
+      code: "DG-SS25-BT-012",
+      name: "\u7CFB\u5E26\u6C99\u6EE9\u77ED\u88E4",
+      nameEn: "Tie Beach Shorts",
+      category: "bottoms",
+      silhouette: "wide",
+      fit: "\u5BBD\u677E",
+      season: "SS 2025",
+      collection: "Sicilia",
+      fabric: "\u68C9\u9EBB",
+      colors: [C.ivory, C.sky, C.nude, C.olive],
+      sizes: ALL,
+      measurements: { waist: 74, hip: 100, length: 46, opening: 58 },
+      ease: { waist: 4, hip: 4 }
+    },
+    /* ================= 外套 Outerwear ================= */
+    {
+      id: "dg-ot-001",
+      code: "DG-FW25-OT-001",
+      name: "\u7ECF\u5178\u897F\u88C5\u5916\u5957",
+      nameEn: "Classic Blazer",
+      category: "outer",
+      silhouette: "blazer",
+      fit: "\u5408\u4F53",
+      season: "FW 2025",
+      collection: "Tailoring",
+      fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
+      colors: [C.black, C.navy, C.camel, C.ivory],
+      sizes: ALL,
+      measurements: { bust: 96, waist: 88, shoulder: 42, sleeve: 60, length: 70 },
+      ease: { bust: 6, waist: 6 }
+    },
+    {
+      id: "dg-ot-002",
+      code: "DG-FW25-OT-002",
+      name: "\u53CC\u6392\u6263\u98CE\u8863",
+      nameEn: "Double-Breasted Trench",
+      category: "outer",
+      silhouette: "trench",
+      fit: "\u5408\u4F53",
+      season: "FW 2025",
+      collection: "Tailoring",
+      fabric: "\u9632\u96E8\u68C9\u534E\u8FBE\u5462",
+      colors: [C.camel, C.black, C.olive, C.navy],
+      sizes: ALL,
+      measurements: { bust: 100, waist: 94, shoulder: 43, sleeve: 61, length: 112 },
+      ease: { bust: 10, waist: 10 }
+    },
+    {
+      id: "dg-ot-003",
+      code: "DG-FW25-OT-003",
+      name: "\u673A\u8F66\u76AE\u5939\u514B",
+      nameEn: "Biker Leather Jacket",
+      category: "outer",
+      silhouette: "biker",
+      fit: "\u4FEE\u8EAB",
+      season: "FW 2025",
+      collection: "Biker",
+      fabric: "\u5C0F\u725B\u76AE",
+      colors: [C.black, C.chocolate, C.red],
+      sizes: ALL,
+      measurements: { bust: 92, waist: 84, shoulder: 41, sleeve: 60, length: 56 },
+      ease: { bust: 2, waist: 2 }
+    },
+    {
+      id: "dg-ot-004",
+      code: "DG-FW25-OT-004",
+      name: "\u5ED3\u5F62\u7F8A\u6BDB\u5927\u8863",
+      nameEn: "Oversize Wool Coat",
+      category: "outer",
+      silhouette: "oversize",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Tailoring",
+      fabric: "\u7F8A\u6BDB\u53CC\u9762\u5462",
+      colors: [C.camel, C.black, C.chocolate, C.olive],
+      sizes: ALL,
+      measurements: { bust: 114, waist: 110, shoulder: 47, sleeve: 61, length: 118 },
+      ease: { bust: 24, waist: 22 }
+    },
+    {
+      id: "dg-ot-005",
+      code: "DG-SS25-OT-005",
+      name: "\u77ED\u6B3E\u9488\u7EC7\u5F00\u886B",
+      nameEn: "Cropped Knit Cardigan",
+      category: "outer",
+      silhouette: "knit",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Knitwear",
+      fabric: "\u68C9\u7EBF\u9488\u7EC7",
+      colors: [C.ivory, C.black, C.powder, C.sky],
+      sizes: ALL,
+      measurements: { bust: 94, waist: 88, shoulder: 40, sleeve: 58, length: 50 },
+      ease: { bust: 4, waist: 2 }
+    },
+    {
+      id: "dg-ot-006",
+      code: "DG-FW25-OT-006",
+      name: "\u6597\u7BF7\u5F0F\u62AB\u80A9",
+      nameEn: "Cape Coat",
+      category: "outer",
+      silhouette: "cape",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u7F8A\u6BDB\u7ED2",
+      colors: [C.black, C.red, C.camel, C.gold],
+      sizes: ALL,
+      measurements: { bust: 110, waist: 108, shoulder: 44, sleeve: 0, length: 92 },
+      ease: { bust: 20, waist: 20 }
+    },
+    {
+      id: "dg-ot-007",
+      code: "DG-SS25-OT-007",
+      name: "\u857E\u4E1D\u77ED\u5939\u514B",
+      nameEn: "Lace Bolero Jacket",
+      category: "outer",
+      silhouette: "blazer",
+      fit: "\u4FEE\u8EAB",
+      season: "SS 2025",
+      collection: "Lace",
+      fabric: "\u857E\u4E1D",
+      colors: [C.black, C.ivory, C.wine],
+      sizes: ALL,
+      measurements: { bust: 90, waist: 84, shoulder: 39, sleeve: 56, length: 48 },
+      ease: { bust: 0, waist: 0 }
+    },
+    {
+      id: "dg-ot-008",
+      code: "DG-FW25-OT-008",
+      name: "\u5370\u82B1\u4E1D\u7ED2\u5916\u5957",
+      nameEn: "Printed Velvet Jacket",
+      category: "outer",
+      silhouette: "blazer",
+      fit: "\u5408\u4F53",
+      season: "FW 2025",
+      collection: "Sicilia",
+      fabric: "\u5370\u82B1\u4E1D\u7ED2",
+      colors: [C.leopard, C.emerald, C.wine, C.black],
+      sizes: ALL,
+      measurements: { bust: 98, waist: 90, shoulder: 42, sleeve: 60, length: 68 },
+      ease: { bust: 8, waist: 6 }
+    },
+    {
+      id: "dg-ot-009",
+      code: "DG-SS25-OT-009",
+      name: "\u725B\u4ED4\u77ED\u5939\u514B",
+      nameEn: "Denim Jacket",
+      category: "outer",
+      silhouette: "biker",
+      fit: "\u5408\u4F53",
+      season: "SS 2025",
+      collection: "Denim",
+      fabric: "\u4E39\u5B81\u5E03",
+      colors: [C.sky, C.navy, C.black, C.ivory],
+      sizes: ALL,
+      measurements: { bust: 100, waist: 94, shoulder: 43, sleeve: 59, length: 58 },
+      ease: { bust: 10, waist: 8 }
+    },
+    {
+      id: "dg-ot-010",
+      code: "DG-FW25-OT-010",
+      name: "\u76AE\u8349\u611F\u957F\u5916\u5957",
+      nameEn: "Faux Fur Long Coat",
+      category: "outer",
+      silhouette: "oversize",
+      fit: "\u5BBD\u677E",
+      season: "FW 2025",
+      collection: "Glamour",
+      fabric: "\u73AF\u4FDD\u76AE\u8349",
+      colors: [C.leopard, C.chocolate, C.ivory, C.black],
+      sizes: ALL,
+      measurements: { bust: 116, waist: 112, shoulder: 48, sleeve: 61, length: 106 },
+      ease: { bust: 26, waist: 24 }
+    }
   ];
-  function fabricMat(hex) {
-    return new MeshStandardMaterial({
-      color: hex,
-      roughness: 0.82,
-      metalness: 0.03,
-      side: DoubleSide
-    });
+  var DB_BY_ID = {};
+  DB.forEach((g) => {
+    DB_BY_ID[g.id] = g;
+  });
+  function slotOf(item) {
+    return item.category;
   }
-  function makeLathe(profile, zScale, mat) {
-    const pts = profile.map(([r, y]) => new Vector2(r, y));
-    const mesh = new Mesh(new LatheGeometry(pts, 40), mat);
+
+  // body.js
+  var FOOT_Y = -1.73;
+  var U = 1 / 50;
+  var BASE_HEIGHT = 170;
+  var DEFAULT_MODEL = {
+    height: 170,
+    weight: 56,
+    bust: 90,
+    waist: 70,
+    hip: 96,
+    shoulder: 40,
+    arm: 58,
+    inseam: 78,
+    neck: 36
+  };
+  var FIELD_META = [
+    { key: "height", label: "\u8EAB\u9AD8", unit: "cm", min: 140, max: 200, step: 1, hint: "\u51C0\u8EAB\u9AD8" },
+    { key: "weight", label: "\u4F53\u91CD", unit: "kg", min: 35, max: 110, step: 0.5, hint: "\u7528\u4E8E\u56F4\u5EA6\u539A\u5EA6\u4FEE\u6B63" },
+    { key: "bust", label: "\u80F8\u56F4", unit: "cm", min: 70, max: 125, step: 1, hint: "\u80F8\u90E8\u6700\u4E30\u6EE1\u5904\u6C34\u5E73\u56F4\u5EA6" },
+    { key: "waist", label: "\u8170\u56F4", unit: "cm", min: 50, max: 110, step: 1, hint: "\u8170\u90E8\u6700\u7EC6\u5904\u6C34\u5E73\u56F4\u5EA6" },
+    { key: "hip", label: "\u81C0\u56F4", unit: "cm", min: 75, max: 135, step: 1, hint: "\u81C0\u90E8\u6700\u4E30\u6EE1\u5904\u6C34\u5E73\u56F4\u5EA6" },
+    { key: "shoulder", label: "\u80A9\u5BBD", unit: "cm", min: 32, max: 52, step: 0.5, hint: "\u5DE6\u53F3\u80A9\u5CF0\u70B9\u95F4\u8DDD" },
+    { key: "arm", label: "\u81C2\u957F", unit: "cm", min: 48, max: 72, step: 1, hint: "\u80A9\u5CF0\u81F3\u624B\u8155" },
+    { key: "inseam", label: "\u817F\u957F", unit: "cm", min: 68, max: 96, step: 1, hint: "\u5185\u7F1D\u957F\uFF08\u88C6\u81F3\u811A\u8E1D\uFF09" },
+    { key: "neck", label: "\u9886\u56F4", unit: "cm", min: 28, max: 45, step: 0.5, hint: "\u9888\u90E8\u6839\u90E8\u56F4\u5EA6" }
+  ];
+  function bodyMetrics(model) {
+    const m = { ...DEFAULT_MODEL, ...model };
+    const hs = m.height / BASE_HEIGHT;
+    const bmi = m.weight / Math.pow(m.height / 100, 2);
+    const girthK = MathUtils.clamp(0.94 + bmi / 24 * 0.06, 0.92, 1.12);
+    const circ = (c) => c * U * 0.5 / Math.PI * girthK;
+    const rBust = circ(m.bust);
+    const rWaist = circ(m.waist);
+    const rHip = circ(m.hip);
+    const shoulderX = m.shoulder * U * 0.5 * girthK;
+    const hipY = FOOT_Y + m.inseam * U + 0.13;
+    const waistY = hipY + 0.42;
+    const bustY = hipY + 0.74;
+    const shoulderY = hipY + 1.08;
+    const neckY = shoulderY + 0.17;
+    const headY = shoulderY + 0.5;
+    const armLen = m.arm * U;
+    const neckR = m.neck * U / (Math.PI * 2) * girthK;
+    return {
+      m,
+      hs,
+      girthK,
+      rBust,
+      rWaist,
+      rHip,
+      shoulderX,
+      hipY,
+      waistY,
+      bustY,
+      shoulderY,
+      neckY,
+      headY,
+      armLen,
+      neckR,
+      depth: 0.76
+      // 截面椭圆的 z/x 比
+    };
+  }
+  function mat(color, rough = 0.86) {
+    return new MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
+  }
+  function limb(p1, p2, r1, r2, material, seg = 14) {
+    const dir = new Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    const mesh = new Mesh(new CylinderGeometry(r2, r1, len, seg, 1), material);
+    mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize());
+    return mesh;
+  }
+  function ball(pos, scale, material) {
+    const mesh = new Mesh(new SphereGeometry(1, 18, 14), material);
+    mesh.position.copy(pos);
+    mesh.scale.copy(scale);
+    return mesh;
+  }
+  function lathe(profile, zScale, material) {
+    const pts = profile.map(([r, y]) => new Vector2(Math.max(r, 0.01), y));
+    const mesh = new Mesh(new LatheGeometry(pts, 36), material);
     if (zScale !== 1) mesh.scale.z = zScale;
     return mesh;
   }
-  function limb(p1, p2, r1, r2, mat) {
-    const dir = new Vector3().subVectors(p2, p1);
-    const len = dir.length();
-    const mesh = new Mesh(new CylinderGeometry(r2, r1, len, 16, 1), mat);
-    mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
-    mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().normalize());
-    return mesh;
+  function buildBody(model) {
+    const k = bodyMetrics(model);
+    const g = new Group();
+    const skin = mat(14133632);
+    const hair = mat(2761504, 0.94);
+    g.add(ball(new Vector3(0, k.headY, 0), new Vector3(0.215, 0.25, 0.205), skin));
+    const hairMesh = new Mesh(
+      new SphereGeometry(0.222, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.56),
+      hair
+    );
+    hairMesh.scale.set(1, 1.18, 1.02);
+    hairMesh.position.set(0, k.headY + 0.02, -0.012);
+    hairMesh.rotation.x = -0.18;
+    g.add(hairMesh);
+    g.add(limb(
+      new Vector3(0, k.shoulderY + 0.02, 0),
+      new Vector3(0, k.neckY + 0.08, 0),
+      k.neckR,
+      k.neckR * 0.92,
+      skin
+    ));
+    const depth = k.depth;
+    g.add(lathe([
+      [k.rHip * 0.82, k.hipY - 0.16],
+      [k.rHip, k.hipY],
+      [k.rWaist * 1.02, k.waistY - 0.08],
+      [k.rWaist, k.waistY],
+      [k.rBust * 0.96, k.bustY - 0.12],
+      [k.rBust, k.bustY],
+      [k.rBust * 0.92, k.shoulderY - 0.08],
+      [k.shoulderX * 0.78, k.shoulderY],
+      [k.neckR * 1.1, k.shoulderY + 0.1]
+    ], depth, skin));
+    const sx = k.shoulderX;
+    const upperEndY = k.shoulderY - k.armLen * 0.5;
+    const wristY = k.shoulderY - k.armLen;
+    [-1, 1].forEach((s) => {
+      g.add(ball(new Vector3(s * sx, k.shoulderY - 0.02, 0), new Vector3(0.105, 0.105, 0.105), skin));
+      g.add(limb(
+        new Vector3(s * sx, k.shoulderY - 0.02, 0),
+        new Vector3(s * (sx + 0.05), upperEndY, 0),
+        0.1,
+        0.083,
+        skin
+      ));
+      g.add(ball(new Vector3(s * (sx + 0.05), upperEndY, 0), new Vector3(0.082, 0.082, 0.082), skin));
+      g.add(limb(
+        new Vector3(s * (sx + 0.05), upperEndY, 0),
+        new Vector3(s * (sx + 0.09), wristY, 0),
+        0.078,
+        0.058,
+        skin
+      ));
+      g.add(ball(new Vector3(s * (sx + 0.09), wristY - 0.06, 0), new Vector3(0.055, 0.095, 0.042), skin));
+    });
+    const legTop = k.hipY - 0.02;
+    const kneeY = FOOT_Y + (legTop - FOOT_Y) * 0.48;
+    const ankleY = FOOT_Y + 0.1;
+    const hipHalf = k.rHip * 0.52;
+    [-1, 1].forEach((s) => {
+      g.add(lathe([
+        [k.rHip * 0.5, legTop + 0.12],
+        [k.rHip * 0.52, legTop],
+        [k.rHip * 0.42, kneeY + 0.1]
+      ], 0.9, skin));
+      g.add(limb(
+        new Vector3(s * hipHalf, kneeY + 0.08, 0),
+        new Vector3(s * (hipHalf + 0.01), ankleY, 0),
+        0.098,
+        0.062,
+        skin
+      ));
+      const foot = new Mesh(new BoxGeometry(0.16, 0.09, 0.3), skin);
+      foot.position.set(s * (hipHalf + 0.01), FOOT_Y + 0.045, 0.07);
+      g.add(foot);
+    });
+    g.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    g.userData.k = k;
+    return g;
   }
-  function sphere(pos, scale, mat) {
-    const m = new Mesh(new SphereGeometry(1, 20, 16), mat);
-    m.position.copy(pos);
-    m.scale.copy(scale);
-    return m;
+  function modelSummary(model) {
+    const m = { ...DEFAULT_MODEL, ...model };
+    const bmi = m.weight / Math.pow(m.height / 100, 2);
+    let shape = "\u6807\u51C6";
+    if (bmi < 18.5) shape = "\u504F\u7626";
+    else if (bmi < 24) shape = "\u5300\u79F0";
+    else if (bmi < 28) shape = "\u5FAE\u4E30\u8174";
+    else shape = "\u4E30\u8174";
+    return `${m.height}cm \xB7 ${m.weight}kg \xB7 ${shape} \xB7 \u4E09\u56F4 ${m.bust}/${m.waist}/${m.hip}`;
   }
-  function finish(g, dyeMats) {
-    g.userData.dyeMaterials = dyeMats;
+
+  // garment.js
+  var U2 = 1 / 50;
+  var BASE_BUST = SIZE_CHART["IT 40"].bust;
+  function sizeScale(size) {
+    return (SIZE_CHART[size] || SIZE_CHART["IT 40"]).bust / BASE_BUST;
+  }
+  function recommendSize(model) {
+    const bust = model.bust || 90;
+    let best = "IT 40", diff = Infinity;
+    SIZES.forEach((s) => {
+      const d = Math.abs(SIZE_CHART[s].bust - bust);
+      if (d < diff) {
+        diff = d;
+        best = s;
+      }
+    });
+    return best;
+  }
+  function fabricMat(hex) {
+    return new MeshStandardMaterial({
+      color: hex,
+      roughness: 0.8,
+      metalness: 0.02,
+      side: DoubleSide
+    });
+  }
+  function finish(g, mats) {
+    g.userData.dyeMaterials = mats;
     g.traverse((o) => {
       if (o.isMesh) o.castShadow = true;
     });
     return g;
   }
-  var GARMENTS = {
-    tops: [
-      {
-        id: "tshirt",
-        name: "\u5706\u9886 T \u6064",
-        icon: "tshirt",
-        slot: "top",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, -0.4], [0.3, -0.25], [0.29, 0], [0.25, 0.25], [0.28, 0.55], [0.33, 0.85], [0.35, 1], [0.3, 1.07]], 0.76, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.32, 0.93, 0), new Vector3(s * 0.54, 0.56, 0), 0.14, 0.12, mat)));
-          const collar = new Mesh(new TorusGeometry(0.115, 0.022, 8, 24), mat);
-          collar.rotation.x = Math.PI / 2;
-          collar.position.set(0, 1.07, 0);
-          collar.scale.z = 0.8;
-          g.add(collar);
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "shirt",
-        name: "\u4FEE\u8EAB\u886C\u886B",
-        icon: "shirt",
-        slot: "top",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, -0.5], [0.3, -0.3], [0.29, 0], [0.25, 0.25], [0.28, 0.55], [0.33, 0.85], [0.35, 1], [0.28, 1.08]], 0.76, mat));
-          [-1, 1].forEach((s) => {
-            g.add(limb(new Vector3(s * 0.33, 0.93, 0), new Vector3(s * 0.38, 0.42, 0), 0.135, 0.11, mat));
-            g.add(limb(new Vector3(s * 0.38, 0.42, 0), new Vector3(s * 0.41, -0.2, 0), 0.105, 0.085, mat));
-            const cuff = new Mesh(new CylinderGeometry(0.086, 0.086, 0.07, 14), mat);
-            cuff.position.set(s * 0.41, -0.2, 0);
-            g.add(cuff);
-            const collar = new Mesh(new BoxGeometry(0.13, 0.15, 0.02), mat);
-            collar.position.set(s * 0.075, 1.06, 0.075);
-            collar.rotation.z = s * 0.5;
-            g.add(collar);
-          });
-          const placket = new Mesh(new BoxGeometry(0.035, 0.9, 0.014), mat);
-          placket.position.set(0, 0.3, 0.235);
-          g.add(placket);
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "hoodie",
-        name: "\u8FDE\u5E3D\u536B\u8863",
-        icon: "hoodie",
-        slot: "top",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.3, -0.5], [0.34, -0.3], [0.33, 0], [0.29, 0.25], [0.31, 0.55], [0.36, 0.85], [0.38, 1], [0.32, 1.08]], 0.8, mat));
-          [-1, 1].forEach((s) => {
-            g.add(limb(new Vector3(s * 0.35, 0.93, 0), new Vector3(s * 0.4, 0.42, 0), 0.15, 0.12, mat));
-            g.add(limb(new Vector3(s * 0.4, 0.42, 0), new Vector3(s * 0.43, -0.18, 0), 0.12, 0.095, mat));
-          });
-          const hood = new Mesh(new SphereGeometry(0.29, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.58), mat);
-          hood.position.set(0, 1.22, -0.07);
-          hood.scale.set(1, 0.9, 0.85);
-          hood.rotation.x = -0.3;
-          g.add(hood);
-          const pocket = new Mesh(new BoxGeometry(0.3, 0.18, 0.02), mat);
-          pocket.position.set(0, -0.18, 0.265);
-          g.add(pocket);
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "tank",
-        name: "\u7EC6\u5E26\u80CC\u5FC3",
-        icon: "tank",
-        slot: "top",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, -0.35], [0.29, -0.2], [0.28, 0], [0.25, 0.2], [0.28, 0.45], [0.31, 0.7], [0.3, 0.85]], 0.76, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.17, 0.83, 0), new Vector3(s * 0.16, 1.1, 0), 0.026, 0.026, mat)));
-          return finish(g, [mat]);
-        }
-      }
-    ],
-    bottoms: [
-      {
-        id: "jeans",
-        name: "\u76F4\u7B52\u725B\u4ED4\u88E4",
-        icon: "jeans",
-        slot: "bottom",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.26, -0.44], [0.3, -0.28], [0.29, -0.08], [0.28, 0.06]], 0.8, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.15, -0.12, 0), new Vector3(s * 0.16, -1.58, 0), 0.16, 0.115, mat)));
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "chinos",
-        name: "\u5BBD\u677E\u4F11\u95F2\u88E4",
-        icon: "chinos",
-        slot: "bottom",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, -0.44], [0.31, -0.28], [0.3, -0.08], [0.29, 0.06]], 0.8, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.15, -0.12, 0), new Vector3(s * 0.17, -1.58, 0), 0.185, 0.145, mat)));
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "shorts",
-        name: "\u8FD0\u52A8\u77ED\u88E4",
-        icon: "shorts",
-        slot: "bottom",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.26, -0.44], [0.3, -0.28], [0.29, -0.08], [0.28, 0.06]], 0.8, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.15, -0.12, 0), new Vector3(s * 0.16, -0.88, 0), 0.175, 0.155, mat)));
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "skirt",
-        name: "A \u5B57\u534A\u88D9",
-        icon: "skirt",
-        slot: "bottom",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, 0.02], [0.28, -0.15], [0.35, -0.5], [0.46, -0.9], [0.52, -1.08]], 1, mat));
-          const waist = new Mesh(new TorusGeometry(0.27, 0.02, 8, 30), mat);
-          waist.rotation.x = Math.PI / 2;
-          waist.position.y = 0.02;
-          waist.scale.z = 0.8;
-          g.add(waist);
-          return finish(g, [mat]);
-        }
-      }
-    ],
-    dresses: [
-      {
-        id: "slip",
-        name: "\u540A\u5E26\u8FDE\u8863\u88D9",
-        icon: "slip",
-        slot: "dress",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.26, -0.42], [0.29, -0.2], [0.26, 0.05], [0.24, 0.3], [0.26, 0.6], [0.3, 0.82], [0.29, 0.95]], 0.76, mat));
-          g.add(makeLathe([[0.26, 0.12], [0.28, -0.15], [0.36, -0.55], [0.48, -1], [0.54, -1.18]], 1, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.16, 0.9, 0), new Vector3(s * 0.16, 1.12, 0), 0.026, 0.026, mat)));
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "aline",
-        name: "A \u5B57\u8FDE\u8863\u88D9",
-        icon: "aline",
-        slot: "dress",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.27, -0.42], [0.3, -0.2], [0.27, 0.05], [0.25, 0.3], [0.28, 0.6], [0.33, 0.85], [0.35, 1], [0.26, 1.07]], 0.78, mat));
-          g.add(makeLathe([[0.27, 0.1], [0.29, -0.2], [0.38, -0.6], [0.52, -1.05], [0.58, -1.25]], 1, mat));
-          [-1, 1].forEach((s) => g.add(limb(new Vector3(s * 0.32, 0.93, 0), new Vector3(s * 0.5, 0.58, 0), 0.13, 0.11, mat)));
-          return finish(g, [mat]);
-        }
-      },
-      {
-        id: "evening",
-        name: "\u4F18\u96C5\u665A\u793C\u670D",
-        icon: "evening",
-        slot: "dress",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.25, -0.42], [0.27, -0.2], [0.23, 0.05], [0.22, 0.3], [0.25, 0.6], [0.29, 0.85], [0.29, 1], [0.19, 1.08]], 0.74, mat));
-          g.add(makeLathe([[0.24, 0.08], [0.26, -0.2], [0.32, -0.6], [0.44, -1.1], [0.62, -1.65], [0.66, -1.72]], 1, mat));
-          const belt = new Mesh(new TorusGeometry(0.235, 0.025, 8, 30), mat);
-          belt.rotation.x = Math.PI / 2;
-          belt.position.y = 0.08;
-          belt.scale.z = 0.78;
+  function lathe2(profile, zScale, mat2) {
+    const pts = profile.map(([r, y]) => new Vector2(Math.max(r, 0.01), y));
+    const mesh = new Mesh(new LatheGeometry(pts, 40), mat2);
+    if (zScale !== 1) mesh.scale.z = zScale;
+    return mesh;
+  }
+  function limb2(p1, p2, r1, r2, mat2, seg = 14) {
+    const dir = new Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    const mesh = new Mesh(new CylinderGeometry(r2, r1, len, seg, 1), mat2);
+    mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize());
+    return mesh;
+  }
+  function ball2(pos, scale, mat2) {
+    const mesh = new Mesh(new SphereGeometry(1, 18, 14), mat2);
+    mesh.position.copy(pos);
+    mesh.scale.copy(scale);
+    return mesh;
+  }
+  function torus(r, tube, y, zScale, mat2) {
+    const t = new Mesh(new TorusGeometry(r, tube, 8, 32), mat2);
+    t.rotation.x = Math.PI / 2;
+    t.position.y = y;
+    t.scale.z = zScale;
+    return t;
+  }
+  function gR(circumferenceCm, k) {
+    return Math.max(0.06, circumferenceCm * U2 * 0.5 / Math.PI);
+  }
+  function gL(lengthCm, k) {
+    return lengthCm * U2;
+  }
+  function buildGarment(itemId, size, model, colorHex) {
+    const item = DB_BY_ID[itemId];
+    if (!item) return null;
+    const k = bodyMetrics(model);
+    const sc = sizeScale(size || "IT 40");
+    const M = item.measurements;
+    const mat2 = fabricMat(colorHex);
+    const g = new Group();
+    const depth = 0.78;
+    let bustR = gR((M.bust || 90) * sc, k);
+    let waistR = gR((M.waist || 72) * sc, k);
+    let hipR = gR((M.hip || 96) * sc, k);
+    bustR = Math.max(bustR, k.rBust + 0.012);
+    waistR = Math.max(waistR, k.rWaist + 0.012);
+    hipR = Math.max(hipR, k.rHip + 0.012);
+    const shoulderX = (M.shoulder || 40) * U2 * 0.5;
+    const sleeveLen = gL(M.sleeve || 0, k);
+    const length = gL(M.length || 80, k);
+    const openingR = gR((M.opening || 100) * sc, k);
+    const topY = k.shoulderY;
+    const hemY = topY - length;
+    const waistY = k.waistY;
+    const hipY = k.hipY;
+    const bustY = k.bustY;
+    const sil = item.silhouette;
+    if (item.category === "dresses") {
+      if (sil === "slip") {
+        g.add(lathe2([
+          [bustR * 0.92, bustY - 0.08],
+          [bustR, bustY + 0.06],
+          [waistR * 0.95, waistY],
+          [hipR, hipY],
+          [openingR * 0.8, hemY + 0.2],
+          [openingR, hemY]
+        ], depth, mat2));
+        const strapZ = bustR * depth + 0.02;
+        [-1, 1].forEach((s) => g.add(limb2(
+          new Vector3(s * bustR * 0.62, bustY + 0.04, strapZ),
+          new Vector3(s * (shoulderX * 0.8), topY + 0.06, strapZ * 0.75),
+          0.032,
+          0.03,
+          mat2
+        )));
+      } else if (sil === "fitted" || sil === "blouse" || sil === "wrap") {
+        g.add(lathe2([
+          [bustR * 0.85, topY],
+          [bustR, bustY],
+          [waistR, waistY],
+          [hipR, hipY],
+          [hipR * 1.15, hemY + 0.25],
+          [hipR * 1.3, hemY]
+        ], depth, mat2));
+        if (M.sleeve > 0) addSleeves(g, (s) => [
+          new Vector3(s * shoulderX, topY - 0.02, 0),
+          new Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.55, 0),
+          new Vector3(s * (shoulderX + 0.07), topY - sleeveLen, 0)
+        ], 0.115, 0.085, mat2);
+        if (sil === "wrap") {
+          const belt = torus(waistR * 1.02, 0.022, waistY, depth, mat2);
           g.add(belt);
-          return finish(g, [mat]);
+        }
+      } else if (sil === "aline" || sil === "flared" || sil === "cape") {
+        g.add(lathe2([
+          [bustR * 0.9, topY],
+          [bustR, bustY],
+          [waistR, waistY],
+          [hipR, hipY],
+          [hipR + (openingR - hipR) * 0.5, hemY + 0.3],
+          [openingR, hemY]
+        ], depth, mat2));
+        if (sil === "cape") {
+          g.add(lathe2([
+            [shoulderX * 1.05, topY + 0.06],
+            [openingR * 1.15, topY - 0.9],
+            [openingR * 1.35, topY - 1.35]
+          ], depth * 1.05, mat2));
+        }
+      } else if (sil === "straight" || sil === "peplum") {
+        g.add(lathe2([
+          [bustR * 0.88, topY],
+          [bustR, bustY],
+          [waistR, waistY],
+          [hipR, hipY],
+          [hipR * (sil === "peplum" ? 1.28 : 1.05), hemY + 0.18],
+          [hipR * (sil === "peplum" ? 1.34 : 1.06), hemY]
+        ], depth, mat2));
+        if (sil === "peplum") g.add(torus(waistR * 1.06, 0.03, waistY + 0.04, depth, mat2));
+        if (M.sleeve > 0) addSleeves(g, (s) => [
+          new Vector3(s * shoulderX, topY - 0.02, 0),
+          new Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.6, 0),
+          new Vector3(s * (shoulderX + 0.06), topY - sleeveLen, 0)
+        ], 0.105, 0.075, mat2);
+      }
+      if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat2, 0.13);
+    } else if (item.category === "tops") {
+      if (sil === "slip") {
+        g.add(lathe2([
+          [bustR * 0.88, topY - 0.22],
+          [bustR, bustY],
+          [waistR, waistY],
+          [waistR * 0.95, hemY]
+        ], depth, mat2));
+      } else if (sil === "oversize" || sil === "knit") {
+        g.add(lathe2([
+          [bustR * 0.95, topY],
+          [bustR, bustY],
+          [waistR * 1.02, waistY],
+          [waistR * 1.05, hemY]
+        ], depth, mat2));
+        if (M.sleeve > 0) addSleeves(g, (s) => [
+          new Vector3(s * shoulderX, topY - 0.02, 0),
+          new Vector3(s * (shoulderX + 0.06), topY - sleeveLen * 0.55, 0),
+          new Vector3(s * (shoulderX + 0.09), topY - sleeveLen, 0)
+        ], 0.135, 0.105, mat2);
+      } else {
+        g.add(lathe2([
+          [bustR * 0.85, topY],
+          [bustR, bustY],
+          [waistR * 0.98, waistY],
+          [waistR * 0.96, hemY]
+        ], depth, mat2));
+        if (M.sleeve > 0) {
+          const short = sleeveLen < gL(30, k);
+          addSleeves(g, (s) => {
+            const p1 = new Vector3(s * shoulderX, topY - 0.02, 0);
+            const p3 = new Vector3(s * (shoulderX + (short ? 0.16 : 0.05)), topY - sleeveLen, 0);
+            const p2 = p1.clone().lerp(p3, 0.55);
+            return [p1, p2, p3];
+          }, short ? 0.125 : 0.105, short ? 0.115 : 0.075, mat2);
+        }
+        if (M.neck !== 0) {
+          g.add(torus(Math.min(bustR * 0.5, 0.14), 0.018, topY + 0.02, depth, mat2));
         }
       }
-    ],
-    outer: [
-      {
-        id: "jacket",
-        name: "\u77ED\u6B3E\u5939\u514B",
-        icon: "jacket",
-        slot: "outer",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.29, -0.25], [0.33, -0.05], [0.31, 0.2], [0.29, 0.5], [0.35, 0.85], [0.38, 1], [0.3, 1.08]], 0.82, mat));
-          [-1, 1].forEach((s) => {
-            g.add(limb(new Vector3(s * 0.35, 0.93, 0), new Vector3(s * 0.4, 0.42, 0), 0.155, 0.125, mat));
-            g.add(limb(new Vector3(s * 0.4, 0.42, 0), new Vector3(s * 0.43, -0.24, 0), 0.125, 0.1, mat));
-            const lapel = new Mesh(new BoxGeometry(0.15, 0.22, 0.02), mat);
-            lapel.position.set(s * 0.09, 0.95, 0.2);
-            lapel.rotation.z = s * 0.35;
-            g.add(lapel);
-          });
-          return finish(g, [mat]);
+      if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat2, 0.12);
+    } else if (item.category === "bottoms") {
+      const isSkirt = ["aline", "pencil", "flared"].includes(sil);
+      if (isSkirt) {
+        const hem = k.hipY - length + 0.5;
+        const waistY2 = k.waistY;
+        let hemR = openingR;
+        if (sil === "pencil") hemR = hipR * 0.96;
+        g.add(lathe2([
+          [waistR * 1.02, waistY2 + 0.06],
+          [hipR, k.hipY],
+          [(hipR + hemR) * 0.5, (k.hipY + hem) * 0.5],
+          [hemR, hem]
+        ], depth, mat2));
+        g.add(torus(waistR * 1.03, 0.02, waistY2 + 0.06, depth, mat2));
+      } else {
+        g.add(lathe2([
+          [waistR * 1.03, k.waistY + 0.06],
+          [hipR, k.hipY],
+          [hipR * 0.92, k.hipY - 0.25]
+        ], depth, mat2));
+        const legTop = k.hipY - 0.12;
+        const legBottom = FOOT_Y + 0.12;
+        const legLen = legTop - legBottom;
+        const kneeY = legTop - legLen * 0.5;
+        const hipHalf = hipR * 0.5;
+        [-1, 1].forEach((s) => {
+          const wide = sil === "wide" || sil === "mini";
+          const rTop = wide ? hipR * 0.48 : hipR * 0.42;
+          const rHem = gR(openingR, k) * (wide ? 1 : 0.62);
+          g.add(limb2(
+            new Vector3(s * hipHalf, legTop, 0),
+            new Vector3(s * hipHalf, kneeY, 0),
+            rTop,
+            (rTop + rHem) * 0.5,
+            mat2
+          ));
+          g.add(limb2(
+            new Vector3(s * hipHalf, kneeY, 0),
+            new Vector3(s * hipHalf, legBottom, 0),
+            (rTop + rHem) * 0.5,
+            rHem,
+            mat2
+          ));
+        });
+        g.add(torus(waistR * 1.03, 0.02, k.waistY + 0.06, depth, mat2));
+      }
+    } else if (item.category === "outer") {
+      if (sil === "cape") {
+        g.add(lathe2([
+          [shoulderX * 1.12, topY + 0.08],
+          [bustR * 1.35, topY - 0.7],
+          [hipR * 1.5, topY - 1.3],
+          [openingR * 1.5, hemY]
+        ], depth, mat2));
+      } else {
+        const outerBust = Math.max(bustR, k.rBust + 0.05);
+        g.add(lathe2([
+          [outerBust * 0.88, topY],
+          [outerBust, bustY],
+          [Math.max(waistR, k.rWaist + 0.05), waistY],
+          [Math.max(hipR, k.rHip + 0.04), hipY],
+          [Math.max(hipR, k.rHip + 0.06) * 1.06, hemY]
+        ], depth, mat2));
+        if (sleeveLen > 0) {
+          addSleeves(g, (s) => [
+            new Vector3(s * shoulderX * 1.04, topY - 0.02, 0),
+            new Vector3(s * (shoulderX + 0.07), topY - sleeveLen * 0.55, 0),
+            new Vector3(s * (shoulderX + 0.1), topY - sleeveLen, 0)
+          ], 0.15, 0.115, mat2);
         }
-      },
-      {
-        id: "trench",
-        name: "\u7ECF\u5178\u98CE\u8863",
-        icon: "trench",
-        slot: "outer",
-        build(color) {
-          const mat = fabricMat(color);
-          const g = new Group();
-          g.add(makeLathe([[0.31, -0.9], [0.32, -0.5], [0.31, -0.1], [0.3, 0.2], [0.29, 0.5], [0.35, 0.85], [0.38, 1], [0.3, 1.08]], 0.84, mat));
-          [-1, 1].forEach((s) => {
-            g.add(limb(new Vector3(s * 0.35, 0.93, 0), new Vector3(s * 0.4, 0.42, 0), 0.16, 0.13, mat));
-            g.add(limb(new Vector3(s * 0.4, 0.42, 0), new Vector3(s * 0.43, -0.24, 0), 0.13, 0.105, mat));
-            const lapel = new Mesh(new BoxGeometry(0.16, 0.24, 0.02), mat);
-            lapel.position.set(s * 0.09, 0.95, 0.21);
-            lapel.rotation.z = s * 0.35;
-            g.add(lapel);
-          });
-          const belt = new Mesh(new TorusGeometry(0.3, 0.026, 8, 32), mat);
-          belt.rotation.x = Math.PI / 2;
-          belt.position.y = 0;
-          belt.scale.z = 0.82;
-          g.add(belt);
-          return finish(g, [mat]);
+        const lapelW = sil === "trench" ? 0.19 : 0.15;
+        [-1, 1].forEach((s) => {
+          const lp = new Mesh(new BoxGeometry(lapelW, 0.24, 0.02), mat2);
+          lp.position.set(s * 0.085, topY - 0.06, bustR * depth + 0.01);
+          lp.rotation.z = s * 0.35;
+          g.add(lp);
+        });
+        if (sil === "trench" || sil === "blazer") {
+          g.add(torus(Math.max(waistR, k.rWaist + 0.05) * 1.02, 0.025, waistY, depth, mat2));
         }
       }
-    ]
-  };
-  var GARMENT_BY_ID = {};
-  Object.values(GARMENTS).flat().forEach((g) => {
-    GARMENT_BY_ID[g.id] = g;
-  });
+      addShoulderCaps(g, shoulderX, topY, mat2, 0.15);
+    }
+    return finish(g, [mat2]);
+  }
+  function addSleeves(g, pathOf, r1, r2, mat2) {
+    [-1, 1].forEach((s) => {
+      const pts = pathOf(s);
+      g.add(limb2(pts[0], pts[1], r1, (r1 + r2) * 0.5, mat2));
+      g.add(limb2(pts[1], pts[2], (r1 + r2) * 0.5, r2, mat2));
+      g.add(ball2(pts[2].clone(), new Vector3(r2, r2, r2), mat2));
+    });
+  }
+  function addShoulderCaps(g, shoulderX, topY, mat2, r) {
+    [-1, 1].forEach((s) => {
+      g.add(ball2(
+        new Vector3(s * shoulderX, topY - 0.04, 0),
+        new Vector3(r, r * 0.92, r * 0.9),
+        mat2
+      ));
+    });
+  }
+  function specText(item, size) {
+    const M = item.measurements;
+    const sc = sizeScale(size);
+    const parts = [];
+    if (M.bust) parts.push(`\u80F8\u56F4 ${Math.round(M.bust * sc)}`);
+    if (M.waist) parts.push(`\u8170\u56F4 ${Math.round(M.waist * sc)}`);
+    if (M.hip) parts.push(`\u81C0\u56F4 ${Math.round(M.hip * sc)}`);
+    if (M.length) parts.push(`\u8863\u957F ${Math.round(M.length)}`);
+    return parts.join(" / ") + " cm";
+  }
+
+  // app.js
   var container = document.getElementById("canvas-container");
   var scene = new Scene();
   var camera = new PerspectiveCamera(36, 1, 0.1, 100);
@@ -20546,8 +21573,7 @@
   controls.maxPolarAngle = Math.PI * 0.88;
   controls.enablePan = false;
   scene.add(new AmbientLight(16777215, 0.55));
-  var hemi = new HemisphereLight(14674175, 2760984, 0.55);
-  scene.add(hemi);
+  scene.add(new HemisphereLight(14674175, 2760984, 0.55));
   var key = new DirectionalLight(16774112, 2.1);
   key.position.set(3.5, 6, 5);
   key.castShadow = true;
@@ -20578,66 +21604,55 @@
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = -1.75;
   scene.add(ring);
-  var skinMat = new MeshStandardMaterial({ color: 14265990, roughness: 0.86, metalness: 0 });
-  var hairMat = new MeshStandardMaterial({ color: 2893089, roughness: 0.92, metalness: 0 });
-  function buildAvatar() {
-    const g = new Group();
-    const head = new Mesh(new SphereGeometry(0.23, 32, 24), skinMat);
-    head.scale.set(1, 1.16, 0.94);
-    head.position.set(0, 1.47, 0);
-    g.add(head);
-    const hair = new Mesh(new SphereGeometry(0.235, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.56), hairMat);
-    hair.scale.set(1, 1.16, 0.96);
-    hair.position.set(0, 1.49, -0.01);
-    g.add(hair);
-    g.add(limb(new Vector3(0, 1.18, 0), new Vector3(0, 1.35, 0), 0.095, 0.09, skinMat));
-    g.add(makeLathe([[0.22, -0.42], [0.26, -0.28], [0.25, -0.05], [0.21, 0.2], [0.23, 0.5], [0.28, 0.78], [0.3, 0.95], [0.26, 1.05], [0.11, 1.12]], 0.72, skinMat));
-    [-1, 1].forEach((s) => {
-      g.add(sphere(new Vector3(s * 0.31, 0.92, 0), new Vector3(0.115, 0.115, 0.115), skinMat));
-      g.add(limb(new Vector3(s * 0.31, 0.92, 0), new Vector3(s * 0.36, 0.4, 0), 0.105, 0.09, skinMat));
-      g.add(sphere(new Vector3(s * 0.36, 0.4, 0), new Vector3(0.088, 0.088, 0.088), skinMat));
-      g.add(limb(new Vector3(s * 0.36, 0.4, 0), new Vector3(s * 0.4, -0.12, 0), 0.085, 0.065, skinMat));
-      g.add(sphere(new Vector3(s * 0.4, -0.2, 0), new Vector3(0.06, 0.098, 0.045), skinMat));
-      g.add(sphere(new Vector3(s * 0.14, -0.38, 0), new Vector3(0.13, 0.13, 0.13), skinMat));
-      g.add(limb(new Vector3(s * 0.14, -0.38, 0), new Vector3(s * 0.15, -0.96, 0), 0.13, 0.105, skinMat));
-      g.add(sphere(new Vector3(s * 0.15, -0.96, 0), new Vector3(0.105, 0.105, 0.105), skinMat));
-      g.add(limb(new Vector3(s * 0.15, -0.96, 0), new Vector3(s * 0.16, -1.6, 0), 0.1, 0.07, skinMat));
-      const foot = new Mesh(new BoxGeometry(0.17, 0.1, 0.32), skinMat);
-      foot.position.set(s * 0.16, -1.68, 0.07);
-      g.add(foot);
-    });
-    g.traverse((o) => {
-      if (o.isMesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-      }
-    });
-    return g;
-  }
   var avatarGroup = new Group();
-  var avatar = buildAvatar();
-  avatarGroup.add(avatar);
-  scene.add(avatarGroup);
   var garmentGroup = new Group();
   avatarGroup.add(garmentGroup);
+  scene.add(avatarGroup);
+  var LS_KEY = "atelier_model_profile_v1";
   var state = {
-    category: "tops",
-    outfit: { top: null, bottom: null, dress: null, outer: null },
-    activeGarment: null,
-    color: COLORS[0].hex,
-    colorName: COLORS[0].name,
-    bodyType: "standard",
-    height: 1,
-    weight: 1
+    model: null,
+    // 建档后的模特参数
+    category: "dresses",
+    size: "IT 40",
+    outfit: { tops: null, bottoms: null, dresses: null, outer: null },
+    activeSlot: null,
+    color: PALETTE.black.hex,
+    colorName: PALETTE.black.name
   };
-  var BODY_PRESETS = {
-    slim: { height: 0.98, weight: 0.84 },
-    standard: { height: 1, weight: 1 },
-    athletic: { height: 1.04, weight: 1.24 }
-  };
-  function dyeGarment(g, hex) {
-    if (!g || !g.userData.dyeMaterials) return;
-    g.userData.dyeMaterials.forEach((m) => m.color.setHex(hex));
+  function loadProfile() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      return p && typeof p.height === "number" ? p : null;
+    } catch {
+      return null;
+    }
+  }
+  function saveProfile(p) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(p));
+    } catch {
+    }
+  }
+  var currentAvatarMesh = null;
+  function rebuildAvatar() {
+    if (currentAvatarMesh) {
+      avatarGroup.remove(currentAvatarMesh);
+      currentAvatarMesh.traverse((o) => {
+        if (o.isMesh) o.geometry.dispose();
+      });
+    }
+    currentAvatarMesh = buildBody(state.model);
+    avatarGroup.remove(garmentGroup);
+    avatarGroup.add(currentAvatarMesh);
+    avatarGroup.add(garmentGroup);
+    applyBodyScale();
+  }
+  function applyBodyScale() {
+    const k = bodyMetrics(state.model);
+    avatarGroup.scale.set(k.hs, k.hs, k.hs);
+    avatarGroup.position.y = FOOT_Y * (1 - k.hs);
   }
   function clearSlot(slot) {
     const item = state.outfit[slot];
@@ -20648,128 +21663,79 @@
     });
     state.outfit[slot] = null;
   }
-  function selectGarment(garmentId) {
-    const g = GARMENT_BY_ID[garmentId];
-    if (!g) return;
-    const slot = g.slot;
-    if (slot === "dress") {
-      clearSlot("top");
-      clearSlot("bottom");
-      clearSlot("dress");
-    } else if (slot === "top" || slot === "bottom") {
-      clearSlot("dress");
+  function selectGarment(itemId, opt = {}) {
+    const item = DB_BY_ID[itemId];
+    if (!item || !state.model) return;
+    const slot = slotOf(item);
+    if (slot === "dresses") {
+      ["tops", "bottoms", "dresses"].forEach(clearSlot);
+    } else if (slot === "tops" || slot === "bottoms") {
+      clearSlot("dresses");
       clearSlot(slot);
-    } else {
-      clearSlot(slot);
-    }
-    const color = state.color;
-    const group = g.build(color);
-    if (slot === "top" || slot === "outer" || g.id === "aline") {
-      const capMat = group.userData.dyeMaterials[0];
-      [-1, 1].forEach((s) => {
-        const cap = sphere(new Vector3(s * 0.31, 0.93, 0), new Vector3(0.15, 0.145, 0.145), capMat);
-        group.add(cap);
-      });
-    }
+    } else clearSlot(slot);
+    const color = opt.color ?? state.color;
+    const colorName2 = opt.colorName ?? state.colorName;
+    const group = buildGarment(itemId, state.size, state.model, color);
+    if (!group) return;
     garmentGroup.add(group);
-    const entry = { id: g.id, name: g.name, slot, group, color: state.color, colorName: state.colorName };
-    state.outfit[slot] = entry;
-    state.activeGarment = entry;
+    state.outfit[slot] = { id: itemId, slot, group, color, colorName: colorName2 };
+    state.activeSlot = slot;
+    state.color = color;
+    state.colorName = colorName2;
     renderGarments();
     renderSummary();
     updateStatus();
-    toast(`\u5DF2\u8BD5\u7A7F\uFF1A${g.name}`);
+    renderColors();
+    toast(`\u5DF2\u8BD5\u7A7F\uFF1A${item.name}`);
   }
   function clearAll() {
-    ["top", "bottom", "dress", "outer"].forEach(clearSlot);
-    state.activeGarment = null;
+    Object.keys(state.outfit).forEach(clearSlot);
+    state.activeSlot = null;
     renderGarments();
     renderSummary();
     updateStatus();
-    toast("\u5DF2\u6E05\u7A7A\u7740\u88C5");
   }
   function setColor(hex, name) {
     state.color = hex;
     state.colorName = name;
-    if (state.activeGarment) {
-      dyeGarment(state.activeGarment.group, hex);
-      state.activeGarment.color = hex;
-      state.activeGarment.colorName = name;
+    if (state.activeSlot && state.outfit[state.activeSlot]) {
+      const entry = state.outfit[state.activeSlot];
+      entry.group.userData.dyeMaterials?.forEach((m) => m.color.setHex(hex));
+      entry.color = hex;
+      entry.colorName = name;
       renderSummary();
-    } else {
-      toast("\u8BF7\u5148\u9009\u62E9\u4E00\u4EF6\u670D\u9970");
-    }
+    } else toast("\u8BF7\u5148\u9009\u62E9\u4E00\u4EF6\u670D\u9970");
     renderColors();
-  }
-  var FOOT_Y = -1.73;
-  function applyBodyScale() {
-    avatarGroup.scale.set(state.weight, state.height, state.weight);
-    avatarGroup.position.y = FOOT_Y * (1 - state.height);
-  }
-  function setBodyType(type) {
-    const preset = BODY_PRESETS[type];
-    if (!preset) return;
-    state.bodyType = type;
-    state.height = preset.height;
-    state.weight = preset.weight;
-    applyBodyScale();
-    renderBodyTypes();
-    renderSliders();
-  }
-  function setHeight(v) {
-    state.height = v;
-    state.bodyType = "custom";
-    applyBodyScale();
-    renderBodyTypes();
-    renderSliders("height");
-  }
-  function setWeight(v) {
-    state.weight = v;
-    state.bodyType = "custom";
-    applyBodyScale();
-    renderBodyTypes();
-    renderSliders("weight");
   }
   var els = {
     tabs: document.getElementById("category-tabs"),
     list: document.getElementById("garment-list"),
     colors: document.getElementById("color-swatches"),
-    bodies: document.getElementById("body-type-buttons"),
+    sizes: document.getElementById("size-buttons"),
+    sizeHint: document.getElementById("size-hint"),
     views: document.getElementById("view-buttons"),
     summary: document.getElementById("outfit-summary"),
     status: document.getElementById("stage-status"),
     toast: document.getElementById("toast"),
-    heightSlider: document.getElementById("height-slider"),
-    weightSlider: document.getElementById("weight-slider"),
-    heightVal: document.getElementById("height-val"),
-    weightVal: document.getElementById("weight-val")
+    modelChip: document.getElementById("model-chip")
   };
-  function weightLabel(w) {
-    if (w < 0.86) return "\u504F\u7626";
-    if (w < 0.96) return "\u7EA4\u7EC6";
-    if (w <= 1.06) return "\u6807\u51C6";
-    if (w <= 1.18) return "\u5FAE\u58EE";
-    return "\u5065\u58EE";
-  }
-  function renderSliders(skip) {
-    const hm = Math.round(state.height * 100) + "%";
-    const wm = weightLabel(state.weight);
-    els.heightVal.textContent = hm;
-    els.weightVal.textContent = wm;
-    if (skip !== "height") {
-      els.heightSlider.value = state.height;
-      const hp = (state.height - 0.85) / (1.18 - 0.85) * 100;
-      els.heightSlider.style.setProperty("--fill", hp + "%");
-    }
-    if (skip !== "weight") {
-      els.weightSlider.value = state.weight;
-      const wp = (state.weight - 0.78) / (1.32 - 0.78) * 100;
-      els.weightSlider.style.setProperty("--fill", wp + "%");
-    }
-  }
+  var SWATCHES = [
+    PALETTE.black,
+    PALETTE.ivory,
+    PALETTE.red,
+    PALETTE.wine,
+    PALETTE.navy,
+    PALETTE.emerald,
+    PALETTE.camel,
+    PALETTE.gold,
+    PALETTE.powder,
+    PALETTE.leopard,
+    PALETTE.olive,
+    PALETTE.chocolate
+  ];
   function renderCategories() {
-    els.tabs.innerHTML = CATEGORIES.map(
-      (c) => `<button class="category-tab ${c.id === state.category ? "active" : ""}" data-cat="${c.id}">${c.name}</button>`
+    els.tabs.innerHTML = DB_CATEGORIES.map(
+      (c) => `<button class="category-tab ${c.id === state.category ? "active" : ""}" data-cat="${c.id}">${c.name}<span class="tab-count">${DB.filter((g) => g.category === c.id).length}</span></button>`
     ).join("");
     els.tabs.querySelectorAll(".category-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -20780,13 +21746,19 @@
     });
   }
   function renderGarments() {
-    const items = GARMENTS[state.category];
+    const items = DB.filter((g) => g.category === state.category);
     els.list.innerHTML = items.map((item) => {
       const chosen = Object.values(state.outfit).some((o) => o && o.id === item.id);
-      return `<div class="garment-card ${chosen ? "selected" : ""}" data-id="${item.id}">
+      const sw = item.colors.slice(0, 4).map((c) => `<i style="background:#${c.hex.toString(16).padStart(6, "0")}"></i>`).join("");
+      return `<div class="garment-card db-card ${chosen ? "selected" : ""}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div class="garment-icon"><svg viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round">${ICONS[item.icon]}</svg></div>
+      <div class="db-card-head">
+        <span class="db-code">${item.code}</span>
+        <span class="db-fit">${item.fit}</span>
+      </div>
       <div class="garment-name">${item.name}</div>
+      <div class="db-meta">${SILHOUETTE_NAMES[item.silhouette] || item.silhouette} \xB7 ${item.fabric}</div>
+      <div class="db-foot"><span class="db-swatches">${sw}</span><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
     }).join("");
     els.list.querySelectorAll(".garment-card").forEach((card) => {
@@ -20794,56 +21766,167 @@
     });
   }
   function renderColors() {
-    els.colors.innerHTML = COLORS.map(
-      (c) => `<div class="swatch ${c.hex === state.color ? "active" : ""}" data-hex="${c.hex}" title="${c.name}" style="background:#${c.hex.toString(16).padStart(6, "0")}"></div>`
+    els.colors.innerHTML = SWATCHES.map(
+      (c) => `<div class="swatch ${c.hex === state.color ? "active" : ""}" data-hex="${c.hex}" data-name="${c.name}" title="${c.name}" style="background:#${c.hex.toString(16).padStart(6, "0")}"></div>`
     ).join("");
     els.colors.querySelectorAll(".swatch").forEach((sw) => {
-      sw.addEventListener("click", () => {
-        const hex = parseInt(sw.dataset.hex, 10);
-        const c = COLORS.find((x) => x.hex === hex);
-        setColor(hex, c ? c.name : "");
-      });
+      sw.addEventListener("click", () => setColor(parseInt(sw.dataset.hex, 10), sw.dataset.name));
     });
   }
-  function renderBodyTypes() {
-    const types = [["slim", "\u7EA4\u7EC6"], ["standard", "\u6807\u51C6"], ["athletic", "\u5065\u7855"]];
-    els.bodies.innerHTML = types.map(
-      ([id, name]) => `<button class="${id === state.bodyType ? "active" : ""}" data-type="${id}">${name}</button>`
+  function renderSizes() {
+    const rec = recommendSize(state.model || DEFAULT_MODEL);
+    els.sizes.innerHTML = SIZES.map(
+      (s) => `<button class="${s === state.size ? "active" : ""}" data-size="${s}">${s}${s === rec ? '<i class="rec-dot"></i>' : ""}</button>`
     ).join("");
-    els.bodies.querySelectorAll("button").forEach(
-      (b) => b.addEventListener("click", () => setBodyType(b.dataset.type))
-    );
+    els.sizes.querySelectorAll("button").forEach((b) => {
+      b.addEventListener("click", () => {
+        state.size = b.dataset.size;
+        renderSizes();
+        renderGarments();
+        recomputeOutfitForSize();
+      });
+    });
+    els.sizeHint.textContent = `\u6309\u80F8\u56F4 ${state.model?.bust ?? 90}cm \u63A8\u8350 ${rec} \xB7 \u5706\u70B9\u4E3A\u63A8\u8350\u7801`;
   }
-  els.heightSlider.addEventListener("input", (e) => setHeight(parseFloat(e.target.value)));
-  els.weightSlider.addEventListener("input", (e) => setWeight(parseFloat(e.target.value)));
+  function recomputeOutfitForSize() {
+    Object.keys(state.outfit).forEach((slot) => {
+      const entry = state.outfit[slot];
+      if (!entry) return;
+      const color = entry.color;
+      const group = buildGarment(entry.id, state.size, state.model, color);
+      garmentGroup.remove(entry.group);
+      entry.group.traverse((o) => {
+        if (o.isMesh) o.geometry.dispose();
+      });
+      garmentGroup.add(group);
+      entry.group = group;
+    });
+    renderSummary();
+  }
   function renderSummary() {
     const worn = Object.values(state.outfit).filter(Boolean);
-    if (worn.length === 0) {
+    if (!worn.length) {
       els.summary.innerHTML = '<div class="outfit-empty">\u5C1A\u672A\u9009\u62E9\u670D\u9970</div>';
       return;
     }
     els.summary.innerHTML = worn.map((o) => {
+      const item = DB_BY_ID[o.id];
       const hex = "#" + (o.color >>> 0).toString(16).padStart(6, "0");
-      return `<div class="outfit-row"><span class="label">${o.name}</span><span class="value"><span class="dot" style="background:${hex}"></span>${o.colorName || ""}</span></div>`;
+      return `<div class="outfit-row"><span class="label">${item.name}<small>${state.size}</small></span><span class="value"><span class="dot" style="background:${hex}"></span>${o.colorName || ""}</span></div>`;
     }).join("");
   }
   function updateStatus() {
-    const worn = Object.values(state.outfit).filter(Boolean);
-    if (worn.length === 0) {
-      els.status.textContent = "\u672A\u7740\u88C5";
-      els.status.classList.remove("has-outfit");
-    } else {
-      els.status.textContent = `\u5DF2\u642D\u914D ${worn.length} \u4EF6`;
-      els.status.classList.add("has-outfit");
-    }
+    const n = Object.values(state.outfit).filter(Boolean).length;
+    els.status.textContent = n ? `\u5DF2\u642D\u914D ${n} \u4EF6 \xB7 ${state.size}` : "\u672A\u7740\u88C5";
+    els.status.classList.toggle("has-outfit", n > 0);
+  }
+  function renderModelChip() {
+    els.modelChip.textContent = state.model ? modelSummary(state.model) : "\u672A\u5EFA\u6863";
   }
   var toastTimer = null;
   function toast(msg) {
     els.toast.textContent = msg;
     els.toast.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2e3);
+    toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2200);
   }
+  var profileModal = document.getElementById("profile-modal");
+  var profileForm = document.getElementById("profile-form");
+  var profileTitle = document.getElementById("profile-title");
+  var profileSubtitle = document.getElementById("profile-subtitle");
+  var profileDraft = { ...DEFAULT_MODEL };
+  function openProfileModal(isEdit) {
+    profileDraft = { ...state.model || DEFAULT_MODEL };
+    profileTitle.textContent = isEdit ? "\u7F16\u8F91\u6A21\u7279\u6863\u6848" : "\u5EFA\u7ACB\u6A21\u7279\u6863\u6848";
+    profileSubtitle.textContent = "\u8BF7\u586B\u5199\u8EAB\u4F53\u6D4B\u91CF\u6570\u636E\uFF0C\u8FD9\u4E9B\u53C2\u6570\u5C06\u51B3\u5B9A 3D \u6A21\u7279\u4F53\u578B\u4E0E\u670D\u88C5\u7684\u5408\u8EAB\u7A0B\u5EA6";
+    document.getElementById("profile-save").textContent = isEdit ? "\u4FDD\u5B58\u5E76\u66F4\u65B0" : "\u521B\u5EFA\u6A21\u7279\u5E76\u5F00\u59CB";
+    renderProfileForm();
+    profileModal.classList.add("open");
+  }
+  function closeProfileModal() {
+    profileModal.classList.remove("open");
+  }
+  function renderProfileForm() {
+    const groups = [
+      { title: "\u57FA\u7840\u4FE1\u606F", fields: FIELD_META.slice(0, 2) },
+      { title: "\u4E09\u56F4\u6570\u636E", fields: FIELD_META.slice(2, 5) },
+      { title: "\u4F53\u6001\u7EC6\u8282", fields: FIELD_META.slice(5) }
+    ];
+    profileForm.innerHTML = groups.map((grp) => `
+    <div class="profile-group">
+      <h4>${grp.title}</h4>
+      ${grp.fields.map((f) => `
+        <div class="profile-field">
+          <div class="profile-field-label">
+            <label for="pf-${f.key}">${f.label}</label>
+            <span class="pf-hint">${f.hint}</span>
+          </div>
+          <div class="profile-input-row">
+            <input type="range" id="pf-range-${f.key}" data-key="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${profileDraft[f.key]}" />
+            <div class="number-wrap">
+              <input type="number" id="pf-${f.key}" data-key="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${profileDraft[f.key]}" />
+              <span>${f.unit}</span>
+            </div>
+          </div>
+        </div>`).join("")}
+    </div>`).join("");
+    profileForm.querySelectorAll("input[type=range]").forEach((r) => {
+      r.addEventListener("input", (e) => {
+        const key2 = e.target.dataset.key;
+        profileDraft[key2] = parseFloat(e.target.value);
+        profileForm.querySelector(`#pf-${key2}`).value = profileDraft[key2];
+        updateRangeFill(r);
+        updateProfilePreview();
+      });
+    });
+    profileForm.querySelectorAll("input[type=number]").forEach((n) => {
+      n.addEventListener("input", (e) => {
+        const key2 = e.target.dataset.key;
+        const f = FIELD_META.find((x) => x.key === key2);
+        let v = parseFloat(e.target.value);
+        if (!isFinite(v)) return;
+        v = Math.min(f.max, Math.max(f.min, v));
+        profileDraft[key2] = v;
+        const range = profileForm.querySelector(`#pf-range-${key2}`);
+        range.value = v;
+        updateRangeFill(range);
+        updateProfilePreview();
+      });
+    });
+    profileForm.querySelectorAll("input[type=range]").forEach(updateRangeFill);
+    updateProfilePreview();
+  }
+  function updateRangeFill(el) {
+    const min = parseFloat(el.min), max = parseFloat(el.max);
+    const p = (parseFloat(el.value) - min) / (max - min) * 100;
+    el.style.setProperty("--fill", p + "%");
+  }
+  function updateProfilePreview() {
+    const box = document.getElementById("profile-live-summary");
+    if (box) box.textContent = modelSummary(profileDraft);
+    const rec = recommendSize(profileDraft);
+    const recBox = document.getElementById("profile-rec-size");
+    if (recBox) recBox.textContent = `\u63A8\u8350\u5C3A\u7801 ${rec}`;
+  }
+  document.getElementById("profile-save").addEventListener("click", () => {
+    state.model = { ...profileDraft };
+    saveProfile(state.model);
+    const rec = recommendSize(state.model);
+    state.size = rec;
+    rebuildAvatar();
+    renderSizes();
+    renderModelChip();
+    renderGarments();
+    renderSummary();
+    updateStatus();
+    closeProfileModal();
+    toast(`\u6A21\u7279\u6863\u6848\u5DF2\u5EFA\u7ACB \xB7 \u63A8\u8350 ${rec}`);
+  });
+  document.getElementById("profile-cancel").addEventListener("click", () => {
+    if (!state.model) return;
+    closeProfileModal();
+  });
+  document.getElementById("btn-edit-model").addEventListener("click", () => openProfileModal(true));
   var VIEWS = {
     front: new Vector3(0, 0.35, 6.2),
     side: new Vector3(6.2, 0.35, 0),
@@ -20862,7 +21945,6 @@
   });
   document.getElementById("btn-reset").addEventListener("click", () => {
     clearAll();
-    setBodyType("standard");
     moveCameraTo(VIEWS.front);
     els.views.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
     els.views.querySelector('[data-view="front"]').classList.add("active");
@@ -20870,17 +21952,15 @@
   document.getElementById("btn-clear").addEventListener("click", clearAll);
   document.getElementById("btn-snapshot").addEventListener("click", () => {
     renderer.render(scene, camera);
-    const data = renderer.domElement.toDataURL("image/png");
     const a = document.createElement("a");
-    a.href = data;
+    a.href = renderer.domElement.toDataURL("image/png");
     a.download = "atelier-look.png";
     a.click();
     toast("\u9020\u578B\u56FE\u7247\u5DF2\u4FDD\u5B58");
   });
   function resize() {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) return;
+    const w = container.clientWidth, h = container.clientHeight;
+    if (!w || !h) return;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
@@ -20898,14 +21978,6 @@
     controls.update();
     renderer.render(scene, camera);
   }
-  renderCategories();
-  renderGarments();
-  renderColors();
-  renderBodyTypes();
-  renderSliders();
-  resize();
-  animate();
-  document.getElementById("loading").classList.add("hidden");
   var photoModal = document.getElementById("photo-modal");
   var dropZone = document.getElementById("drop-zone");
   var photoFile = document.getElementById("photo-file");
@@ -20914,10 +21986,15 @@
   var detectedSwatch = document.getElementById("detected-swatch");
   var detectedColorName = document.getElementById("detected-color-name");
   var detectedTypeName = document.getElementById("detected-type-name");
+  var detectedSpec = document.getElementById("detected-spec");
   var matchSelect = document.getElementById("detected-match");
   var applyBtn = document.getElementById("photo-apply");
   var detected = null;
   function openPhotoModal() {
+    if (!state.model) {
+      toast("\u8BF7\u5148\u5EFA\u7ACB\u6A21\u7279\u6863\u6848");
+      return;
+    }
     photoModal.classList.add("open");
   }
   function closePhotoModal() {
@@ -20929,11 +22006,15 @@
     if (e.target === photoModal) closePhotoModal();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePhotoModal();
+    if (e.key === "Escape") {
+      closePhotoModal();
+      closeProfileModal();
+    }
   });
   dropZone.addEventListener("click", () => photoFile.click());
   photoFile.addEventListener("change", (e) => {
     if (e.target.files && e.target.files[0]) handlePhoto(e.target.files[0]);
+    e.target.value = "";
   });
   ["dragenter", "dragover"].forEach(
     (ev) => dropZone.addEventListener(ev, (e) => {
@@ -20949,7 +22030,7 @@
   );
   dropZone.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) handlePhoto(file);
+    if (file) handlePhoto(file);
     else toast("\u8BF7\u4E0A\u4F20\u56FE\u7247\u6587\u4EF6");
   });
   function resetScanUI() {
@@ -20958,50 +22039,70 @@
     scanResult.hidden = true;
     dropZone.style.display = "";
     photoFile.value = "";
+    scanImg.removeAttribute("src");
   }
-  document.getElementById("photo-reselect").addEventListener("click", resetScanUI);
+  function sniffImageType(bytes) {
+    if (!bytes || bytes.length < 4) return null;
+    if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return "image/jpeg";
+    if (bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) return "image/png";
+    if (bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70) return "image/webp";
+    if (bytes[0] === 71 && bytes[1] === 73 && bytes[2] === 70) return "image/gif";
+    if (bytes[0] === 66 && bytes[1] === 77) return "image/bmp";
+    return null;
+  }
   function handlePhoto(file) {
-    if (!file.type.startsWith("image/")) {
-      toast("\u8BF7\u4E0A\u4F20\u56FE\u7247\u6587\u4EF6");
-      return;
-    }
     const reader = new FileReader();
-    reader.onload = (e) => analyzePhoto(e.target.result, file.name);
-    reader.readAsDataURL(file);
+    reader.onerror = () => toast("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u6362\u4E00\u5F20\u8BD5\u8BD5");
+    reader.onload = (e) => {
+      const bytes = new Uint8Array(e.target.result);
+      const type = sniffImageType(bytes) || (file.type && file.type.startsWith("image/") ? file.type : null);
+      if (!type) {
+        toast("\u65E0\u6CD5\u8BC6\u522B\u8BE5\u56FE\u7247\u683C\u5F0F\uFF0C\u8BF7\u4E0A\u4F20 JPG / PNG / WEBP");
+        return;
+      }
+      const blob = new Blob([bytes], { type });
+      const url = URL.createObjectURL(blob);
+      analyzePhoto(url);
+    };
+    reader.readAsArrayBuffer(file);
   }
-  function analyzePhoto(dataUrl, fileName) {
+  function analyzePhoto(url) {
     const img = new Image();
     img.onload = () => {
       const color = extractDominantColor(img);
-      const guess = guessGarment(img, color);
-      scanImg.src = dataUrl;
+      const guess = guessGarment(img, color, color.subjectRatio);
+      scanImg.src = url;
       const cssHex = "#" + color.hex.toString(16).padStart(6, "0");
       detectedSwatch.style.background = cssHex;
       detectedColorName.textContent = color.name;
-      detectedTypeName.textContent = guess.label;
+      detectedTypeName.textContent = SILHOUETTE_NAMES[guess.silhouette] || guess.label;
+      detectedSpec.textContent = `${guess.item.name} \xB7 ${guess.item.code}`;
       matchSelect.innerHTML = "";
-      CATEGORIES.forEach((cat) => {
+      DB_CATEGORIES.forEach((cat) => {
         const og = document.createElement("optgroup");
         og.label = cat.name;
-        GARMENTS[cat.id].forEach((g) => {
+        DB.filter((g) => g.category === cat.id).forEach((g) => {
           const opt = document.createElement("option");
           opt.value = g.id;
           opt.textContent = g.name;
-          if (g.id === guess.id) opt.selected = true;
+          if (g.id === guess.item.id) opt.selected = true;
           og.appendChild(opt);
         });
         matchSelect.appendChild(og);
       });
-      detected = { hex: color.hex, colorName: color.name, garmentId: guess.id };
+      detected = { hex: color.hex, colorName: color.name, garmentId: guess.item.id };
       dropZone.style.display = "none";
       scanResult.hidden = false;
       applyBtn.disabled = false;
     };
-    img.onerror = () => toast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u6362\u4E00\u5F20\u8BD5\u8BD5");
-    img.src = dataUrl;
+    img.onerror = () => {
+      toast("\u56FE\u7247\u89E3\u7801\u5931\u8D25\uFF0C\u8BF7\u6362\u4E00\u5F20\u8BD5\u8BD5");
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
   }
   function extractDominantColor(img) {
-    const W = 120, H = 120;
+    const W = 128, H = 128;
     const canvas = document.createElement("canvas");
     canvas.width = W;
     canvas.height = H;
@@ -21011,27 +22112,53 @@
     const scale = Math.min(W / img.width, H / img.height);
     const dw = img.width * scale, dh = img.height * scale;
     ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-    const data = ctx.getImageData(0, 0, W, H).data;
+    const d = ctx.getImageData(0, 0, W, H).data;
+    const corners = [];
+    const cs = 10;
+    [[0, 0], [W - cs, 0], [0, H - cs], [W - cs, H - cs]].forEach(([x, y]) => {
+      let r2 = 0, g2 = 0, b2 = 0, n = 0;
+      for (let yy = y; yy < y + cs; yy++) for (let xx = x; xx < x + cs; xx++) {
+        const i = (yy * W + xx) * 4;
+        r2 += d[i];
+        g2 += d[i + 1];
+        b2 += d[i + 2];
+        n++;
+      }
+      corners.push([r2 / n, g2 / n, b2 / n]);
+    });
+    const bg = [0, 1, 2].map((c) => corners.reduce((s, p) => s + p[c], 0) / corners.length);
     const buckets = /* @__PURE__ */ new Map();
-    for (let i = 0; i < data.length; i += 4) {
-      const r2 = data[i], g2 = data[i + 1], b2 = data[i + 2], a = data[i + 3];
+    const cx = W / 2, cy = H / 2;
+    let minX = W, maxX = 0, minY = H, maxY = 0, subjectCount = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const r2 = d[i], g2 = d[i + 1], b2 = d[i + 2], a = d[i + 3];
       if (a < 128) continue;
       const mx = Math.max(r2, g2, b2), mn = Math.min(r2, g2, b2);
-      if (mn > 232) continue;
-      if (mx < 24) continue;
-      if (mx - mn < 12 && mn > 170) continue;
+      const distBg = Math.abs(r2 - bg[0]) + Math.abs(g2 - bg[1]) + Math.abs(b2 - bg[2]);
+      if (distBg < 48 && mn > 150) continue;
+      if (mn > 240 && mx - mn < 18) continue;
+      if (mx < 20) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      subjectCount++;
+      const nx = (x - cx) / cx, ny = (y - cy) / cy;
+      const w = 1 + 1.5 * Math.max(0, 1 - Math.sqrt(nx * nx + ny * ny));
       const key2 = r2 >> 5 << 6 | g2 >> 5 << 3 | b2 >> 5;
       let bk = buckets.get(key2);
       if (!bk) {
         bk = { n: 0, r: 0, g: 0, b: 0 };
         buckets.set(key2, bk);
       }
-      bk.n++;
-      bk.r += r2;
-      bk.g += g2;
-      bk.b += b2;
+      bk.n += w;
+      bk.r += r2 * w;
+      bk.g += g2 * w;
+      bk.b += b2 * w;
     }
-    let r = 128, g = 128, b = 128;
+    const subjectRatio = subjectCount > 30 ? (maxY - minY) / Math.max(1, maxX - minX) : img.height / img.width;
+    let r = 90, g = 90, b = 90;
     if (buckets.size) {
       let best = null;
       buckets.forEach((v) => {
@@ -21042,30 +22169,44 @@
       b = Math.round(best.b / best.n);
     }
     const hsl = rgbToHsl(r, g, b);
-    let L = Math.min(0.82, Math.max(0.2, hsl[2]));
-    if (hsl[1] < 0.05 && L > 0.85) L = 0.78;
+    let L = Math.min(0.8, Math.max(0.22, hsl[2]));
     const rgb = hslToRgb(hsl[0], hsl[1], L);
-    return { hex: rgb[0] << 16 | rgb[1] << 8 | rgb[2], name: colorName(rgb[0], rgb[1], rgb[2]) };
+    return {
+      hex: rgb[0] << 16 | rgb[1] << 8 | rgb[2],
+      name: colorName(rgb[0], rgb[1], rgb[2]),
+      subjectRatio
+    };
   }
-  function guessGarment(img, color) {
-    const ratio = img.height / img.width;
-    const chsl = rgbToHsl(
-      color.hex >> 16 & 255,
-      color.hex >> 8 & 255,
-      color.hex & 255
-    );
-    let id, label;
-    if (ratio > 1.25) {
-      id = chsl[2] < 0.45 ? "jeans" : "aline";
-      label = "\u8FDE\u8863\u88D9 / \u957F\u88E4\uFF08\u6309\u56FE\u7247\u6BD4\u4F8B\u63A8\u8350\uFF09";
-    } else if (ratio < 0.85) {
-      id = "tshirt";
-      label = "\u4E0A\u88C5 / \u77ED\u6B3E\uFF08\u6309\u56FE\u7247\u6BD4\u4F8B\u63A8\u8350\uFF09";
+  function guessGarment(img, color, subRatio) {
+    const ratio = subRatio || img.height / img.width;
+    const hsl = rgbToHsl(color.hex >> 16 & 255, color.hex >> 8 & 255, color.hex & 255);
+    let category, silhouette, label;
+    if (ratio > 1.6) {
+      category = "dresses";
+      silhouette = hsl[1] < 0.25 ? "fitted" : "aline";
+      label = "\u957F\u6B3E\u4E3B\u4F53\uFF08\u63A8\u6D4B\u8FDE\u8863\u88D9\uFF09";
+    } else if (ratio > 1.15) {
+      if (hsl[2] < 0.35) {
+        category = "bottoms";
+        silhouette = "straight";
+        label = "\u7AD6\u957F\u6DF1\u8272\u4E3B\u4F53\uFF08\u63A8\u6D4B\u88E4\u88C5\uFF09";
+      } else {
+        category = "dresses";
+        silhouette = "aline";
+        label = "\u4E2D\u957F\u4E3B\u4F53\uFF08\u63A8\u6D4B\u8FDE\u8863\u88D9\uFF09";
+      }
+    } else if (ratio < 0.9) {
+      category = "tops";
+      silhouette = hsl[2] > 0.68 ? "blouse" : "fitted";
+      label = "\u5BBD\u77ED\u4E3B\u4F53\uFF08\u63A8\u6D4B\u4E0A\u88C5\uFF09";
     } else {
-      id = "shirt";
-      label = "\u4E0A\u88C5\uFF08\u6309\u56FE\u7247\u6BD4\u4F8B\u63A8\u8350\uFF09";
+      category = "tops";
+      silhouette = hsl[1] < 0.2 ? "knit" : "fitted";
+      label = "\u5E38\u89C4\u6BD4\u4F8B\uFF08\u63A8\u6D4B\u4E0A\u88C5\uFF09";
     }
-    return { id, label };
+    const candidates = DB.filter((g) => g.category === category);
+    const item = candidates.find((g) => g.silhouette === silhouette) || candidates.find((g) => g.fit === (hsl[1] < 0.2 ? "\u5BBD\u677E" : "\u5408\u4F53")) || candidates[0] || DB[0];
+    return { item, silhouette: item.silhouette, label, category };
   }
   function colorName(r, g, b) {
     const [h, s, l] = rgbToHsl(r, g, b);
@@ -21090,8 +22231,7 @@
     b /= 255;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
     let h = 0, s = 0;
-    const l = (mx + mn) / 2;
-    const d = mx - mn;
+    const l = (mx + mn) / 2, d = mx - mn;
     if (d) {
       s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
       if (mx === r) h = (g - b) / d % 6;
@@ -21104,21 +22244,50 @@
   }
   function hslToRgb(h, s, l) {
     const f = (n) => {
-      const k = (n + h * 12) % 12;
-      const a = s * Math.min(l, 1 - l);
+      const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l);
       return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
     };
     return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
   }
+  document.getElementById("photo-reselect").addEventListener("click", resetScanUI);
   applyBtn.addEventListener("click", () => {
     if (!detected) return;
-    const gid = matchSelect.value || detected.garmentId;
-    selectGarment(gid);
-    setColor(detected.hex, detected.colorName);
+    selectGarment(matchSelect.value || detected.garmentId, { color: detected.hex, colorName: detected.colorName });
     closePhotoModal();
     resetScanUI();
     toast("\u7167\u7247\u8BC6\u522B\u6362\u8863\u5B8C\u6210");
   });
+  var saved = loadProfile();
+  if (saved) {
+    state.model = saved;
+    state.size = recommendSize(saved);
+    rebuildAvatar();
+    openProfileModal(false);
+    profileModal.classList.remove("open");
+  }
+  renderCategories();
+  renderColors();
+  renderSizes();
+  renderModelChip();
+  resize();
+  animate();
+  document.getElementById("loading").classList.add("hidden");
+  if (!state.model) openProfileModal(false);
+  window.__atelier = {
+    state,
+    DB,
+    applyProfile(p) {
+      state.model = { ...DEFAULT_MODEL, ...p };
+      state.size = recommendSize(state.model);
+      saveProfile(state.model);
+      rebuildAvatar();
+      renderSizes();
+      renderModelChip();
+      renderGarments();
+      profileModal.classList.remove("open");
+      return state.model;
+    }
+  };
 })();
 /**
  * @license

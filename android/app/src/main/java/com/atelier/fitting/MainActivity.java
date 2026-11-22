@@ -95,7 +95,20 @@ public class MainActivity extends Activity {
 
     private Uri copyToInternal(Uri source) {
         try {
-            String name = UUID.randomUUID().toString() + ".img";
+            // 保留原始图片扩展名，避免 WebView 端 MIME 判定丢失
+            String ext = ".jpg";
+            String mime = getContentResolver().getType(source);
+            if (mime != null) {
+                if (mime.contains("png")) ext = ".png";
+                else if (mime.contains("webp")) ext = ".webp";
+                else if (mime.contains("gif")) ext = ".gif";
+            } else {
+                String disp = source.getLastPathSegment();
+                if (disp != null && disp.toLowerCase().matches(".*\\.(png|webp|gif|jpeg)")) {
+                    ext = disp.substring(disp.lastIndexOf('.'));
+                }
+            }
+            String name = UUID.randomUUID().toString() + ext;
             InputStream in = getContentResolver().openInputStream(source);
             OutputStream out = openFileOutput(name, MODE_PRIVATE);
             byte[] buf = new byte[8192];
