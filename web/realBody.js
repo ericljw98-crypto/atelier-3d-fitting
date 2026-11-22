@@ -17,6 +17,7 @@ const MODEL_URL = 'models/female_real.glb';
 
 let cachedScene = null;        // 缓存已解析的原始场景，避免重复请求
 let cachedNativeHeight = null; // 原生模型高度（自动测量，不依赖硬编码）
+let cachedNativeMinY = null;   // 原生模型脚底 y（模块级缓存，不能挂在单次 clone 上）
 
 function cloneSkeleton(src) {
   // 必须用 SkeletonUtils.clone 才能正确复制蒙皮骨骼与网格的绑定关系
@@ -79,11 +80,16 @@ export async function buildRealBody(model) {
   }
 
   // 自动测量原生高度（静止姿态），不依赖硬编码常量
-  if (cachedNativeHeight == null) {
+  // 关键：测量值必须缓存在模块级变量。若挂在 figure.userData 上，
+  // 首次加载期间被竞态取消后第二次 buildRealBody 会拿到 undefined，
+  // 最终 figure.position.y = NaN，导致模特整体消失。
+  if (cachedNativeHeight == null || cachedNativeMinY == null) {
     const box = new THREE.Box3().setFromObject(figure);
     cachedNativeHeight = box.max.y - box.min.y;
-    figure.userData.nativeMinY = box.min.y;
+    cachedNativeMinY = box.min.y;
+    figure.userData.nativeMinY = cachedNativeMinY;
   }
+  const nativeMinY = cachedNativeMinY ?? figure.userData.nativeMinY ?? 0;
 
   function applyProfile(m) {
     const p = { ...DEFAULT_MODEL, ...(m || {}) };
@@ -93,7 +99,8 @@ export async function buildRealBody(model) {
 
     // 整体缩放：目标身高(cm) × U → 场景单位，除以原生高度；脚底对齐 FOOT_Y
     const targetHeight = p.height * U;
-    const hs = targetHeight / cachedNativeHeight;
+    const hs = (cachedNativeHeight && isFinite(cachedNativeHeight))
+      ? targetHeight / cachedNativeHeight : 1;
     figure.scale.set(hs, hs, hs);
 
     // 胖瘦：由 BMI 推导躯干横向系数
@@ -113,7 +120,12 @@ export async function buildRealBody(model) {
     );
     figure.scale.set(hs * widthK, hs, hs * widthK);
     // 脚底对齐到 FOOT_Y：nativeMinY 是原生模型脚底 y，缩放后偏移
-    figure.position.y = FOOT_Y - figure.userData.nativeMinY * hs;
+    figure.position.y = FOOT_Y - nativeMinY * hs;
+    // 兜底：任何非有限变换都会让 Three.js 直接跳过渲染，必须复位
+    if (!isFinite(figure.position.y) || !isFinite(figure.scale.x)) {
+      figure.position.set(0, FOOT_Y, 0);
+      figure.scale.set(1, 1, 1);
+    }
   }
 
   applyProfile(model);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
+import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
+import { garmentArt } from './garmentArt.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildRealBody } from './realBody.js';
@@ -70,6 +71,7 @@ scene.add(avatarGroup);
 const LS_KEY = 'atelier_model_profile_v1';
 const state = {
   model: null,                         // 建档后的模特参数
+  brand: 'DG',                         // 当前品牌：DG 杜嘉班纳 / BL 巴尔曼
   category: 'dresses',
   size: 'IT 40',
   outfit: { tops: null, bottoms: null, dresses: null, outer: null },
@@ -94,26 +96,35 @@ function saveProfile(p) {
 let currentAvatarMesh = null;
 let currentRealBody = null;
 let avatarLoadSeq = 0;
+let pendingAvatarLoad = null;   // 正在加载中的构建，避免重复构建造成竞态
 function rebuildAvatar() {
   // 模特已加载：档案变化只需即时更新参数，不重建（避免时序竞争导致模特丢失）
   if (currentRealBody) {
     currentRealBody.applyProfile(state.model);
     return;
   }
+  // 已有加载在飞行中：等待其完成即可，届时用最新档案再 applyProfile 一次
+  if (pendingAvatarLoad) return;
+
   const seq = ++avatarLoadSeq;
   avatarGroup.remove(garmentGroup);
   const placeholder = new THREE.Group();
   avatarGroup.add(placeholder);
   avatarGroup.add(garmentGroup);
 
-  buildRealBody(state.model).then(real => {
+  pendingAvatarLoad = buildRealBody(state.model);
+  pendingAvatarLoad.then(real => {
+    pendingAvatarLoad = null;
     if (seq !== avatarLoadSeq) { avatarGroup.remove(placeholder); return; }
     avatarGroup.remove(placeholder);
     currentRealBody = real;
     currentAvatarMesh = real.group;
     avatarGroup.add(real.group);
     avatarGroup.add(garmentGroup);
+    // 加载期间用户可能改过档案，使用最新值再刷新一次
+    real.applyProfile(state.model);
   }).catch(err => {
+    pendingAvatarLoad = null;
     console.error('写实模特加载失败，回退参数化人体', err);
     if (seq !== avatarLoadSeq) return;
     avatarGroup.remove(placeholder);
@@ -180,6 +191,9 @@ function setColor(hex, name) {
    UI 元素
    ============================================================ */
 const els = {
+  brands: document.getElementById('brand-tabs'),
+  wardrobeTitle: document.getElementById('wardrobe-title'),
+  wardrobeSub: document.getElementById('wardrobe-sub'),
   tabs: document.getElementById('category-tabs'),
   list: document.getElementById('garment-list'),
   colors: document.getElementById('color-swatches'),
@@ -200,9 +214,29 @@ const SWATCHES = [
   PALETTE.powder, PALETTE.leopard, PALETTE.olive, PALETTE.chocolate,
 ];
 
+function currentBrandItems() { return DB.filter(g => g.brand === state.brand); }
+
+function renderBrands() {
+  if (!els.brands) return;
+  els.brands.innerHTML = BRANDS.map(b =>
+    `<button class="brand-tab ${b.id === state.brand ? 'active' : ''}" data-brand="${b.id}">
+       <b>${b.short}</b><span>${b.name}</span>
+     </button>`
+  ).join('');
+  els.brands.querySelectorAll('.brand-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.brand = btn.dataset.brand;
+      const b = BRANDS.find(x => x.id === state.brand);
+      els.wardrobeTitle.textContent = `${b.name}女装`;
+      els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+      renderBrands(); renderCategories(); renderGarments();
+    });
+  });
+}
+
 function renderCategories() {
   els.tabs.innerHTML = DB_CATEGORIES.map(c =>
-    `<button class="category-tab ${c.id === state.category ? 'active' : ''}" data-cat="${c.id}">${c.name}<span class="tab-count">${DB.filter(g => g.category === c.id).length}</span></button>`
+    `<button class="category-tab ${c.id === state.category ? 'active' : ''}" data-cat="${c.id}">${c.name}<span class="tab-count">${currentBrandItems().filter(g => g.category === c.id).length}</span></button>`
   ).join('');
   els.tabs.querySelectorAll('.category-tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -213,13 +247,14 @@ function renderCategories() {
 }
 
 function renderGarments() {
-  const items = DB.filter(g => g.category === state.category);
+  const items = currentBrandItems().filter(g => g.category === state.category);
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
     const sw = item.colors.slice(0, 4).map(c =>
       `<i style="background:#${c.hex.toString(16).padStart(6, '0')}"></i>`).join('');
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="db-thumb">${garmentArt(item)}</div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         <span class="db-fit">${item.fit}</span>
@@ -483,7 +518,11 @@ document.getElementById('btn-snapshot').addEventListener('click', () => {
 function resize() {
   const w = container.clientWidth, h = container.clientHeight;
   if (!w || !h) return;
-  camera.aspect = w / h; camera.updateProjectionMatrix();
+  camera.aspect = w / h;
+  // 竖屏舞台较窄：增大垂直视角，避免模特头部被上边缘裁掉
+  const targetFov = camera.aspect < 1.05 ? 48 : 36;
+  if (Math.abs(camera.fov - targetFov) > 0.1) camera.fov = targetFov;
+  camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
 }
 new ResizeObserver(resize).observe(container);
@@ -597,7 +636,7 @@ function analyzePhoto(url) {
     DB_CATEGORIES.forEach(cat => {
       const og = document.createElement('optgroup');
       og.label = cat.name;
-      DB.filter(g => g.category === cat.id).forEach(g => {
+      currentBrandItems().filter(g => g.category === cat.id).forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.id; opt.textContent = g.name;
         if (g.id === guess.item.id) opt.selected = true;
@@ -706,7 +745,7 @@ function guessGarment(img, color, subRatio) {
     label = '常规比例（推测上装）';
   }
   // 优先匹配品类 + 版型，其次按明度挑合体/宽松款
-  const candidates = DB.filter(g => g.category === category);
+  const candidates = currentBrandItems().filter(g => g.category === category);
   const item = candidates.find(g => g.silhouette === silhouette)
             || candidates.find(g => g.fit === (hsl[1] < 0.2 ? '宽松' : '合体'))
             || candidates[0]
@@ -774,6 +813,7 @@ if (saved) {
 }
 // 无论是否已建档，都先构建并显示 3D 人体模型
 rebuildAvatar();
+renderBrands();
 renderCategories();
 renderColors();
 renderSizes();

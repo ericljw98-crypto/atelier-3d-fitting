@@ -1,3 +1,5 @@
+import { buildBalmainDB } from './balmain.js';
+
 /* ============================================================
    ATELIER · 杜嘉班纳（Dolce & Gabbana）女装参数数据库
    ------------------------------------------------------------
@@ -76,7 +78,7 @@ const ALL = SIZES;
      bottoms: waist, hip, length, opening（脚口/下摆围）
      outer:   bust, waist, shoulder, sleeve, length
    ------------------------------------------------------------ */
-export const DB = [
+const DG_DB = [
   /* ================= 连衣裙 Dresses ================= */
   {
     id: 'dg-dr-001', code: 'DG-SS25-DR-001', name: '西西里印花吊带长裙', nameEn: 'Sicilian Print Slip Dress',
@@ -421,6 +423,19 @@ export const DB = [
     ease: { bust: 26, waist: 24 },
   },
 ];
+
+/* 品牌清单：切换后所有列表、照片识别与合身诊断均按当前品牌过滤 */
+export const BRANDS = [
+  { id: 'DG', name: '杜嘉班纳', en: 'Dolce & Gabbana', short: 'DG' },
+  { id: 'BL', name: '巴尔曼',   en: 'BALMAIN',        short: 'BL' },
+];
+
+DG_DB.forEach(g => { g.brand = 'DG'; });
+const BALMAIN_DB = buildBalmainDB(PALETTE, ALL);
+BALMAIN_DB.forEach(g => { g.brand = 'BL'; });
+
+/** 全量数据库（按品牌切换使用） */
+export const DB = [...DG_DB, ...BALMAIN_DB];
 
 export const DB_BY_ID = {};
 DB.forEach(g => { DB_BY_ID[g.id] = g; });

@@ -824,11 +824,18 @@ input[type="range"]::-moz-range-thumb {
   body { overflow: auto; }
   .app-shell { height: auto; min-height: 100vh; }
   .workspace { flex-direction: column; }
-  .panel { width: 100%; flex-basis: auto; }
+  .panel { width: 100%; flex: 0 0 auto; }
   .wardrobe { border-right: none; border-bottom: 1px solid var(--border); }
-  .garment-list { grid-template-columns: repeat(3, 1fr); max-height: 300px; }
-  .stage { height: 520px; order: -1; }
+  .garment-list { grid-template-columns: repeat(2, 1fr); max-height: 420px; }
+  /* 关键：flex:1 的 basis:0 会覆盖 height，导致手机端舞台高度塌成 0，3D 模特完全不可见 */
+  .stage { flex: 0 0 460px; height: 460px; min-height: 460px; order: -1; }
   .controls { border-left: none; border-top: 1px solid var(--border); }
+  .topbar { height: auto; min-height: 60px; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .topbar-actions { width: 100%; justify-content: space-between; gap: 6px; }
+  .top-btn { flex: 1 1 auto; white-space: nowrap; padding: 8px 6px; font-size: 11px; }
+  .top-btn svg { width: 15px; height: 15px; }
+  .brand-sub { display: none; }
+  .brand-name { font-size: 15px; letter-spacing: 3px; }
 }
 
 /* ============================================================
@@ -839,8 +846,31 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 500;
 }
 .category-tab.active .tab-count { color: var(--accent); }
+
+/* 品牌切换 */
+.brand-tabs { display: flex; gap: 6px; margin: 0 18px 12px; }
+.brand-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 6px; font-family: inherit; cursor: pointer;
+  background: var(--panel-2); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 6px;
+  transition: all .2s ease;
+}
+.brand-tab b {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 11px; letter-spacing: .06em;
+}
+.brand-tab span { font-size: 11px; }
+.brand-tab:hover { border-color: #3a4150; }
+.brand-tab.active {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+
+/* 商品款式图 */
+.db-thumb { width: 100%; height: 88px; flex: 0 0 88px; min-height: 88px; overflow: hidden; border-radius: 6px; }
+.db-thumb svg { display: block; width: 100%; height: 100%; }
 .garment-card.db-card {
-  padding: 12px 12px 11px; min-height: 118px;
+  padding: 8px 10px 10px; min-height: 232px;
   display: flex; flex-direction: column; gap: 5px;
 }
 .db-card-head { display: flex; justify-content: space-between; align-items: center; }
