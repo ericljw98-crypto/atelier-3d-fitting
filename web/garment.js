@@ -87,7 +87,7 @@ function skirtRadius(P, y, ease, hemR) {
 
 /** 服装壳体：直接复用人体曲面函数，半径等于人体半宽 + 布料放松量。
     胸部等曲面细节自动跟随，因此天然贴合、不会穿模。 */
-function shellFrom(P, { y0, y1, easeFn, mat, samples = 30, radiusFn }) {
+function shellFrom(P, { y0, y1, easeFn, mat, samples = 130, radiusFn }) {
   const geo = shellGeometry(P, y0, y1, samples,
     radiusFn || (y => Math.max(bodyHalfWidth(P, y), 0.02)), easeFn, 60);
   return new THREE.Mesh(geo, mat);
@@ -148,8 +148,9 @@ function legTube(P, s, yTop, yEnd, easeFn, mat) {
 function shoulderBridge(P, mat, extra) {
   return [-1, 1].map(s => {
     const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), mat);
-    m.position.set(s * (P.armX - 0.085), P.topY + 0.028, 0);
-    m.scale.set(0.108 + extra, 0.062 + extra * 0.5, 0.080 + extra);
+    const ar = radiusAt(P.arm, P.topY + 0.005) + Math.max(extra, MIN_EASE);
+    m.position.set(s * P.armX, P.topY + 0.004, 0);
+    m.scale.set(ar * 1.02, ar * 0.66, ar * 0.92);
     return m;
   });
 }
@@ -187,32 +188,15 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true) 
   /* ---------- 连衣/上装类：从肩线向下 ---------- */
   if (cat === 'dresses' || cat === 'tops') {
     const isSlip = sil === 'slip';
-    const yTopGarment = isSlip ? P.bustY + 0.02 : P.topY + 0.085;
+    const yTopGarment = isSlip ? P.bustY + 0.02 : P.topY + 0.092;
     const hemY = Math.max(P.topY - lenCm * U, P.base + 0.10);
 
     g.add(shellFrom(P, {
-      y0: hemY, y1: yTopGarment, easeFn: easeFnOut, mat, samples: 40,
+      y0: hemY, y1: yTopGarment, easeFn: easeFnOut, mat, samples: 150,
     }));
 
-    // 领口：从肩线收向颈根，形成领围而不是敞开的大洞
-    if (!isSlip) {
-      const pts = [];
-      const yA = yTopGarment;
-      const rTop = bodyHalfWidth(P, yA) + easeFnOut(yA);
-      const yB = P.topY + 0.135;
-      const rNeck = P.neckR * 1.5 + Math.max(ease.bust * 0.4, MIN_EASE);
-      for (let i = 0; i <= 8; i++) {
-        const t = i / 8;
-        const y = (yA - 0.012) + (yB - yA + 0.012) * t;
-        // 起始半径略大于壳体顶环，避免两个共面环产生闪面
-        const r = (rTop * 1.008) + (rNeck - rTop * 1.008) * (t * t * (3 - 2 * t));
-        pts.push(new THREE.Vector2(Math.max(r, 0.02), y));
-      }
-      const collar = new THREE.Mesh(new THREE.LatheGeometry(pts, 44), mat);
-      collar.scale.z = P.depthAt(P.topY + 0.10);
-      g.add(collar);
-    } else {
-      // 吊带
+    // 吊带款：两根本布肩带
+    if (isSlip) {
       const strapEase = Math.max(ease.bust, MIN_EASE);
       [-1, 1].forEach(s => {
         const p1 = new THREE.Vector3(s * P.rBust * 0.52, P.bustY + 0.03, (P.rBust + strapEase) * depth * 0.92);
@@ -224,14 +208,15 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true) 
         g.add(strap);
       });
     }
+    // 非吊带款：壳体上缘直接收到颈根，形成领口（不再单独做领片）
 
     g.add(hemBand(P, hemY, easeFnOut, depth, mat));
 
     // 袖子 + 肩缝
     if (sleeveCm > 0) {
       const yEnd = P.topY - sleeveCm * U;
-      shoulderBridge(P, mat, Math.max(ease.bust, 0)).forEach(m => g.add(m));
-      [-1, 1].forEach(s => g.add(sleeve(P, s, P.topY + 0.05, yEnd, ease.bust * 0.8, depth, mat)));
+      // shoulderBridge 已移除：现成人体本身有肩型，补球会变成垫肩
+      [-1, 1].forEach(s => g.add(sleeve(P, s, P.topY + 0.082, yEnd, ease.bust * 0.8, depth, mat)));
     }
 
     // 收腰款：加一条腰带提示版型
@@ -252,7 +237,7 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true) 
       const hemY = Math.max(P.waistY - lenCm * U, P.base + 0.12);
       const hemR = Math.max(rOf(M.opening || 100) * sc, P.rHip + MIN_EASE);
       g.add(shellFrom(P, {
-        y0: hemY, y1: P.waistY + 0.04, samples: 28, mat,
+        y0: hemY, y1: P.waistY + 0.04, samples: 80, mat,
         easeFn: y => Math.max(easeFn(y), MIN_EASE),
         radiusFn: y => Math.max(skirtRadius(P, y, easeFn(y), hemR) - Math.max(easeFn(y), MIN_EASE), 0.02),
       }));
@@ -269,7 +254,7 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true) 
       // 裤装：腰臀壳 + 两条裤腿
       const yWaist = P.waistY + 0.05;
       g.add(shellFrom(P, {
-        y0: P.hipY - 0.16, y1: yWaist, easeFn: easeFnOut, mat, samples: 18,
+        y0: P.hipY - 0.16, y1: yWaist, easeFn: easeFnOut, mat, samples: 60,
       }));
       const yTop = P.hipY - 0.02;
       const yEnd = Math.max(P.base + 0.06, P.waistY - lenCm * U);
@@ -290,7 +275,7 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true) 
   else if (cat === 'outer') {
     const hemY = Math.max(P.topY - lenCm * U, P.base + 0.10);
     g.add(shellFrom(P, {
-      y0: hemY, y1: P.topY + 0.085, easeFn: easeFnOut, mat, samples: 40,
+      y0: hemY, y1: P.topY + 0.085, easeFn: easeFnOut, mat, samples: 150,
     }));
 
     // 驳领：沿领口向外翻的两片

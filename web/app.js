@@ -3,8 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
-import { buildRealBody } from './realBody.js';
-import { buildSmoothBody } from './smoothBody.js';
+import { buildSmoothBody, bodyReady } from './smoothBody.js';
 import { evaluateFit } from './fitEngine.js';
 import { initUpdate } from './update.js';
 
@@ -95,36 +94,32 @@ function saveProfile(p) {
 /* 重建人体：写实模特（视觉外壳），尺寸由档案驱动 */
 let currentAvatarMesh = null;
 let currentRealBody = null;
-let avatarLoadSeq = 0;
-let pendingAvatarLoad = null;   // 正在加载中的构建，避免重复构建造成竞态
-function rebuildAvatar() {
-  // 模特已加载：档案变化只需即时更新参数，不重建（避免时序竞争导致模特丢失）
-  if (currentRealBody) {
-    currentRealBody.applyProfile(state.model);
-    return;
-  }
-  // 已有加载在飞行中：等待其完成即可，届时用最新档案再 applyProfile 一次
-  if (pendingAvatarLoad) return;
+let bodyPromise = null;
 
-  const seq = ++avatarLoadSeq;
-  avatarGroup.remove(garmentGroup);
-  if (currentAvatarMesh) avatarGroup.remove(currentAvatarMesh);
-
-  try {
-    // 平滑写真人体：围度精确、无机械关节，与服装锚点一致
-    const body = buildSmoothBody(state.model);
-    if (seq !== avatarLoadSeq) return;
+/** 加载写实模特（只做一次），返回 Promise */
+function ensureBody() {
+  if (currentRealBody) return Promise.resolve(currentRealBody);
+  if (bodyPromise) return bodyPromise;
+  bodyPromise = buildSmoothBody(state.model).then(body => {
     currentRealBody = body;
     currentAvatarMesh = body.group;
     avatarGroup.add(body.group);
     avatarGroup.add(garmentGroup);
-  } catch (err) {
-    console.error('平滑人体构建失败，回退参数化人体', err);
+    return body;
+  }).catch(err => {
+    console.error('写实人体加载失败，回退参数化人体', err);
     currentAvatarMesh = buildBody(state.model);
     avatarGroup.add(currentAvatarMesh);
     avatarGroup.add(garmentGroup);
     applyBodyScale();
-  }
+    return null;
+  });
+  return bodyPromise;
+}
+
+function rebuildAvatar() {
+  if (currentRealBody) { currentRealBody.applyProfile(state.model); return Promise.resolve(currentRealBody); }
+  return ensureBody();
 }
 function applyBodyScale() {
   // 写实模特自身已处理缩放，参数化回退时才需要
@@ -152,6 +147,10 @@ function selectGarment(itemId, opt = {}) {
   else if (slot === 'tops' || slot === 'bottoms') { clearSlot('dresses'); clearSlot(slot); }
   else clearSlot(slot);
 
+  if (!bodyReady()) {
+    ensureBody().then(() => { if (bodyReady()) selectGarment(itemId, opt); });
+    return;
+  }
   const color = opt.color ?? state.color;
   const colorName = opt.colorName ?? state.colorName;
   const group = buildGarment(itemId, state.size, state.model, color, true);
@@ -801,7 +800,10 @@ renderFitReport();
 updateStatus();
 resize();
 animate();
-document.getElementById('loading').classList.add('hidden');
+// 等模特就位再收起遮罩，避免先看到空台座
+ensureBody().then(() => {
+  document.getElementById('loading').classList.add('hidden');
+});
 
 /* 模特数据已锁定，不再弹出建档向导 */
 

@@ -1,9 +1,9 @@
 {
-  "versionCode": 7,
-  "versionName": "1.6",
+  "versionCode": 8,
+  "versionName": "1.7",
   "releaseDate": "2026-11-22",
-  "size": 5697289,
-  "sha256": "23e4f0a4a8ed575b75cef7be8958e028fe7b2cfe95289c0251e315018286d8e7",
+  "size": 10966437,
+  "sha256": "e8f9c330cea5b2355300e89753034d171b18215c48543d84c3332408414905e9",
   "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/raw/main/apk/ATELIER-3D-Fitting.apk",
-  "notes": "人体按人体测量数据重建（胸部体积、自然腰线、臀线、分段手臂）；面部改用真人照片贴图；服装改为按人体剖面逐层外偏移生成，任何尺码均不穿模；移除顶栏的编辑模特/重置/保存造型按钮"
+  "notes": "模特整体替换为现成扫描级女性人体模型（CC0 Woman Base Mesh，蒙皮骨骼、真实皮肤 PBR 贴图），A-pose 上臂内旋至自然下垂；服装改为在最终尺度下逐高度切片测量真实截面轮廓，再按轮廓外偏移生成，胸、腰、胯、手臂均按真实曲面贴合"
 }

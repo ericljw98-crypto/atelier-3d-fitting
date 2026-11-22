@@ -1,40 +1,380 @@
 /* ============================================================
-   平滑写实人体（程序化 + 真人照片面部）
+   写实女性人体 —— 现成扫描级基础人体模型（CC0 · Woman Base Mesh）
    ------------------------------------------------------------
-   - 躯干/四肢用剖面曲线生成连续曲面，无机械球形关节
-   - 三围按锁定档案精确驱动（胸94.5 / 腰85 / 臀99）
-   - 面部使用真人照片贴图（带羽化透明通道）贴合头颅
-   - 对外导出 bodyProfile()，服装模块据此按「人体截面 + 布料放松量」
-     逐层外偏移生成，贴合由几何构造保证，不再靠手调系数凑
+   程序化曲面拼出来的人体，比例和肌肉走向都不可能真。
+   现在加载现成模型 models/woman.glb（蒙皮网格＋人体骨骼），
+   做三件事：
+
+   1) 摆姿势：A-pose 上臂内旋，双臂自然下垂；
+   2) 量体型：按骨骼权重把顶点分成 躯干 / 手臂 / 腿，
+      在最终场景尺度下逐高度切片统计极坐标轮廓 r(y,θ)；
+   3) 供服装：导出与旧接口同名的 bodyProfile / radiusAt /
+      shellGeometry，服装按「真实轮廓 + 放松量」外偏移生成。
+
+   注意：轮廓必须在**缩放后的最终网格**上测量。骨骼带旋转，
+   非均匀缩放在蒙皮后并不等于「把半径乘个系数」，先测后乘会
+   系统性偏小，导致胸部、腰头从衣服里戳出来。
    ============================================================ */
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { DEFAULT_MODEL, FOOT_Y } from './body.js';
 
 const U = 1 / 50;
+const MODEL_URL = 'models/woman.glb';
+const ARM_DROP_DEG = 30;          // 上臂内旋角：A-pose 外张约 38°，回旋后自然下垂
+const NY = 200, NTH = 96;         // 切片高度数 × 方位数
+const DTH = Math.PI * 2 / NTH;
 
-/** 剖面重采样：线性加密 + 移动平均，避免样条过冲自交（同心环条纹） */
-function resample(controls, samples) {
-  const dense = [];
-  const spans = controls.length - 1;
-  for (let i = 0; i <= samples; i++) {
-    const t = i / samples * spans;
-    const k = Math.min(Math.floor(t), spans - 1);
-    const f = t - k;
-    const a = controls[k], b = controls[k + 1];
-    dense.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+/* ---------------- 加载 ---------------- */
+
+let _gltfPromise = null;
+function loadGltf() {
+  if (!_gltfPromise) {
+    _gltfPromise = new Promise((resolve, reject) => {
+      new GLTFLoader().load(MODEL_URL, resolve, undefined,
+        err => reject(new Error('人体模型加载失败：' + (err && err.message || err))));
+    });
   }
-  for (let pass = 0; pass < 2; pass++) {
-    const src = dense.map(p => p[0]);
-    for (let i = 1; i < dense.length - 1; i++) {
-      dense[i][0] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
-    }
-  }
-  // 统一自下而上排列，radiusAt() 的插值依赖这一点（手臂剖面原本是自上而下）
-  return dense.sort((a, b) => a[1] - b[1]);
+  return _gltfPromise;
 }
 
-/** 在剖面曲线上取某个高度处的半径（按 y 线性插值） */
+let NORM = null;            // 归一化空间（身高 1、脚底 0）的骨骼锚点
+let WL = null;              // 最终尺度下的真实轮廓网格（场景单位）
+let _readyPromise = null;
+
+/* ---------------- 顶点采集 ---------------- */
+
+function collectVertices(mesh) {
+  const geo = mesh.geometry;
+  const pos = geo.attributes.position;
+  const si = geo.attributes.skinIndex;
+  const sw = geo.attributes.skinWeight;
+  const bones = mesh.skeleton.bones;
+  const n = pos.count;
+  const X = new Float32Array(n), Y = new Float32Array(n), Z = new Float32Array(n);
+  const KIND = new Uint8Array(n);      // 0 躯干 1 手臂 2 腿
+  const SIDE = new Int8Array(n);
+  const v = new THREE.Vector3();
+  mesh.skeleton.update();
+  mesh.updateMatrixWorld(true);
+
+  for (let i = 0; i < n; i++) {
+    v.fromBufferAttribute(pos, i);
+    if (mesh.applyBoneTransform) mesh.applyBoneTransform(i, v);
+    v.applyMatrix4(mesh.matrixWorld);
+    X[i] = v.x; Y[i] = v.y; Z[i] = v.z;
+
+    const w0 = sw.getX(i), w1 = sw.getY(i), w2 = sw.getZ(i), w3 = sw.getW(i);
+    let bw = w0, bk = 0;
+    if (w1 > bw) { bw = w1; bk = 1; }
+    if (w2 > bw) { bw = w2; bk = 2; }
+    if (w3 > bw) { bw = w3; bk = 3; }
+    const bi = bk === 0 ? si.getX(i) : bk === 1 ? si.getY(i) : bk === 2 ? si.getZ(i) : si.getW(i);
+    const name = (bones[bi] && bones[bi].name) || '';
+    if (/Arm|Hand/.test(name)) { KIND[i] = 1; SIDE[i] = /^Left/.test(name) ? 1 : -1; }
+    else if (/UpLeg|Leg|Foot|Toe/.test(name)) { KIND[i] = 2; SIDE[i] = /^Left/.test(name) ? 1 : -1; }
+  }
+  return { X, Y, Z, KIND, SIDE, n };
+}
+
+/** 补齐空 bin + 填平极角凹陷（腿间缝隙）+ 轻度平滑；不得侵入原始轮廓 */
+function tidySlice(r, cnt) {
+  for (let i = 0; i < NTH; i++) {
+    if (cnt[i] > 0) continue;
+    let l = 1, rr = 1;
+    while (l < NTH && cnt[(i - l + NTH) % NTH] === 0) l++;
+    while (rr < NTH && cnt[(i + rr) % NTH] === 0) rr++;
+    if (l >= NTH) { r[i] = 0; continue; }
+    const a = r[(i - l + NTH) % NTH], b = r[(i + rr) % NTH];
+    r[i] = (a * rr + b * l) / (l + rr);
+  }
+  const raw = r.slice();
+  for (let pass = 0; pass < 3; pass++) {
+    const src = r.slice();
+    for (let i = 0; i < NTH; i++) {
+      const avg = (src[(i - 1 + NTH) % NTH] + src[(i + 1) % NTH]) * 0.5;
+      if (src[i] < avg) r[i] = avg;
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const src = r.slice();
+    for (let i = 0; i < NTH; i++) {
+      r[i] = src[(i - 1 + NTH) % NTH] * 0.25 + src[i] * 0.5 + src[(i + 1) % NTH] * 0.25;
+    }
+  }
+  for (let i = 0; i < NTH; i++) if (raw[i] > r[i]) r[i] = raw[i];
+}
+
+/* ---------------- 核心：在给定空间量轮廓 ---------------- */
+
+function bakeSilhouette(mesh, H, baseY) {
+  const V = collectVertices(mesh);
+  const bones = mesh.skeleton.bones;
+  const bpos = n => {
+    const b = bones.find(x => x.name === n);
+    return b ? b.getWorldPosition(new THREE.Vector3()) : null;
+  };
+  const pArmL = bpos('LeftArm'), pArmR = bpos('RightArm');
+  const pHandL = bpos('LeftHand'), pHandR = bpos('RightHand');
+  const pUpLegL = bpos('LeftUpLeg');
+  const pLegL = bpos('LeftLeg'), pFootL = bpos('LeftFoot');
+  const pNeck = bpos('neck'), pHead = bpos('Head');
+
+  const uOf = y => Math.min(0.999, Math.max(0, (y - baseY) / H));
+  const sliceOf = y => Math.min(NY - 1, Math.max(0, Math.floor(uOf(y) * NY)));
+
+  /* 截面中心（z）：取该高度前后缘的中点，比均值稳定；
+     再沿高度做多遍平滑，避免逐行跳动导致裙面出现一圈圈台阶 */
+  const azMax = new Float32Array(NY), azMin = new Float32Array(NY);
+  for (let iy = 0; iy < NY; iy++) { azMax[iy] = -Infinity; azMin[iy] = Infinity; }
+  for (let i = 0; i < V.n; i++) {
+    if (V.KIND[i] === 1) continue;
+    const iy = sliceOf(V.Y[i]);
+    if (V.Z[i] > azMax[iy]) azMax[iy] = V.Z[i];
+    if (V.Z[i] < azMin[iy]) azMin[iy] = V.Z[i];
+  }
+  const cz = new Float32Array(NY);
+  for (let iy = 0; iy < NY; iy++) {
+    cz[iy] = isFinite(azMax[iy]) && isFinite(azMin[iy]) ? (azMax[iy] + azMin[iy]) * 0.5 : 0;
+  }
+  for (let pass = 0; pass < 6; pass++) {
+    const src = cz.slice();
+    for (let i = 1; i < NY - 1; i++) cz[i] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
+  }
+
+  /* 单腿中心线：髋关节 x → 脚踝 x */
+  const legCx = new Float32Array(NY);
+  {
+    const hipX = pUpLegL ? pUpLegL.x : 0.09 * H;
+    const ankX = pFootL ? pFootL.x : 0.07 * H;
+    const hipU0 = pUpLegL ? uOf(pUpLegL.y) : 0.50;
+    const ankU0 = pFootL ? uOf(pFootL.y) : 0.05;
+    for (let iy = 0; iy < NY; iy++) {
+      const t = Math.min(1, Math.max(0, (hipU0 - iy / NY) / Math.max(hipU0 - ankU0, 1e-3)));
+      legCx[iy] = hipX + (ankX - hipX) * t;
+    }
+  }
+
+  /* 手臂轴线 */
+  const armVec = pArmL && pHandL ? new THREE.Vector3().subVectors(pHandL, pArmL) : new THREE.Vector3(0, -0.3 * H, 0);
+  const armLen = Math.max(armVec.length(), 1e-3);
+  const armDir = armVec.clone().normalize();
+
+  /* 第二遍：轮廓 + 剖面 */
+  const rBody = new Float32Array(NY * NTH);
+  const cntBody = new Uint16Array(NY * NTH);
+  const maxAx = new Float32Array(NY), maxZ = new Float32Array(NY), minZ = new Float32Array(NY);
+  for (let iy = 0; iy < NY; iy++) { maxZ[iy] = -Infinity; minZ[iy] = Infinity; }
+  const legRSum = new Float32Array(NY), legRCnt = new Uint32Array(NY);
+  const armRSum = new Float32Array(NY), armRCnt = new Uint32Array(NY);
+
+  for (let i = 0; i < V.n; i++) {
+    const x = V.X[i], y = V.Y[i], z = V.Z[i];
+    const iy = sliceOf(y);
+    if (V.KIND[i] === 1) {
+      const b = V.SIDE[i] > 0 ? pArmL : pArmR;
+      const px = x - (b ? b.x : 0), py = y - (b ? b.y : 0.8 * H), pz = z - (b ? b.z : 0);
+      const t = px * armDir.x + py * armDir.y + pz * armDir.z;
+      const rx = px - armDir.x * t, ry = py - armDir.y * t, rz = pz - armDir.z * t;
+      armRSum[iy] += Math.sqrt(rx * rx + ry * ry + rz * rz);
+      armRCnt[iy]++;
+      continue;
+    }
+    const dz = z - cz[iy];
+    let it = Math.floor((Math.atan2(dz, x) + Math.PI) / DTH);
+    it = ((it % NTH) + NTH) % NTH;
+    const idx = iy * NTH + it;
+    const r = Math.hypot(x, dz);
+    if (r > rBody[idx]) rBody[idx] = r;
+    cntBody[idx]++;
+    const ax = Math.abs(x);
+    if (ax > maxAx[iy]) maxAx[iy] = ax;
+    if (dz > maxZ[iy]) maxZ[iy] = dz;
+    if (dz < minZ[iy]) minZ[iy] = dz;
+
+    if (V.KIND[i] === 2) {
+      legRSum[iy] += Math.hypot(x - V.SIDE[i] * legCx[iy], dz);
+      legRCnt[iy]++;
+    }
+  }
+
+  /* 整理 + 周长 */
+  const meanR = new Float32Array(NY);
+  for (let iy = 0; iy < NY; iy++) {
+    const r = rBody.subarray(iy * NTH, iy * NTH + NTH);
+    const cnt = cntBody.subarray(iy * NTH, iy * NTH + NTH);
+    let any = false;
+    for (let i = 0; i < NTH; i++) if (cnt[i]) { any = true; break; }
+    if (!any) continue;
+    tidySlice(r, cnt);
+    let per = 0;
+    for (let i = 0; i < NTH; i++) per += r[i] * DTH;
+    meanR[iy] = per / (Math.PI * 2);
+  }
+  for (let iy = 0; iy < NY; iy++) {
+    if (meanR[iy] > 0) continue;
+    let a = iy - 1, b = iy + 1;
+    while (a >= 0 && meanR[a] === 0) a--;
+    while (b < NY && meanR[b] === 0) b++;
+    if (a >= 0 && b < NY) {
+      const t = (iy - a) / (b - a);
+      meanR[iy] = meanR[a] + (meanR[b] - meanR[a]) * t;
+      for (let i = 0; i < NTH; i++) rBody[iy * NTH + i] = rBody[a * NTH + i] * (1 - t) + rBody[b * NTH + i] * t;
+      maxAx[iy] = maxAx[a] * (1 - t) + maxAx[b] * t;
+      maxZ[iy] = maxZ[a] * (1 - t) + maxZ[b] * t;
+      minZ[iy] = minZ[a] * (1 - t) + minZ[b] * t;
+      cz[iy] = cz[a] * (1 - t) + cz[b] * t;
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const src = meanR.slice();
+    for (let i = 2; i < NY - 2; i++) meanR[i] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
+  }
+
+  const armR = new Float32Array(NY), legR = new Float32Array(NY);
+  for (let iy = 0; iy < NY; iy++) {
+    if (armRCnt[iy]) armR[iy] = armRSum[iy] / armRCnt[iy];
+    if (legRCnt[iy]) legR[iy] = legRSum[iy] / legRCnt[iy];
+  }
+  for (let pass = 0; pass < 5; pass++) {
+    const s1 = armR.slice(), s2 = legR.slice();
+    for (let i = 1; i < NY - 1; i++) {
+      if (armR[i] > 0) armR[i] = (s1[i - 1] + s1[i] * 2 + s1[i + 1]) / 4;
+      if (legR[i] > 0) legR[i] = (s2[i - 1] + s2[i] * 2 + s2[i + 1]) / 4;
+    }
+  }
+
+  /* 关键高度（u = 占身高比例，与尺度无关） */
+  const shoulderU = pArmL ? uOf(pArmL.y) : 0.82;
+  const hipU = pUpLegL ? uOf(pUpLegL.y) : 0.52;
+  const kneeU = pLegL ? uOf(pLegL.y) : 0.28;
+  const ankleU = pFootL ? uOf(pFootL.y) : 0.05;
+  const neckU = pNeck ? uOf(pNeck.y) : shoulderU + 0.04;
+  const headU = pHead ? uOf(pHead.y) : 0.92;
+
+  const scan = (a, b, fn, findMax) => {
+    const i0 = Math.max(1, Math.floor(a * NY)), i1 = Math.min(NY - 2, Math.floor(b * NY));
+    let best = findMax ? -Infinity : Infinity, bestU = (a + b) / 2;
+    for (let iy = i0; iy <= i1; iy++) {
+      const v = fn(iy);
+      if (!isFinite(v) || v === 0) continue;
+      if (findMax ? v > best : v < best) { best = v; bestU = iy / NY; }
+    }
+    return bestU;
+  };
+  const waistU = scan(hipU + 0.02, shoulderU - 0.12, iy => meanR[iy], false);
+  const bustU = scan(waistU + 0.04, shoulderU - 0.03,
+    iy => meanR[iy] * (1 + 0.5 * (maxZ[iy] / Math.max(maxAx[iy], 1e-4))), true);
+  const seatU = scan(Math.max(0.02, hipU - 0.10), hipU + 0.06, iy => meanR[iy], true);
+
+  return {
+    H, baseY,
+    meanR, rBody, cz, maxAx, maxZ, minZ, legR, armR, legCx, armLen,
+    shoulderU, hipU, kneeU, ankleU, neckU, headU, waistU, bustU, seatU,
+    armX: pArmL ? Math.abs(pArmL.x) : 0.10 * H,
+    armTilt: Math.atan2(Math.abs((pHandL ? pHandL.x : 0) - (pArmL ? pArmL.x : 0)),
+      Math.max((pArmL ? pArmL.y : 0.8 * H) - (pHandL ? pHandL.y : 0.5 * H), 1e-3)),
+    legHalf: pLegL ? Math.abs(pLegL.x) : 0.07 * H,
+  };
+}
+
+/* ---------------- 网格采样 ---------------- */
+
+const atU = (arr, u) => arr[Math.min(NY - 1, Math.max(0, Math.floor(u * NY)))];
+/** 纵向线性插值：避免按切片取整导致的横向条纹 */
+function lerpU(arr, u) {
+  const f = Math.min(NY - 1.001, Math.max(0, u * NY));
+  const i0 = Math.floor(f), i1 = i0 + 1, t = f - i0;
+  const a = arr[i0], b = arr[i1];
+  if (!isFinite(a)) return b;
+  if (!isFinite(b)) return a;
+  return a + (b - a) * t;
+}
+
+function silR(src, u, th) {
+  const fy = Math.min(NY - 1.001, Math.max(0, u * NY));
+  const i0 = Math.floor(fy), i1 = Math.min(NY - 1, i0 + 1), ty = fy - i0;
+  const at = iy => {
+    const ft = (th + Math.PI) / DTH;
+    const j = Math.floor(ft);
+    const it0 = ((j % NTH) + NTH) % NTH;
+    const it1 = (it0 + 1) % NTH;
+    const tt = ft - j;
+    return src.rBody[iy * NTH + it0] * (1 - tt) + src.rBody[iy * NTH + it1] * tt;
+  };
+  return at(i0) * (1 - ty) + at(i1) * ty;
+}
+function silCz(src, u) {
+  const f = Math.min(NY - 1, Math.max(0, u * NY));
+  const i0 = Math.floor(f), i1 = Math.min(NY - 1, i0 + 1), t = f - i0;
+  return src.cz[i0] * (1 - t) + src.cz[i1] * t;
+}
+
+/* ---------------- 预热 ---------------- */
+
+export function prepareBody() {
+  if (_readyPromise) return _readyPromise;
+  _readyPromise = loadGltf().then(gltf => {
+    const root = gltf.scene;
+    const bones = {};
+    root.traverse(o => { if (o.isBone) bones[o.name] = o; });
+    for (const side of ['Left', 'Right']) {
+      const b = bones[side + 'Arm'];
+      if (b) b.rotation.z += (side === 'Left' ? -1 : 1) * ARM_DROP_DEG * Math.PI / 180;
+    }
+    root.updateMatrixWorld(true);
+
+    let mesh = null;
+    root.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+    if (!mesh) throw new Error('模型不是蒙皮网格');
+    mesh.frustumCulled = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    if (mesh.material) {
+      mesh.material.side = THREE.FrontSide;
+      if ('envMapIntensity' in mesh.material) mesh.material.envMapIntensity = 0.7;
+    }
+
+    // 归一化：身高 1、脚底 0（后续克隆都继承这个基准）
+    const pos = mesh.geometry.attributes.position;
+    const v = new THREE.Vector3();
+    const bounds = () => {
+      const b = new THREE.Box3();
+      root.updateMatrixWorld(true);
+      for (let i = 0; i < pos.count; i += 2) {
+        v.fromBufferAttribute(pos, i);
+        mesh.applyBoneTransform(i, v);
+        v.applyMatrix4(mesh.matrixWorld);
+        b.expandByPoint(v);
+      }
+      return b;
+    };
+    const b0 = bounds();
+    root.scale.multiplyScalar(1 / (b0.max.y - b0.min.y));
+    const b1 = bounds();
+    root.position.y -= b1.min.y;
+    root.updateMatrixWorld(true);
+
+    NORM = bakeSilhouette(mesh, 1, 0);   // 归一化后身高恰为 1、脚底 y=0
+    const H0 = DEFAULT_MODEL.height;
+    NORM.girthCm = {
+      bust: NORM.meanR[Math.floor(NORM.bustU * NY)] * Math.PI * 2 * H0,
+      waist: NORM.meanR[Math.floor(NORM.waistU * NY)] * Math.PI * 2 * H0,
+      hip: NORM.meanR[Math.floor(NORM.seatU * NY)] * Math.PI * 2 * H0,
+    };
+    return gltf;
+  });
+  return _readyPromise;
+}
+
+export function bodyReady() { return !!WL; }
+export function bodyGirthCm() { return NORM ? NORM.girthCm : null; }
+
+/* ---------------- 对外接口（与旧版同名） ---------------- */
+
 export function radiusAt(dense, y) {
+  if (!dense || !dense.length) return 0.02;
   if (y <= dense[0][1]) return dense[0][0];
   const last = dense[dense.length - 1];
   if (y >= last[1]) return last[0];
@@ -48,152 +388,103 @@ export function radiusAt(dense, y) {
   return last[0];
 }
 
-/* ============================================================
-   统一体型剖面：人体建模与服装建模共用的唯一数据源
-   锚点采用真实人体比例（占身高）：髋 0.515 / 腰 0.624 / 胸 0.715 / 肩 0.818
-   ============================================================ */
+function denseProfile(pick, u0, u1, H, base, steps) {
+  const out = [];
+  for (let i = 0; i <= steps; i++) {
+    const u = u0 + (u1 - u0) * (i / steps);
+    out.push([pick(u), base + u * H]);
+  }
+  return out.sort((a, b) => a[1] - b[1]);
+}
+
 export function bodyProfile(model) {
   const p = { ...DEFAULT_MODEL, ...(model || {}) };
   const H = p.height * U;
   const base = FOOT_Y;
+  const S = WL || NORM;
+  if (!S) throw new Error('人体模型尚未加载完成');
+  const isEmptyWorld = !WL;
+  const sc = isEmptyWorld ? H : 1;      // 归一化空间量出的是「占身高比例」，要乘身高
 
-  // 人体测量锚点（占身高）。165cm 参照：髋隆突 84.5cm / 自然腰 99cm / 胸点 118cm / 肩峰 135cm
-  const hipY = base + H * 0.512;
-  const waistY = base + H * 0.600;
-  const bustY = base + H * 0.713;
-  const topY = base + H * 0.818;
-  const shoulderTop = topY + 0.045;
-  const hr = H * 0.0600;
-  const headY = base + H - hr * 1.12;
+  const yOf = u => base + u * H;
+  const R = r => r * sc;
+  const armU = isEmptyWorld ? S.armLen : S.armLen / H;   // 手臂长度换算成身高比例
 
-  const neckR = p.neck * U / (2 * Math.PI);
-  const rBust = p.bust * U / (2 * Math.PI) * 1.02;
-  const rWaist = p.waist * U / (2 * Math.PI) * 1.00;
-  const rHip = p.hip * U / (2 * Math.PI) * 1.10;
-  const rShoulder = p.shoulder * U * 0.5;
+  const torso = denseProfile(u => R(lerpU(S.meanR, u)), Math.max(0, S.hipU - 0.12), S.shoulderU + 0.03, H, base, 110);
+  const leg = denseProfile(u => R(lerpU(S.legR, u)), S.ankleU - 0.01, S.hipU + 0.02, H, base, 70);
+  const arm = denseProfile(u => R(lerpU(S.armR, u)), S.shoulderU - armU - 0.02, S.shoulderU + 0.02, H, base, 60);
 
-  // 前后厚度随高度变化：腰收、髋圆、胸背厚 —— 女性侧面曲线主要来自这里
-  const depthAt = y => {
-    const t = (y - hipY) / Math.max(bustY - hipY, 0.01);
-    if (y <= hipY) return 0.80;
-    if (t <= 0.45) return 0.80 - 0.15 * (t / 0.45);
-    if (t <= 1.0) return 0.65 + 0.17 * ((t - 0.45) / 0.55);
-    return 0.82;
+  const depthAt = yy => {
+    const u = Math.min(1, Math.max(0, (yy - base) / H));
+    const w = lerpU(S.maxAx, u) * 2;
+    const d = lerpU(S.maxZ, u) - lerpU(S.minZ, u);
+    return w > 1e-4 ? Math.min(1.25, Math.max(0.55, d / w)) : 0.78;
   };
-
-  const torso = [
-    [rHip * 0.42, hipY - 0.105],
-    [rHip * 0.92, hipY - 0.062],
-    [rHip, hipY],
-    [rHip * 0.95, hipY + 0.06],
-    [rWaist * 1.10, hipY + (waistY - hipY) * 0.55],
-    [rWaist, waistY],
-    [rWaist * 1.00, waistY + 0.06],
-    [(rWaist + rBust) * 0.515, waistY + (bustY - waistY) * 0.52],
-    [rBust * 0.98, bustY - 0.055],
-    [rBust, bustY],
-    [rBust * 0.99, bustY + 0.075],
-    [rBust * 1.00, topY - 0.06],
-    [rBust * 0.94, topY],
-    [rBust * 0.72, topY + 0.075],
-    [rBust * 0.46, topY + 0.115],
-  ];
-
-  const armLen = p.arm * U;
-  const armX = rShoulder * 0.845;
-  const palmY = topY - armLen * 0.93;
-  const arm = [
-    [0.028, topY + 0.050],
-    [0.062, topY + 0.030],
-    [0.080, topY + 0.002],
-    [0.084, topY - 0.040],                 // 三角肌
-    [0.075, topY - armLen * 0.16],         // 肱二头肌
-    [0.062, topY - armLen * 0.32],
-    [0.050, topY - armLen * 0.46],         // 肘
-    [0.053, topY - armLen * 0.58],         // 前臂最粗
-    [0.043, topY - armLen * 0.76],
-    [0.029, topY - armLen * 0.93],         // 腕
-  ];
-
-  const legTop = hipY - 0.045;
-  const ankleY = base + 0.095;
-  const kneeY = base + H * 0.285;
-  const legHalf = rHip * 0.47;
-  const leg = [
-    [rHip * 0.60, legTop + 0.10],
-    [rHip * 0.55, legTop],
-    [rHip * 0.46, legTop - (legTop - kneeY) * 0.35],
-    [0.090, kneeY],
-    [0.104, kneeY - (kneeY - ankleY) * 0.22],   // 小腿肚
-    [0.072, kneeY - (kneeY - ankleY) * 0.62],
-    [0.046, ankleY],
-  ];
 
   return {
-    p, H, base, hipY, waistY, bustY, topY, shoulderTop, headY, hr,
-    neckR, rBust, rWaist, rHip, rShoulder, depth: 0.74, depthAt,
-    bust: { y: bustY, amp: 0.062, spread: 0.30, band: 0.082, under: 0 },
-    seat: { y: hipY + 0.01, amp: 0.050, band: 0.10 },
-    torso: resample(torso, 58),
-    arm: resample(arm, 38),
-    leg: resample(leg, 36),
-    armX, palmY, armTilt: 0.055, legHalf, legTop, ankleY, legDepth: 0.92,
+    p, H, base,
+    hipY: yOf(S.hipU), waistY: yOf(S.waistU), bustY: yOf(S.bustU), topY: yOf(S.shoulderU),
+    shoulderTop: yOf(S.shoulderU + 0.012),
+    headY: yOf(S.headU), hr: (1 - S.headU) * H * 0.45,
+    neckR: R(lerpU(S.meanR, S.neckU)),
+    rBust: R(lerpU(S.meanR, S.bustU)),
+    rWaist: R(lerpU(S.meanR, S.waistU)),
+    rHip: R(lerpU(S.meanR, S.seatU)),
+    rShoulder: R(S.armX),
+    depth: depthAt(yOf(S.bustU)),
+    depthAt,
+    bust: { y: yOf(S.bustU), amp: 0, spread: 0.30, band: 0.082, under: 0 },
+    seat: { y: yOf(S.seatU), amp: 0, band: 0.10 },
+    torso, arm, leg,
+    armX: R(S.armX), armTilt: S.armTilt, palmY: yOf(S.shoulderU - armU),
+    legHalf: R(S.legHalf), legTop: yOf(S.hipU - 0.02), ankleY: yOf(S.ankleU),
+    legDepth: 0.94,
+    _H: H, _src: S, _scale: sc,
   };
 }
 
-/** 躯干/服装共用的曲面点：椭圆截面（深度随高度变化）+ 胸部前向 + 臀部后向 */
-function surfPoint(P, y, theta, R, ampBoost) {
-  const cz = Math.cos(theta), sz = Math.sin(theta);
-  const d = P.depthAt(y);
-  const x = R * cz;
-  let z = R * d * sz;
-
-  // 胸：左右双峰，下缘收得急，形成乳房下缘的转折
-  const B = P.bust;
-  const dy = y - B.y;
-  if (sz > 0 && Math.abs(dy) < B.band * 3) {
-    const band = dy < 0 ? B.band * 0.78 : B.band * 1.20;
-    const vy = Math.exp(-Math.pow(dy / band, 2));
-    const d1 = theta - (Math.PI / 2 + B.spread);
-    const d2 = theta - (Math.PI / 2 - B.spread);
-    const g = 0.34;
-    const twin = Math.max(Math.exp(-(d1 * d1) / (g * g)), Math.exp(-(d2 * d2) / (g * g)));
-    z += vy * twin * (B.amp + ampBoost);
-  }
-
-  // 臀：后侧双瓣
-  const S = P.seat;
-  if (sz < 0 && Math.abs(y - S.y) < S.band * 3) {
-    const vy = Math.exp(-Math.pow((y - S.y) / (S.band * 1.25), 2));
-    const d1 = theta - (Math.PI * 1.5 + 0.30);
-    const d2 = theta - (Math.PI * 1.5 - 0.30);
-    const g = 0.40;
-    const twin = Math.max(Math.exp(-(d1 * d1) / (g * g)), Math.exp(-(d2 * d2) / (g * g)));
-    z -= vy * twin * (S.amp + ampBoost * 0.5);
-  }
-  return [x, z];
-}
-
-/** 生成壳体：人体 easeFn=null；服装传放松量函数，自动跟随胸部与臀部曲面 */
+/** 服装壳体：真实截面轮廓 × 半径比例，放松量沿径向外扩 */
 export function shellGeometry(P, y0, y1, ny, radiusFn, easeFn, nTheta = 64) {
-  const pos = [];
-  const idx = [];
+  const H = P._H, base = P.base, S = P._src;
+  const MIN_PAD = 0.006;
+  const PAD = 0.016;                        // 布料与皮肤间隙（约 8mm）
+  const pos = [], idx = [];
   const row = nTheta + 1;
+
   for (let iy = 0; iy <= ny; iy++) {
-    const y = y0 + (y1 - y0) * (iy / ny);
-    const ease = easeFn ? easeFn(y) : 0;
-    const ampBoost = easeFn ? Math.max(ease, 0) : 0;
+    const yy = y0 + (y1 - y0) * (iy / ny);
+    const u = Math.min(0.999, Math.max(0, (yy - base) / H));
+    const target = Math.max(radiusFn(yy) + (easeFn ? easeFn(yy) : 0) + MIN_PAD, 0.02);
+    const bodyR = Math.max(lerpU(S.meanR, u), 0.02);
+    // 上身只跟随人体轮廓做「贴合式」外扩（放松量），摆幅留给裙摆分支，
+    // 否则下摆张开量会把胯部也一起撑开，形成一圈凸缘
+    const k = Math.min(1.12, Math.max(1.0, target / bodyR));
+    const cz = silCz(S, u);
+    const rx = Math.max(lerpU(S.maxAx, u), 0.02);
+    const rz = Math.max((lerpU(S.maxZ, u) - lerpU(S.minZ, u)) * 0.5, 0.02);
+    const dRatio = Math.min(1.15, Math.max(0.72, rz / Math.max(rx, 1e-4)));
+    // 逐行按实际深度比归一化椭圆平均半径，避免版型在胯线出现台阶
+    let meanE = 0;
+    for (let it = 0; it < nTheta; it++) {
+      const th = it / nTheta * Math.PI * 2;
+      meanE += dRatio / Math.sqrt(Math.pow(dRatio * Math.cos(th), 2) + Math.pow(Math.sin(th), 2));
+    }
+    meanE /= nTheta;
+    const w = smoothstep(S.hipU - 0.055, S.hipU - 0.150, u);
     for (let it = 0; it <= nTheta; it++) {
       const th = (it / nTheta) * Math.PI * 2;
-      const R = Math.max(radiusFn(y) + ease, 0.02);
-      const [x, z] = surfPoint(P, y, th, R, ampBoost);
-      pos.push(x, y, z);
+      let r = silR(S, u, th) * k + PAD;
+      if (w > 0.001) {
+        const c = Math.cos(th), sn = Math.sin(th);
+        const e1 = dRatio / Math.sqrt(Math.pow(dRatio * c, 2) + Math.pow(sn, 2));
+        r = r * (1 - w) + (target * (e1 / meanE) + PAD) * w;
+      }
+      pos.push(r * Math.cos(th), yy, cz + r * Math.sin(th));
     }
   }
   for (let iy = 0; iy < ny; iy++) {
     for (let it = 0; it < nTheta; it++) {
-      const a = iy * row + it;
-      const c = a + row;
+      const a = iy * row + it, c = a + row;
       idx.push(a, a + 1, c, a + 1, c + 1, c);
     }
   }
@@ -204,156 +495,57 @@ export function shellGeometry(P, y0, y1, ny, radiusFn, easeFn, nTheta = 64) {
   return geo;
 }
 
-/* ---------------- 材质与几何helper ---------------- */
-
-function skinMat(color) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.84, metalness: 0.0, side: THREE.DoubleSide });
+function smoothstep(a, b, x) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a || 1e-6)));
+  return t * t * (3 - 2 * t);
 }
 
-function latheOf(dense, zScale, material, segments = 48, yMin = -Infinity, yMax = Infinity) {
-  const pts = dense
-    .filter(([, y]) => y >= yMin && y <= yMax)
-    .slice()
-    .sort((a, b) => a[1] - b[1])          // 统一自下而上，保证法线朝外
-    .map(([r, y]) => new THREE.Vector2(Math.max(r, 0.005), y));
-  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, segments), material);
-  if (zScale !== 1) mesh.scale.z = zScale;
-  return mesh;
-}
+/* ---------------- 构建人体 ---------------- */
 
-function ellipsoid(pos, scale, material, seg = 24) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, 18), material);
-  m.position.set(pos[0], pos[1], pos[2]);
-  m.scale.set(scale[0], scale[1], scale[2]);
-  return m;
-}
+export async function buildSmoothBody(model) {
+  const gltf = await prepareBody();
+  const p = { ...DEFAULT_MODEL, ...(model || {}) };
+  const H = p.height * U;
 
-/* ---------------- 真人照片面部贴图 ---------------- */
-
-const FACE_URL = 'images/face.png';
-let faceMat = null;
-
-function getFaceMaterial(skinColor) {
-  if (!faceMat) {
-    faceMat = new THREE.MeshBasicMaterial({
-      color: skinColor, transparent: true, side: THREE.FrontSide,
-      depthWrite: true, alphaTest: 0.01,
-    });
-    new THREE.TextureLoader().load(FACE_URL, tex => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = 4;
-      faceMat.map = tex;
-      faceMat.color.set(0xffffff);
-      faceMat.needsUpdate = true;
-    }, undefined, err => console.warn('面部贴图加载失败，回退纯肤色', err));
-  }
-  return faceMat;
-}
-
-/** 轻微弧面的面部面片：UV 为等距平面投影（照片比例不失真），
-    仅四周向 -Z 退让以贴合头颅曲率 */
-function facePlate(w, h, radius, material, seg = 26) {
-  const geo = new THREE.PlaneGeometry(w, h, seg, seg);
-  const pos = geo.attributes.position;
-  const r2 = radius * radius;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i);
-    pos.setZ(i, Math.sqrt(Math.max(r2 - (x * x + y * y), 0)) - radius);
-  }
-  geo.computeVertexNormals();
-  return new THREE.Mesh(geo, material);
-}
-
-/* ============================================================
-   构建人体
-   ============================================================ */
-export function buildSmoothBody(model) {
   const group = new THREE.Group();
   const figure = new THREE.Group();
   group.add(figure);
 
-  const skin = skinMat(0xd8b79f);
-  const skinSoft = skinMat(0xd2b098);
-  const hair = skinMat(0x1a1512);
+  const root = skeletonClone(gltf.scene);
+  root.updateMatrixWorld(true);
+  const norm = root.scale.clone();           // 归一化基准（身高 1）
+  const hf = horizontalFactor(p);
 
-  function build(m) {
-    while (figure.children.length) figure.remove(figure.children[0]);
-    const P = bodyProfile(m);
-    const { p, H, base, hipY, waistY, bustY, topY, shoulderTop, headY, hr,
-      neckR, rBust, rWaist, rHip, rShoulder, depth, bust, torso, arm, leg,
-      armX, palmY, legHalf, legTop, ankleY } = P;
+  root.scale.set(norm.x * H * hf, norm.y * H, norm.z * H * hf);
+  root.position.set(0, FOOT_Y, 0);
+  root.updateMatrixWorld(true);
 
-    // ---- 躯干（含胸部曲面）----
-    const torsoGeo = shellGeometry(P, torso[0][1], torso[torso.length - 1][1], 60,
-      y => radiusAt(torso, y), null, 64);
-    const torsoMesh = new THREE.Mesh(torsoGeo, skin);
-    figure.add(torsoMesh);
+  let mesh = null;
+  root.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+  // 关键：在最终尺度（含横向比例）上量真实轮廓
+  WL = bakeSilhouette(mesh, H, FOOT_Y);
 
-    // ---- 颈：从肩部上缘平滑过渡到下颌 ----
-    const neck = resample([
-      [neckR * 1.55, shoulderTop - 0.02],
-      [neckR * 1.20, shoulderTop + 0.04],
-      [neckR * 1.06, headY - hr * 0.95],
-      [neckR * 1.02, headY - hr * 0.75],
-    ], 16);
-    figure.add(latheOf(neck, 0.94, skin));
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.frustumCulled = false;
+    o.castShadow = true;
+    o.receiveShadow = true;
+    if (o.material) { o.material.side = THREE.FrontSide; o.material.needsUpdate = true; }
+  });
+  figure.add(root);
 
+  return {
+    group, figure, root, hf,
+    applyProfile: () => { },                 // 档案固定：尺度不变
+    footY: () => FOOT_Y,
+  };
+}
 
-
-    // ---- 头部：头颅椭球，正面压扁为照片面片让位 ----
-    figure.add(ellipsoid([0, headY, 0], [hr * 0.90, hr * 1.12, hr * 0.86], skin));
-
-    // ---- 正面：真人照片贴图（含真实五官与圆框眼镜）----
-    const plateH = hr * 1.66;
-    const plate = facePlate(plateH * 0.8235, plateH, hr * 3.0, getFaceMaterial(0xd8b79f));
-    plate.position.set(0, headY + hr * 0.02, hr * 0.90);
-    plate.renderOrder = 1;
-    figure.add(plate);
-
-    // ---- 头发：黑色齐肩直发，侧分，露出额头 ----
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(hr * 1.04, 32, 22, 0, Math.PI * 2, 0, Math.PI * 0.37), hair);
-    cap.position.set(0, headY + hr * 0.03, -0.006);
-    cap.scale.set(1.02, 1.04, 1.06);
-    figure.add(cap);
-    [-1, 1].forEach(s => {
-      // 鬓角
-      figure.add(ellipsoid([s * hr * 0.74, headY + hr * 0.22, hr * 0.26], [hr * 0.30, hr * 0.40, hr * 0.48], hair));
-      // 侧发：沿脸颊垂落
-      figure.add(ellipsoid([s * hr * 0.88, headY - hr * 0.28, -0.004], [hr * 0.28, hr * 0.84, hr * 0.86], hair));
-      // 发梢齐肩
-      figure.add(ellipsoid([s * hr * 0.90, headY - hr * 1.12, -0.014], [hr * 0.26, hr * 0.62, hr * 0.72], hair));
-    });
-    // 后脑发团
-    figure.add(ellipsoid([0, headY - hr * 0.18, -hr * 0.36], [hr * 0.92, hr * 1.10, hr * 0.62], hair));
-    // 侧分的一缕
-    const sweep = ellipsoid([-hr * 0.24, headY + hr * 0.62, hr * 0.30], [hr * 0.40, hr * 0.18, hr * 0.42], hair);
-    sweep.rotation.z = -0.30;
-    sweep.rotation.x = 0.30;
-    figure.add(sweep);
-
-    // ---- 手臂：平滑锥形，顶端用三角肌衔接，无球关节 ----
-    [-1, 1].forEach(s => {
-      const a = latheOf(arm, 0.94, skin);
-      a.position.x = s * armX;
-      a.rotation.z = s * P.armTilt;
-      figure.add(a);
-      // 手掌
-      figure.add(ellipsoid([s * (armX + 0.020), palmY - 0.062, 0.006], [0.035, 0.075, 0.027], skin));
-    });
-
-    // ---- 腿 ----
-    [-1, 1].forEach(s => {
-      const l = latheOf(leg, P.legDepth, skin);
-      l.position.x = s * legHalf;
-      figure.add(l);
-      figure.add(ellipsoid([s * legHalf, base + 0.045, 0.055], [0.068, 0.045, 0.142], skin));
-    });
-
-    figure.traverse(o => {
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
-    });
-  }
-
-  build(model);
-  return { group, figure, applyProfile: build, footY: () => FOOT_Y };
+/** 横向比例：让模特围度贴近档案实测值，限制在 ±10% 内避免走形 */
+function horizontalFactor(p) {
+  const g = NORM && NORM.girthCm;
+  if (!g) return 1;
+  const rb = p.bust / g.bust, rw = p.waist / g.waist, rh = p.hip / g.hip;
+  const raw = [rb, rw, rh].every(v => isFinite(v) && v > 0) ? rb * 0.5 + rw * 0.2 + rh * 0.3 : 1;
+  return Math.min(1.06, Math.max(0.97, raw));
 }
