@@ -1,0 +1,4 @@
+# 填入你本机的 Android SDK 路径，例如：
+# Windows: sdk.dir=C\:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+# macOS:   sdk.dir=/Users/YourName/Library/Android/sdk
+sdk.dir=
