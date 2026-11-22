@@ -74,8 +74,9 @@ function gL(lengthCm, k) {
   return lengthCm * U;
 }
 
-/* 主入口：按款式数据、尺码、模特、颜色构建服装 Group */
-export function buildGarment(itemId, size, model, colorHex) {
+/* 主入口：按款式数据、尺码、模特、颜色构建服装 Group
+   useRealBody=true 时，用写实模特的实测骨骼基准定位围度截面 */
+export function buildGarment(itemId, size, model, colorHex, useRealBody = false) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
   const k = bodyMetrics(model);
@@ -83,25 +84,38 @@ export function buildGarment(itemId, size, model, colorHex) {
   const M = item.measurements;
   const mat = fabricMat(colorHex);
   const g = new THREE.Group();
-  const depth = 0.78;
+  // 写实人体前后厚度接近圆形，截面 depth 需接近 1 才能包裹身体避免穿模
+  const depth = useRealBody ? 0.96 : 0.78;
 
-  // 成衣各部位尺寸（随尺码缩放）；保证不小于人体对应部位，避免衣服被身体吞没
-  let bustR = gR((M.bust || 90) * sc, k);
-  let waistR = gR((M.waist || 72) * sc, k);
-  let hipR = gR((M.hip || 96) * sc, k);
-  bustR = Math.max(bustR, k.rBust + 0.012);
-  waistR = Math.max(waistR, k.rWaist + 0.012);
-  hipR = Math.max(hipR, k.rHip + 0.012);
-  const shoulderX = (M.shoulder || 40) * U * 0.5;
+  // 成衣各部位尺寸：严格按成衣平铺尺寸 × 尺码系数生成，不随模特体型变形。
+  // 这样当衣服偏小（成衣围度 < 人体围度）时会真实呈现紧绷/被撑开的效果，
+  // 偏大时呈现松垮效果——这就是合身判断的视觉依据。
+  // 写实模特躯干横截面比参数化换算更饱满，用系数补偿以正确包裹
+  const bodyFit = useRealBody ? 1.22 : 1.0;
+  let bustR = gR((M.bust || 90) * sc, k) * bodyFit;
+  let waistR = gR((M.waist || 72) * sc, k) * bodyFit;
+  let hipR = gR((M.hip || 96) * sc, k) * bodyFit;
+  const shoulderX = (M.shoulder || 40) * U * 0.5 * (useRealBody ? 1.15 : 1);
   const sleeveLen = gL(M.sleeve || 0, k);
   const length = gL(M.length || 80, k);
   const openingR = gR((M.opening || 100) * sc, k);
 
-  const topY = k.shoulderY;          // 肩线
-  const hemY = topY - length;        // 下摆
-  const waistY = k.waistY;
-  const hipY = k.hipY;
-  const bustY = k.bustY;
+  let topY = k.shoulderY;            // 肩线
+  let waistY = k.waistY;
+  let hipY = k.hipY;
+  let bustY = k.bustY;
+
+  if (useRealBody) {
+    // 写实模特（Xbot）实测骨骼高度：相对脚底的归一化比例
+    // 脚底 FOOT_Y，全身高 = model.height*U；各关节占身高比例由 Mixamo 骨架测得
+    const H = (model.height || 170) * U;
+    const base = FOOT_Y;
+    topY   = base + H * 0.798;   // 肩 1.356/1.70
+    bustY  = base + H * 0.739;   // 胸 1.256/1.70
+    waistY = base + H * 0.633;   // 腰 1.076/1.70
+    hipY   = base + H * 0.576;   // 胯 0.980/1.70
+  }
+  const hemY = topY - length;    // 下摆
   const sil = item.silhouette;
 
   /* ---------- 连衣裙 ---------- */
@@ -109,8 +123,10 @@ export function buildGarment(itemId, size, model, colorHex) {
     if (sil === 'slip') {
       g.add(lathe([
         [bustR * 0.92, bustY - 0.08], [bustR, bustY + 0.06],
-        [waistR * 0.95, waistY], [hipR, hipY],
-        [openingR * 0.8, hemY + 0.2], [openingR, hemY],
+        [waistR * 0.95, waistY], [hipR * 1.02, hipY],
+        [hipR * 1.0, hipY - 0.22],                       // 大腿段保持宽度，避免身体穿出
+        [Math.max(hipR * 0.95, openingR * 0.82), hemY + 0.2],
+        [openingR, hemY],
       ], depth, mat));
       // 吊带置于胸部前方，避免被躯干厚度遮挡
       const strapZ = bustR * depth + 0.02;

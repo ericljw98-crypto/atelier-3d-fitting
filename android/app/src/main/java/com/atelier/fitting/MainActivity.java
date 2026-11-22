@@ -24,6 +24,7 @@ import java.util.UUID;
 public class MainActivity extends Activity {
 
     private WebView webView;
+    private UpdateManager updateManager;
     public static final int FILE_CHOOSER = 1001;
     private ValueCallback<Uri[]> filePathCallback;
 
@@ -44,6 +45,10 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
+
+        // 自动更新桥接
+        updateManager = new UpdateManager(this, webView);
+        webView.addJavascriptInterface(updateManager, "AtelierUpdate");
 
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {

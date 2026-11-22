@@ -1,0 +1,13 @@
+{
+  "versionCode": 3,
+  "versionName": "1.2",
+  "releaseDate": "2026-11-22",
+  "force": false,
+  "notes": "新版 1.2：采用写实 3D 人体模特；新增合身判断机制——按成衣固定尺寸对比模特测量数据，给出各部位合身评估、评分与推荐尺码；衣服不再随模特变形，可直观看出紧绷或宽松。",
+  "apk": {
+    "url": "https://cdn.jsdelivr.net/gh/ericljw98-crypto/atelier-3d-fitting@main/apk/ATELIER-3D-Fitting.apk",
+    "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk",
+    "size": 1787915,
+    "sha256": "95eafd2bb68fea863ab29fb6698b131815a5ea6c71c2b745538e869f132ea872"
+  }
+}

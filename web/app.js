@@ -3,6 +3,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
+import { buildRealBody } from './realBody.js';
+import { evaluateFit } from './fitEngine.js';
+import { initUpdate } from './update.js';
 
 /* ============================================================
    3D 场景（沿用既有渲染框架）
@@ -87,20 +90,42 @@ function saveProfile(p) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch { /* 隐私模式忽略 */ }
 }
 
-/* 重建人体：先清空再按当前档案构建 */
+/* 重建人体：写实模特（视觉外壳），尺寸由档案驱动 */
 let currentAvatarMesh = null;
+let currentRealBody = null;
+let avatarLoadSeq = 0;
 function rebuildAvatar() {
-  if (currentAvatarMesh) {
-    avatarGroup.remove(currentAvatarMesh);
-    currentAvatarMesh.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  // 模特已加载：档案变化只需即时更新参数，不重建（避免时序竞争导致模特丢失）
+  if (currentRealBody) {
+    currentRealBody.applyProfile(state.model);
+    return;
   }
-  currentAvatarMesh = buildBody(state.model);
+  const seq = ++avatarLoadSeq;
   avatarGroup.remove(garmentGroup);
-  avatarGroup.add(currentAvatarMesh);
+  const placeholder = new THREE.Group();
+  avatarGroup.add(placeholder);
   avatarGroup.add(garmentGroup);
-  applyBodyScale();
+
+  buildRealBody(state.model).then(real => {
+    if (seq !== avatarLoadSeq) { avatarGroup.remove(placeholder); return; }
+    avatarGroup.remove(placeholder);
+    currentRealBody = real;
+    currentAvatarMesh = real.group;
+    avatarGroup.add(real.group);
+    avatarGroup.add(garmentGroup);
+  }).catch(err => {
+    console.error('写实模特加载失败，回退参数化人体', err);
+    if (seq !== avatarLoadSeq) return;
+    avatarGroup.remove(placeholder);
+    currentAvatarMesh = buildBody(state.model);
+    avatarGroup.add(currentAvatarMesh);
+    avatarGroup.add(garmentGroup);
+    applyBodyScale();
+  });
 }
 function applyBodyScale() {
+  // 写实模特自身已处理缩放，参数化回退时才需要
+  if (currentRealBody) return;
   const k = bodyMetrics(state.model);
   avatarGroup.scale.set(k.hs, k.hs, k.hs);
   avatarGroup.position.y = FOOT_Y * (1 - k.hs);
@@ -126,19 +151,19 @@ function selectGarment(itemId, opt = {}) {
 
   const color = opt.color ?? state.color;
   const colorName = opt.colorName ?? state.colorName;
-  const group = buildGarment(itemId, state.size, state.model, color);
+  const group = buildGarment(itemId, state.size, state.model, color, true);
   if (!group) return;
   garmentGroup.add(group);
   state.outfit[slot] = { id: itemId, slot, group, color, colorName };
   state.activeSlot = slot;
   state.color = color; state.colorName = colorName;
-  renderGarments(); renderSummary(); updateStatus(); renderColors();
+  renderGarments(); renderSummary(); updateStatus(); renderColors(); renderFitReport();
   toast(`已试穿：${item.name}`);
 }
 function clearAll() {
   Object.keys(state.outfit).forEach(clearSlot);
   state.activeSlot = null;
-  renderGarments(); renderSummary(); updateStatus();
+  renderGarments(); renderSummary(); updateStatus(); renderFitReport();
 }
 function setColor(hex, name) {
   state.color = hex; state.colorName = name;
@@ -165,6 +190,8 @@ const els = {
   status: document.getElementById('stage-status'),
   toast: document.getElementById('toast'),
   modelChip: document.getElementById('model-chip'),
+  fitVerdict: document.getElementById('fit-verdict'),
+  fitReport: document.getElementById('fit-report'),
 };
 
 const SWATCHES = [
@@ -236,13 +263,13 @@ function recomputeOutfitForSize() {
     const entry = state.outfit[slot];
     if (!entry) return;
     const color = entry.color;
-    const group = buildGarment(entry.id, state.size, state.model, color);
+    const group = buildGarment(entry.id, state.size, state.model, color, true);
     garmentGroup.remove(entry.group);
     entry.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
     garmentGroup.add(group);
     entry.group = group;
   });
-  renderSummary();
+  renderSummary(); renderFitReport();
 }
 
 function renderSummary() {
@@ -257,6 +284,47 @@ function renderSummary() {
     return `<div class="outfit-row"><span class="label">${item.name}<small>${state.size}</small></span><span class="value"><span class="dot" style="background:${hex}"></span>${o.colorName || ''}</span></div>`;
   }).join('');
 }
+/* 合身诊断：按成衣固定尺寸 vs 模特身体尺寸判断 */
+function renderFitReport() {
+  const worn = Object.values(state.outfit).filter(Boolean);
+  if (!worn.length || !state.model) {
+    els.fitVerdict.textContent = '未试穿';
+    els.fitVerdict.className = 'fit-badge';
+    els.fitReport.innerHTML = '<p class="fit-empty">试穿任意款式后，这里会给出各部位的合身判断</p>';
+    return;
+  }
+
+  // 以当前选中服饰为判断对象；无选中则取第一件
+  const entry = (state.activeSlot && state.outfit[state.activeSlot]) || worn[0];
+  const result = evaluateFit(entry.id, state.size, state.model);
+  if (!result) return;
+
+  const levelClass = 'fit-' + result.level;
+  els.fitVerdict.textContent = result.verdict;
+  els.fitVerdict.className = 'fit-badge ' + levelClass;
+
+  const partsHtml = result.parts.map(p => {
+    const fill = Math.max(4, Math.min(100, p.score));
+    return `<div class="fit-part">
+      <div class="fit-part-head"><span>${p.label}</span><span class="fit-part-status ${p.status}">${p.statusLabel}</span></div>
+      <div class="fit-part-bar"><i class="${p.status}" style="width:${fill}%"></i></div>
+      <div class="fit-part-data">成衣 ${p.garment} · 身体 ${p.body} · 放松 ${p.ease > 0 ? '+' : ''}${p.ease}cm<span>设计 ${p.designEase > 0 ? '+' : ''}${p.designEase}</span></div>
+    </div>`;
+  }).join('');
+
+  const recHtml = result.recommendation !== state.size
+    ? `<div class="fit-recommend">系统推荐尺码 <b>${result.recommendation}</b>，当前 ${state.size} 可能不够合身</div>`
+    : `<div class="fit-recommend ok">当前尺码 ${state.size} 与推荐一致</div>`;
+
+  els.fitReport.innerHTML = `
+    <div class="fit-score-row">
+      <div class="fit-score ${levelClass}">${result.score}<small>分</small></div>
+      <div class="fit-score-desc">${result.summary}</div>
+    </div>
+    ${partsHtml}
+    ${recHtml}`;
+}
+
 function updateStatus() {
   const n = Object.values(state.outfit).filter(Boolean).length;
   els.status.textContent = n ? `已搭配 ${n} 件 · ${state.size}` : '未着装';
@@ -273,6 +341,7 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
 }
+window.__atelierToast = toast;
 
 /* ============================================================
    建档向导
@@ -366,7 +435,7 @@ document.getElementById('profile-save').addEventListener('click', () => {
   const rec = recommendSize(state.model);
   state.size = rec;
   rebuildAvatar();
-  renderSizes(); renderModelChip(); renderGarments(); renderSummary(); updateStatus();
+  renderSizes(); renderModelChip(); renderGarments(); renderSummary(); updateStatus(); renderFitReport();
   closeProfileModal();
   toast(`模特档案已建立 · 推荐 ${rec}`);
 });
@@ -711,6 +780,7 @@ renderSizes();
 renderModelChip();
 renderGarments();
 renderSummary();
+renderFitReport();
 updateStatus();
 resize();
 animate();
@@ -719,9 +789,22 @@ document.getElementById('loading').classList.add('hidden');
 /* 首次使用弹出建档向导（侧边面板，模特在背景持续可见） */
 if (!saved) openProfileModal(false);
 
+/* 自动更新检查 */
+initUpdate();
+
 /* 调试/自动化接口 */
 window.__atelier = {
-  state, DB, applyProfile(p) {
+  state, DB,
+  debugAvatar() {
+    return {
+      avatarChildren: avatarGroup.children.length,
+      hasReal: !!currentRealBody,
+      meshChildren: avatarGroup.children.map(c => c.type + ':' + c.children.length),
+      avatarScale: avatarGroup.scale.toArray(),
+      avatarPos: avatarGroup.position.toArray(),
+    };
+  },
+  applyProfile(p) {
     state.model = { ...DEFAULT_MODEL, ...p };
     state.size = recommendSize(state.model);
     saveProfile(state.model);
