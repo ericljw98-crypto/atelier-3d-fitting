@@ -470,9 +470,6 @@ document.getElementById('profile-cancel').addEventListener('click', () => {
   if (!state.model) return; // 首次建档不可取消
   closeProfileModal();
 });
-document.getElementById('btn-edit-model').addEventListener('click', () => {
-  toast('模特尺寸已按实测数据锁定，不可调整');
-});
 const tipEditEl2 = document.getElementById('tip-edit');
 if (tipEditEl2) tipEditEl2.addEventListener('click', (e) => {
   e.stopImmediatePropagation();
@@ -496,20 +493,7 @@ els.views.querySelectorAll('button').forEach(b => {
     moveCameraTo(VIEWS[b.dataset.view]);
   });
 });
-document.getElementById('btn-reset').addEventListener('click', () => {
-  clearAll();
-  moveCameraTo(VIEWS.front);
-  els.views.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-  els.views.querySelector('[data-view="front"]').classList.add('active');
-});
 document.getElementById('btn-clear').addEventListener('click', clearAll);
-document.getElementById('btn-snapshot').addEventListener('click', () => {
-  renderer.render(scene, camera);
-  const a = document.createElement('a');
-  a.href = renderer.domElement.toDataURL('image/png');
-  a.download = 'atelier-look.png'; a.click();
-  toast('造型图片已保存');
-});
 
 /* ============================================================
    渲染循环

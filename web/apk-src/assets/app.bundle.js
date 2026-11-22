@@ -17926,53 +17926,6 @@
       return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
     }
   };
-  var CircleGeometry = class _CircleGeometry extends BufferGeometry {
-    constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
-      super();
-      this.type = "CircleGeometry";
-      this.parameters = {
-        radius,
-        segments,
-        thetaStart,
-        thetaLength
-      };
-      segments = Math.max(3, segments);
-      const indices = [];
-      const vertices = [];
-      const normals = [];
-      const uvs = [];
-      const vertex2 = new Vector3();
-      const uv = new Vector2();
-      vertices.push(0, 0, 0);
-      normals.push(0, 0, 1);
-      uvs.push(0.5, 0.5);
-      for (let s = 0, i = 3; s <= segments; s++, i += 3) {
-        const segment = thetaStart + s / segments * thetaLength;
-        vertex2.x = radius * Math.cos(segment);
-        vertex2.y = radius * Math.sin(segment);
-        vertices.push(vertex2.x, vertex2.y, vertex2.z);
-        normals.push(0, 0, 1);
-        uv.x = (vertices[i] / radius + 1) / 2;
-        uv.y = (vertices[i + 1] / radius + 1) / 2;
-        uvs.push(uv.x, uv.y);
-      }
-      for (let i = 1; i <= segments; i++) {
-        indices.push(i, i + 1, 0);
-      }
-      this.setIndex(indices);
-      this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
-      this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
-      this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
-    }
-    copy(source) {
-      super.copy(source);
-      this.parameters = Object.assign({}, source.parameters);
-      return this;
-    }
-    static fromJSON(data) {
-      return new _CircleGeometry(data.radius, data.segments, data.thetaStart, data.thetaLength);
-    }
-  };
   var CylinderGeometry = class _CylinderGeometry extends BufferGeometry {
     constructor(radiusTop = 1, radiusBottom = 1, height = 1, radialSegments = 32, heightSegments = 1, openEnded = false, thetaStart = 0, thetaLength = Math.PI * 2) {
       super();
@@ -18829,6 +18782,24 @@
   var VectorKeyframeTrack = class extends KeyframeTrack {
   };
   VectorKeyframeTrack.prototype.ValueTypeName = "vector";
+  var Cache = {
+    enabled: false,
+    files: {},
+    add: function(key2, file) {
+      if (this.enabled === false) return;
+      this.files[key2] = file;
+    },
+    get: function(key2) {
+      if (this.enabled === false) return;
+      return this.files[key2];
+    },
+    remove: function(key2) {
+      delete this.files[key2];
+    },
+    clear: function() {
+      this.files = {};
+    }
+  };
   var LoadingManager = class {
     constructor(onLoad, onProgress, onError) {
       const scope = this;
@@ -18943,6 +18914,69 @@
     }
   };
   Loader.DEFAULT_MATERIAL_NAME = "__DEFAULT";
+  var ImageLoader = class extends Loader {
+    constructor(manager) {
+      super(manager);
+    }
+    load(url, onLoad, onProgress, onError) {
+      if (this.path !== void 0) url = this.path + url;
+      url = this.manager.resolveURL(url);
+      const scope = this;
+      const cached = Cache.get(url);
+      if (cached !== void 0) {
+        scope.manager.itemStart(url);
+        setTimeout(function() {
+          if (onLoad) onLoad(cached);
+          scope.manager.itemEnd(url);
+        }, 0);
+        return cached;
+      }
+      const image = createElementNS("img");
+      function onImageLoad() {
+        removeEventListeners();
+        Cache.add(url, this);
+        if (onLoad) onLoad(this);
+        scope.manager.itemEnd(url);
+      }
+      function onImageError(event) {
+        removeEventListeners();
+        if (onError) onError(event);
+        scope.manager.itemError(url);
+        scope.manager.itemEnd(url);
+      }
+      function removeEventListeners() {
+        image.removeEventListener("load", onImageLoad, false);
+        image.removeEventListener("error", onImageError, false);
+      }
+      image.addEventListener("load", onImageLoad, false);
+      image.addEventListener("error", onImageError, false);
+      if (url.slice(0, 5) !== "data:") {
+        if (this.crossOrigin !== void 0) image.crossOrigin = this.crossOrigin;
+      }
+      scope.manager.itemStart(url);
+      image.src = url;
+      return image;
+    }
+  };
+  var TextureLoader = class extends Loader {
+    constructor(manager) {
+      super(manager);
+    }
+    load(url, onLoad, onProgress, onError) {
+      const texture = new Texture();
+      const loader = new ImageLoader(this.manager);
+      loader.setCrossOrigin(this.crossOrigin);
+      loader.setPath(this.path);
+      loader.load(url, function(image) {
+        texture.image = image;
+        texture.needsUpdate = true;
+        if (onLoad !== void 0) {
+          onLoad(texture);
+        }
+      }, onProgress, onError);
+      return texture;
+    }
+  };
   var Light = class extends Object3D {
     constructor(color, intensity = 1) {
       super();
@@ -26276,341 +26310,9 @@
     return `${m.height}cm \xB7 ${m.weight}kg \xB7 ${shape} \xB7 \u4E09\u56F4 ${m.bust}/${m.waist}/${m.hip}`;
   }
 
-  // garment.js
-  var U2 = 1 / 50;
-  var BASE_BUST = SIZE_CHART["IT 40"].bust;
-  function sizeScale(size) {
-    return (SIZE_CHART[size] || SIZE_CHART["IT 40"]).bust / BASE_BUST;
-  }
-  function recommendSize(model) {
-    const bust = model.bust || 90;
-    let best = "IT 40", diff = Infinity;
-    SIZES.forEach((s) => {
-      const d = Math.abs(SIZE_CHART[s].bust - bust);
-      if (d < diff) {
-        diff = d;
-        best = s;
-      }
-    });
-    return best;
-  }
-  function fabricMat(hex) {
-    return new MeshStandardMaterial({
-      color: hex,
-      roughness: 0.8,
-      metalness: 0.02,
-      side: DoubleSide
-    });
-  }
-  function finish(g, mats) {
-    g.userData.dyeMaterials = mats;
-    g.traverse((o) => {
-      if (o.isMesh) o.castShadow = true;
-    });
-    return g;
-  }
-  function lathe2(profile, zScale, mat2) {
-    const pts = profile.map(([r, y]) => new Vector2(Math.max(r, 0.01), y));
-    const mesh = new Mesh(new LatheGeometry(pts, 40), mat2);
-    if (zScale !== 1) mesh.scale.z = zScale;
-    return mesh;
-  }
-  function limb2(p1, p2, r1, r2, mat2, seg = 14) {
-    const dir = new Vector3().subVectors(p2, p1);
-    const len = dir.length();
-    const mesh = new Mesh(new CylinderGeometry(r2, r1, len, seg, 1), mat2);
-    mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
-    mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize());
-    return mesh;
-  }
-  function ball2(pos, scale, mat2) {
-    const mesh = new Mesh(new SphereGeometry(1, 18, 14), mat2);
-    mesh.position.copy(pos);
-    mesh.scale.copy(scale);
-    return mesh;
-  }
-  function torus(r, tube, y, zScale, mat2) {
-    const t = new Mesh(new TorusGeometry(r, tube, 8, 32), mat2);
-    t.rotation.x = Math.PI / 2;
-    t.position.y = y;
-    t.scale.z = zScale;
-    return t;
-  }
-  function gR(circumferenceCm, k) {
-    return Math.max(0.06, circumferenceCm * U2 * 0.5 / Math.PI);
-  }
-  function gL(lengthCm, k) {
-    return lengthCm * U2;
-  }
-  function buildGarment(itemId, size, model, colorHex, useRealBody = false) {
-    const item = DB_BY_ID[itemId];
-    if (!item) return null;
-    const k = bodyMetrics(model);
-    const sc = sizeScale(size || "IT 40");
-    const M = item.measurements;
-    const mat2 = fabricMat(colorHex);
-    const g = new Group();
-    const depth = useRealBody ? 0.96 : 0.78;
-    const bodyFit = useRealBody ? 1.22 : 1;
-    let bustR = gR((M.bust || 90) * sc, k) * bodyFit;
-    let waistR = gR((M.waist || 72) * sc, k) * bodyFit;
-    let hipR = gR((M.hip || 96) * sc, k) * bodyFit;
-    const shoulderX = (M.shoulder || 40) * U2 * 0.5 * (useRealBody ? 1.15 : 1);
-    const sleeveLen = gL(M.sleeve || 0, k);
-    const length = gL(M.length || 80, k);
-    const openingR = gR((M.opening || 100) * sc, k);
-    let topY = k.shoulderY;
-    let waistY = k.waistY;
-    let hipY = k.hipY;
-    let bustY = k.bustY;
-    if (useRealBody) {
-      const H = (model.height || 170) * U2;
-      const base = FOOT_Y;
-      topY = base + H * 0.798;
-      bustY = base + H * 0.739;
-      waistY = base + H * 0.633;
-      hipY = base + H * 0.576;
-    }
-    const hemY = topY - length;
-    const sil = item.silhouette;
-    if (item.category === "dresses") {
-      if (sil === "slip") {
-        g.add(lathe2([
-          [bustR * 0.92, bustY - 0.08],
-          [bustR, bustY + 0.06],
-          [waistR * 0.95, waistY],
-          [hipR * 1.02, hipY],
-          [hipR * 1, hipY - 0.22],
-          // 大腿段保持宽度，避免身体穿出
-          [Math.max(hipR * 0.95, openingR * 0.82), hemY + 0.2],
-          [openingR, hemY]
-        ], depth, mat2));
-        const strapZ = bustR * depth + 0.02;
-        [-1, 1].forEach((s) => g.add(limb2(
-          new Vector3(s * bustR * 0.62, bustY + 0.04, strapZ),
-          new Vector3(s * (shoulderX * 0.8), topY + 0.06, strapZ * 0.75),
-          0.032,
-          0.03,
-          mat2
-        )));
-      } else if (sil === "fitted" || sil === "blouse" || sil === "wrap") {
-        g.add(lathe2([
-          [bustR * 0.85, topY],
-          [bustR, bustY],
-          [waistR, waistY],
-          [hipR, hipY],
-          [hipR * 1.15, hemY + 0.25],
-          [hipR * 1.3, hemY]
-        ], depth, mat2));
-        if (M.sleeve > 0) addSleeves(g, (s) => [
-          new Vector3(s * shoulderX, topY - 0.02, 0),
-          new Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.55, 0),
-          new Vector3(s * (shoulderX + 0.07), topY - sleeveLen, 0)
-        ], 0.115, 0.085, mat2);
-        if (sil === "wrap") {
-          const belt = torus(waistR * 1.02, 0.022, waistY, depth, mat2);
-          g.add(belt);
-        }
-      } else if (sil === "aline" || sil === "flared" || sil === "cape") {
-        g.add(lathe2([
-          [bustR * 0.9, topY],
-          [bustR, bustY],
-          [waistR, waistY],
-          [hipR, hipY],
-          [hipR + (openingR - hipR) * 0.5, hemY + 0.3],
-          [openingR, hemY]
-        ], depth, mat2));
-        if (sil === "cape") {
-          g.add(lathe2([
-            [shoulderX * 1.05, topY + 0.06],
-            [openingR * 1.15, topY - 0.9],
-            [openingR * 1.35, topY - 1.35]
-          ], depth * 1.05, mat2));
-        }
-      } else if (sil === "straight" || sil === "peplum") {
-        g.add(lathe2([
-          [bustR * 0.88, topY],
-          [bustR, bustY],
-          [waistR, waistY],
-          [hipR, hipY],
-          [hipR * (sil === "peplum" ? 1.28 : 1.05), hemY + 0.18],
-          [hipR * (sil === "peplum" ? 1.34 : 1.06), hemY]
-        ], depth, mat2));
-        if (sil === "peplum") g.add(torus(waistR * 1.06, 0.03, waistY + 0.04, depth, mat2));
-        if (M.sleeve > 0) addSleeves(g, (s) => [
-          new Vector3(s * shoulderX, topY - 0.02, 0),
-          new Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.6, 0),
-          new Vector3(s * (shoulderX + 0.06), topY - sleeveLen, 0)
-        ], 0.105, 0.075, mat2);
-      }
-      if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat2, 0.13);
-    } else if (item.category === "tops") {
-      if (sil === "slip") {
-        g.add(lathe2([
-          [bustR * 0.88, topY - 0.22],
-          [bustR, bustY],
-          [waistR, waistY],
-          [waistR * 0.95, hemY]
-        ], depth, mat2));
-      } else if (sil === "oversize" || sil === "knit") {
-        g.add(lathe2([
-          [bustR * 0.95, topY],
-          [bustR, bustY],
-          [waistR * 1.02, waistY],
-          [waistR * 1.05, hemY]
-        ], depth, mat2));
-        if (M.sleeve > 0) addSleeves(g, (s) => [
-          new Vector3(s * shoulderX, topY - 0.02, 0),
-          new Vector3(s * (shoulderX + 0.06), topY - sleeveLen * 0.55, 0),
-          new Vector3(s * (shoulderX + 0.09), topY - sleeveLen, 0)
-        ], 0.135, 0.105, mat2);
-      } else {
-        g.add(lathe2([
-          [bustR * 0.85, topY],
-          [bustR, bustY],
-          [waistR * 0.98, waistY],
-          [waistR * 0.96, hemY]
-        ], depth, mat2));
-        if (M.sleeve > 0) {
-          const short = sleeveLen < gL(30, k);
-          addSleeves(g, (s) => {
-            const p1 = new Vector3(s * shoulderX, topY - 0.02, 0);
-            const p3 = new Vector3(s * (shoulderX + (short ? 0.16 : 0.05)), topY - sleeveLen, 0);
-            const p2 = p1.clone().lerp(p3, 0.55);
-            return [p1, p2, p3];
-          }, short ? 0.125 : 0.105, short ? 0.115 : 0.075, mat2);
-        }
-        if (M.neck !== 0) {
-          g.add(torus(Math.min(bustR * 0.5, 0.14), 0.018, topY + 0.02, depth, mat2));
-        }
-      }
-      if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat2, 0.12);
-    } else if (item.category === "bottoms") {
-      const isSkirt = ["aline", "pencil", "flared"].includes(sil);
-      if (isSkirt) {
-        const hem = k.hipY - length + 0.5;
-        const waistY2 = k.waistY;
-        let hemR = openingR;
-        if (sil === "pencil") hemR = hipR * 0.96;
-        g.add(lathe2([
-          [waistR * 1.02, waistY2 + 0.06],
-          [hipR, k.hipY],
-          [(hipR + hemR) * 0.5, (k.hipY + hem) * 0.5],
-          [hemR, hem]
-        ], depth, mat2));
-        g.add(torus(waistR * 1.03, 0.02, waistY2 + 0.06, depth, mat2));
-      } else {
-        g.add(lathe2([
-          [waistR * 1.03, k.waistY + 0.06],
-          [hipR, k.hipY],
-          [hipR * 0.92, k.hipY - 0.25]
-        ], depth, mat2));
-        const legTop = k.hipY - 0.12;
-        const legBottom = FOOT_Y + 0.12;
-        const legLen = legTop - legBottom;
-        const kneeY = legTop - legLen * 0.5;
-        const hipHalf = hipR * 0.5;
-        [-1, 1].forEach((s) => {
-          const wide = sil === "wide" || sil === "mini";
-          const rTop = wide ? hipR * 0.48 : hipR * 0.42;
-          const rHem = gR(openingR, k) * (wide ? 1 : 0.62);
-          g.add(limb2(
-            new Vector3(s * hipHalf, legTop, 0),
-            new Vector3(s * hipHalf, kneeY, 0),
-            rTop,
-            (rTop + rHem) * 0.5,
-            mat2
-          ));
-          g.add(limb2(
-            new Vector3(s * hipHalf, kneeY, 0),
-            new Vector3(s * hipHalf, legBottom, 0),
-            (rTop + rHem) * 0.5,
-            rHem,
-            mat2
-          ));
-        });
-        g.add(torus(waistR * 1.03, 0.02, k.waistY + 0.06, depth, mat2));
-      }
-    } else if (item.category === "outer") {
-      if (sil === "cape") {
-        g.add(lathe2([
-          [shoulderX * 1.12, topY + 0.08],
-          [bustR * 1.35, topY - 0.7],
-          [hipR * 1.5, topY - 1.3],
-          [openingR * 1.5, hemY]
-        ], depth, mat2));
-      } else {
-        const outerBust = Math.max(bustR, k.rBust + 0.05);
-        g.add(lathe2([
-          [outerBust * 0.88, topY],
-          [outerBust, bustY],
-          [Math.max(waistR, k.rWaist + 0.05), waistY],
-          [Math.max(hipR, k.rHip + 0.04), hipY],
-          [Math.max(hipR, k.rHip + 0.06) * 1.06, hemY]
-        ], depth, mat2));
-        if (sleeveLen > 0) {
-          addSleeves(g, (s) => [
-            new Vector3(s * shoulderX * 1.04, topY - 0.02, 0),
-            new Vector3(s * (shoulderX + 0.07), topY - sleeveLen * 0.55, 0),
-            new Vector3(s * (shoulderX + 0.1), topY - sleeveLen, 0)
-          ], 0.15, 0.115, mat2);
-        }
-        const lapelW = sil === "trench" ? 0.19 : 0.15;
-        [-1, 1].forEach((s) => {
-          const lp = new Mesh(new BoxGeometry(lapelW, 0.24, 0.02), mat2);
-          lp.position.set(s * 0.085, topY - 0.06, bustR * depth + 0.01);
-          lp.rotation.z = s * 0.35;
-          g.add(lp);
-        });
-        if (sil === "trench" || sil === "blazer") {
-          g.add(torus(Math.max(waistR, k.rWaist + 0.05) * 1.02, 0.025, waistY, depth, mat2));
-        }
-      }
-      addShoulderCaps(g, shoulderX, topY, mat2, 0.15);
-    }
-    return finish(g, [mat2]);
-  }
-  function addSleeves(g, pathOf, r1, r2, mat2) {
-    [-1, 1].forEach((s) => {
-      const pts = pathOf(s);
-      g.add(limb2(pts[0], pts[1], r1, (r1 + r2) * 0.5, mat2));
-      g.add(limb2(pts[1], pts[2], (r1 + r2) * 0.5, r2, mat2));
-      g.add(ball2(pts[2].clone(), new Vector3(r2, r2, r2), mat2));
-    });
-  }
-  function addShoulderCaps(g, shoulderX, topY, mat2, r) {
-    [-1, 1].forEach((s) => {
-      g.add(ball2(
-        new Vector3(s * shoulderX, topY - 0.04, 0),
-        new Vector3(r, r * 0.92, r * 0.9),
-        mat2
-      ));
-    });
-  }
-  function specText(item, size) {
-    const M = item.measurements;
-    const sc = sizeScale(size);
-    const parts = [];
-    if (M.bust) parts.push(`\u80F8\u56F4 ${Math.round(M.bust * sc)}`);
-    if (M.waist) parts.push(`\u8170\u56F4 ${Math.round(M.waist * sc)}`);
-    if (M.hip) parts.push(`\u81C0\u56F4 ${Math.round(M.hip * sc)}`);
-    if (M.length) parts.push(`\u8863\u957F ${Math.round(M.length)}`);
-    return parts.join(" / ") + " cm";
-  }
-
-  // vendor/addons/loaders/GLTFLoader.js
-  var _q = new Quaternion();
-  var _identityMatrix = new Matrix4();
-
-  // realBody.js
-  var U3 = 1 / 50;
-
   // smoothBody.js
-  var U4 = 1 / 50;
-  function skinMat(color) {
-    return new MeshStandardMaterial({ color, roughness: 0.84, metalness: 0, side: DoubleSide });
-  }
-  function smoothLathe(controls2, zScale, material, segments = 48, samples = 48) {
+  var U2 = 1 / 50;
+  function resample(controls2, samples) {
     const dense = [];
     const spans = controls2.length - 1;
     for (let i = 0; i <= samples; i++) {
@@ -26626,8 +26328,188 @@
         dense[i][0] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
       }
     }
-    const pts2 = dense.map(([r, y]) => new Vector2(Math.max(r, 5e-3), y));
-    const mesh = new Mesh(new LatheGeometry(pts2, segments), material);
+    return dense.sort((a, b) => a[1] - b[1]);
+  }
+  function radiusAt(dense, y) {
+    if (y <= dense[0][1]) return dense[0][0];
+    const last = dense[dense.length - 1];
+    if (y >= last[1]) return last[0];
+    for (let i = 1; i < dense.length; i++) {
+      const a = dense[i - 1], b = dense[i];
+      if (y <= b[1]) {
+        const t = (y - a[1]) / (b[1] - a[1] || 1);
+        return a[0] + (b[0] - a[0]) * t;
+      }
+    }
+    return last[0];
+  }
+  function bodyProfile(model) {
+    const p = { ...DEFAULT_MODEL, ...model || {} };
+    const H = p.height * U2;
+    const base = FOOT_Y;
+    const hipY = base + H * 0.512;
+    const waistY = base + H * 0.6;
+    const bustY = base + H * 0.713;
+    const topY = base + H * 0.818;
+    const shoulderTop = topY + 0.045;
+    const hr = H * 0.06;
+    const headY = base + H - hr * 1.12;
+    const neckR = p.neck * U2 / (2 * Math.PI);
+    const rBust = p.bust * U2 / (2 * Math.PI) * 1.02;
+    const rWaist = p.waist * U2 / (2 * Math.PI) * 1;
+    const rHip = p.hip * U2 / (2 * Math.PI) * 1.1;
+    const rShoulder = p.shoulder * U2 * 0.5;
+    const depthAt = (y) => {
+      const t = (y - hipY) / Math.max(bustY - hipY, 0.01);
+      if (y <= hipY) return 0.8;
+      if (t <= 0.45) return 0.8 - 0.15 * (t / 0.45);
+      if (t <= 1) return 0.65 + 0.17 * ((t - 0.45) / 0.55);
+      return 0.82;
+    };
+    const torso = [
+      [rHip * 0.42, hipY - 0.105],
+      [rHip * 0.92, hipY - 0.062],
+      [rHip, hipY],
+      [rHip * 0.95, hipY + 0.06],
+      [rWaist * 1.1, hipY + (waistY - hipY) * 0.55],
+      [rWaist, waistY],
+      [rWaist * 1, waistY + 0.06],
+      [(rWaist + rBust) * 0.515, waistY + (bustY - waistY) * 0.52],
+      [rBust * 0.98, bustY - 0.055],
+      [rBust, bustY],
+      [rBust * 0.99, bustY + 0.075],
+      [rBust * 1, topY - 0.06],
+      [rBust * 0.94, topY],
+      [rBust * 0.72, topY + 0.075],
+      [rBust * 0.46, topY + 0.115]
+    ];
+    const armLen = p.arm * U2;
+    const armX = rShoulder * 0.845;
+    const palmY = topY - armLen * 0.93;
+    const arm = [
+      [0.028, topY + 0.05],
+      [0.062, topY + 0.03],
+      [0.08, topY + 2e-3],
+      [0.084, topY - 0.04],
+      // 三角肌
+      [0.075, topY - armLen * 0.16],
+      // 肱二头肌
+      [0.062, topY - armLen * 0.32],
+      [0.05, topY - armLen * 0.46],
+      // 肘
+      [0.053, topY - armLen * 0.58],
+      // 前臂最粗
+      [0.043, topY - armLen * 0.76],
+      [0.029, topY - armLen * 0.93]
+      // 腕
+    ];
+    const legTop = hipY - 0.045;
+    const ankleY = base + 0.095;
+    const kneeY = base + H * 0.285;
+    const legHalf = rHip * 0.47;
+    const leg = [
+      [rHip * 0.6, legTop + 0.1],
+      [rHip * 0.55, legTop],
+      [rHip * 0.46, legTop - (legTop - kneeY) * 0.35],
+      [0.09, kneeY],
+      [0.104, kneeY - (kneeY - ankleY) * 0.22],
+      // 小腿肚
+      [0.072, kneeY - (kneeY - ankleY) * 0.62],
+      [0.046, ankleY]
+    ];
+    return {
+      p,
+      H,
+      base,
+      hipY,
+      waistY,
+      bustY,
+      topY,
+      shoulderTop,
+      headY,
+      hr,
+      neckR,
+      rBust,
+      rWaist,
+      rHip,
+      rShoulder,
+      depth: 0.74,
+      depthAt,
+      bust: { y: bustY, amp: 0.062, spread: 0.3, band: 0.082, under: 0 },
+      seat: { y: hipY + 0.01, amp: 0.05, band: 0.1 },
+      torso: resample(torso, 58),
+      arm: resample(arm, 38),
+      leg: resample(leg, 36),
+      armX,
+      palmY,
+      armTilt: 0.055,
+      legHalf,
+      legTop,
+      ankleY,
+      legDepth: 0.92
+    };
+  }
+  function surfPoint(P, y, theta, R, ampBoost) {
+    const cz = Math.cos(theta), sz = Math.sin(theta);
+    const d = P.depthAt(y);
+    const x = R * cz;
+    let z = R * d * sz;
+    const B = P.bust;
+    const dy = y - B.y;
+    if (sz > 0 && Math.abs(dy) < B.band * 3) {
+      const band = dy < 0 ? B.band * 0.78 : B.band * 1.2;
+      const vy = Math.exp(-Math.pow(dy / band, 2));
+      const d1 = theta - (Math.PI / 2 + B.spread);
+      const d2 = theta - (Math.PI / 2 - B.spread);
+      const g = 0.34;
+      const twin = Math.max(Math.exp(-(d1 * d1) / (g * g)), Math.exp(-(d2 * d2) / (g * g)));
+      z += vy * twin * (B.amp + ampBoost);
+    }
+    const S = P.seat;
+    if (sz < 0 && Math.abs(y - S.y) < S.band * 3) {
+      const vy = Math.exp(-Math.pow((y - S.y) / (S.band * 1.25), 2));
+      const d1 = theta - (Math.PI * 1.5 + 0.3);
+      const d2 = theta - (Math.PI * 1.5 - 0.3);
+      const g = 0.4;
+      const twin = Math.max(Math.exp(-(d1 * d1) / (g * g)), Math.exp(-(d2 * d2) / (g * g)));
+      z -= vy * twin * (S.amp + ampBoost * 0.5);
+    }
+    return [x, z];
+  }
+  function shellGeometry(P, y0, y1, ny, radiusFn, easeFn, nTheta = 64) {
+    const pos = [];
+    const idx = [];
+    const row = nTheta + 1;
+    for (let iy = 0; iy <= ny; iy++) {
+      const y = y0 + (y1 - y0) * (iy / ny);
+      const ease = easeFn ? easeFn(y) : 0;
+      const ampBoost = easeFn ? Math.max(ease, 0) : 0;
+      for (let it = 0; it <= nTheta; it++) {
+        const th = it / nTheta * Math.PI * 2;
+        const R = Math.max(radiusFn(y) + ease, 0.02);
+        const [x, z] = surfPoint(P, y, th, R, ampBoost);
+        pos.push(x, y, z);
+      }
+    }
+    for (let iy = 0; iy < ny; iy++) {
+      for (let it = 0; it < nTheta; it++) {
+        const a = iy * row + it;
+        const c = a + row;
+        idx.push(a, a + 1, c, a + 1, c + 1, c);
+      }
+    }
+    const geo = new BufferGeometry();
+    geo.setAttribute("position", new Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function skinMat(color) {
+    return new MeshStandardMaterial({ color, roughness: 0.84, metalness: 0, side: DoubleSide });
+  }
+  function latheOf(dense, zScale, material, segments = 48, yMin = -Infinity, yMax = Infinity) {
+    const pts = dense.filter(([, y]) => y >= yMin && y <= yMax).slice().sort((a, b) => a[1] - b[1]).map(([r, y]) => new Vector2(Math.max(r, 5e-3), y));
+    const mesh = new Mesh(new LatheGeometry(pts, segments), material);
     if (zScale !== 1) mesh.scale.z = zScale;
     return mesh;
   }
@@ -26637,136 +26519,126 @@
     m.scale.set(scale[0], scale[1], scale[2]);
     return m;
   }
+  var FACE_URL = "images/face.png";
+  var faceMat = null;
+  function getFaceMaterial(skinColor) {
+    if (!faceMat) {
+      faceMat = new MeshBasicMaterial({
+        color: skinColor,
+        transparent: true,
+        side: FrontSide,
+        depthWrite: true,
+        alphaTest: 0.01
+      });
+      new TextureLoader().load(FACE_URL, (tex) => {
+        tex.colorSpace = SRGBColorSpace;
+        tex.anisotropy = 4;
+        faceMat.map = tex;
+        faceMat.color.set(16777215);
+        faceMat.needsUpdate = true;
+      }, void 0, (err) => console.warn("\u9762\u90E8\u8D34\u56FE\u52A0\u8F7D\u5931\u8D25\uFF0C\u56DE\u9000\u7EAF\u80A4\u8272", err));
+    }
+    return faceMat;
+  }
+  function facePlate(w, h, radius, material, seg = 26) {
+    const geo = new PlaneGeometry(w, h, seg, seg);
+    const pos = geo.attributes.position;
+    const r2 = radius * radius;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      pos.setZ(i, Math.sqrt(Math.max(r2 - (x * x + y * y), 0)) - radius);
+    }
+    geo.computeVertexNormals();
+    return new Mesh(geo, material);
+  }
   function buildSmoothBody(model) {
     const group = new Group();
     const figure = new Group();
     group.add(figure);
-    const skin = skinMat(15781298);
-    const skinSoft = skinMat(15516842);
-    const hair = skinMat(1841431);
-    const metal = new MeshStandardMaterial({ color: 9077106, roughness: 0.35, metalness: 0.75 });
-    const lens = new MeshStandardMaterial({ color: 15398138, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.1, side: DoubleSide });
+    const skin = skinMat(14202783);
+    const skinSoft = skinMat(13807768);
+    const hair = skinMat(1709330);
     function build(m) {
       while (figure.children.length) figure.remove(figure.children[0]);
-      const p = { ...DEFAULT_MODEL, ...m || {} };
-      const H = p.height * U4;
-      const base = FOOT_Y;
-      const topY = base + H * 0.798;
-      const bustY = base + H * 0.739;
-      const waistY = base + H * 0.633;
-      const hipY = base + H * 0.576;
-      const shoulderTop = topY + 0.08;
-      const headY = shoulderTop + 0.185;
-      const hr = 0.115 * (p.height / 165);
-      const rBust = p.bust * U4 / (2 * Math.PI) * 1.03;
-      const rWaist = p.waist * U4 / (2 * Math.PI) * 1.02;
-      const rHip = p.hip * U4 / (2 * Math.PI) * 1.05;
-      const rShoulder = p.shoulder * U4 * 0.5;
-      const depth = 0.72;
-      figure.add(smoothLathe([
-        [rHip * 0.8, hipY - 0.14],
-        [rHip * 0.95, hipY - 0.05],
-        [rHip, hipY + 0.01],
-        [rHip * 0.94, hipY + 0.1],
-        [rWaist * 1.08, (hipY + waistY) * 0.5],
-        [rWaist, waistY],
-        [rWaist * 0.98, waistY + 0.06],
-        [(rWaist + rBust) * 0.5, (waistY + bustY) * 0.5],
-        [rBust * 0.94, bustY - 0.06],
-        [rBust, bustY],
-        [rBust * 0.96, bustY + 0.08],
-        [rShoulder * 0.88, topY - 0.02],
-        [rShoulder * 0.66, shoulderTop - 0.01],
-        [rShoulder * 0.4, shoulderTop + 0.02]
-      ], depth, skin));
-      const neckR = p.neck * U4 / (2 * Math.PI);
-      figure.add(smoothLathe([
-        [neckR * 1.35, shoulderTop - 0.01],
-        [neckR * 1.08, shoulderTop + 0.05],
-        [neckR, headY - hr * 0.85]
-      ], 0.92, skin));
-      figure.add(ellipsoid([0, headY, 0], [hr * 0.9, hr * 1.12, hr * 0.96], skin));
-      figure.add(ellipsoid([0, headY - hr * 0.78, hr * 0.16], [hr * 0.56, hr * 0.42, hr * 0.66], skinSoft));
-      figure.add(ellipsoid([0, headY - hr * 0.05, hr * 0.92], [hr * 0.1, hr * 0.2, hr * 0.13], skinSoft));
-      const eyeDark = skinMat(3812906);
-      const lipMat = skinMat(12222326);
-      [-1, 1].forEach((s) => {
-        figure.add(ellipsoid([s * hr * 0.44, headY + hr * 0.02, hr * 0.9], [hr * 0.15, hr * 0.07, hr * 0.05], eyeDark));
-        figure.add(ellipsoid([s * hr * 0.44, headY + hr * 0.22, hr * 0.88], [hr * 0.18, hr * 0.035, hr * 0.04], hair));
-      });
-      figure.add(ellipsoid([0, headY - hr * 0.55, hr * 0.8], [hr * 0.18, hr * 0.045, hr * 0.05], lipMat));
-      const armLen = p.arm * U4;
-      const sx = rShoulder * 0.86;
-      const palmY = topY - armLen * 0.94;
-      [-1, 1].forEach((s) => {
-        const arm = smoothLathe([
-          [0.07, topY - 0.01],
-          [0.072, topY - armLen * 0.14],
-          [0.064, topY - armLen * 0.3],
-          [0.054, topY - armLen * 0.48],
-          // 肘部自然收窄
-          [0.056, topY - armLen * 0.56],
-          // 前臂略粗
-          [0.048, topY - armLen * 0.74],
-          [0.032, palmY]
-        ], 0.94, skin);
-        arm.position.x = s * sx;
-        arm.rotation.z = s * 0.08;
-        figure.add(arm);
-        figure.add(ellipsoid([s * (sx + 0.018), palmY - 0.06, 8e-3], [0.034, 0.072, 0.026], skin));
-      });
-      const legTop = hipY - 0.05;
-      const ankleY = base + 0.09;
-      const legHalf = rHip * 0.5;
-      const kneeY = (legTop + ankleY) * 0.52;
-      [-1, 1].forEach((s) => {
-        const leg = smoothLathe([
-          [rHip * 0.54, legTop + 0.1],
-          [rHip * 0.52, legTop],
-          [rHip * 0.46, (legTop + kneeY) * 0.5],
-          [0.086, kneeY],
-          // 膝
-          [0.098, (kneeY + ankleY) * 0.42],
-          // 小腿肚
-          [0.07, (kneeY + ankleY) * 0.78],
-          [0.05, ankleY]
-        ], 0.92, skin);
-        leg.position.x = s * legHalf;
-        figure.add(leg);
-        const foot = ellipsoid([s * legHalf, base + 0.045, 0.06], [0.07, 0.045, 0.145], skin);
-        figure.add(foot);
-      });
-      const cap = new Mesh(new SphereGeometry(hr * 1.07, 30, 22, 0, Math.PI * 2, 0, Math.PI * 0.62), hair);
-      cap.position.set(0, headY + hr * 0.06, -6e-3);
-      cap.scale.set(1, 1, 1.03);
+      const P = bodyProfile(m);
+      const {
+        p,
+        H,
+        base,
+        hipY,
+        waistY,
+        bustY,
+        topY,
+        shoulderTop,
+        headY,
+        hr,
+        neckR,
+        rBust,
+        rWaist,
+        rHip,
+        rShoulder,
+        depth,
+        bust,
+        torso,
+        arm,
+        leg,
+        armX,
+        palmY,
+        legHalf,
+        legTop,
+        ankleY
+      } = P;
+      const torsoGeo = shellGeometry(
+        P,
+        torso[0][1],
+        torso[torso.length - 1][1],
+        60,
+        (y) => radiusAt(torso, y),
+        null,
+        64
+      );
+      const torsoMesh = new Mesh(torsoGeo, skin);
+      figure.add(torsoMesh);
+      const neck = resample([
+        [neckR * 1.55, shoulderTop - 0.02],
+        [neckR * 1.2, shoulderTop + 0.04],
+        [neckR * 1.06, headY - hr * 0.95],
+        [neckR * 1.02, headY - hr * 0.75]
+      ], 16);
+      figure.add(latheOf(neck, 0.94, skin));
+      figure.add(ellipsoid([0, headY, 0], [hr * 0.9, hr * 1.12, hr * 0.86], skin));
+      const plateH = hr * 1.66;
+      const plate = facePlate(plateH * 0.8235, plateH, hr * 3, getFaceMaterial(14202783));
+      plate.position.set(0, headY + hr * 0.02, hr * 0.9);
+      plate.renderOrder = 1;
+      figure.add(plate);
+      const cap = new Mesh(new SphereGeometry(hr * 1.04, 32, 22, 0, Math.PI * 2, 0, Math.PI * 0.37), hair);
+      cap.position.set(0, headY + hr * 0.03, -6e-3);
+      cap.scale.set(1.02, 1.04, 1.06);
       figure.add(cap);
       [-1, 1].forEach((s) => {
-        figure.add(ellipsoid([s * hr * 0.84, headY - hr * 0.12, -0.012], [hr * 0.4, hr * 1.45, hr * 0.9], hair));
-        figure.add(ellipsoid([s * hr * 0.88, headY - hr * 1.02, -4e-3], [hr * 0.36, hr * 0.85, hr * 0.78], hair));
+        figure.add(ellipsoid([s * hr * 0.74, headY + hr * 0.22, hr * 0.26], [hr * 0.3, hr * 0.4, hr * 0.48], hair));
+        figure.add(ellipsoid([s * hr * 0.88, headY - hr * 0.28, -4e-3], [hr * 0.28, hr * 0.84, hr * 0.86], hair));
+        figure.add(ellipsoid([s * hr * 0.9, headY - hr * 1.12, -0.014], [hr * 0.26, hr * 0.62, hr * 0.72], hair));
       });
-      figure.add(ellipsoid([0, headY - hr * 0.1, -hr * 0.4], [hr * 0.95, hr * 1.3, hr * 0.6], hair));
-      const fringe = new Mesh(new SphereGeometry(hr, 20, 16, 0, Math.PI * 1.2), hair);
-      fringe.position.set(-hr * 0.1, headY + hr * 0.42, hr * 0.52);
-      fringe.scale.set(1, 0.34, 0.6);
-      fringe.rotation.z = 0.14;
-      figure.add(fringe);
-      const eyeY = headY + hr * 0.02, eyeX = hr * 0.44, lensR = hr * 0.33, lensZ = hr * 0.94;
+      figure.add(ellipsoid([0, headY - hr * 0.18, -hr * 0.36], [hr * 0.92, hr * 1.1, hr * 0.62], hair));
+      const sweep = ellipsoid([-hr * 0.24, headY + hr * 0.62, hr * 0.3], [hr * 0.4, hr * 0.18, hr * 0.42], hair);
+      sweep.rotation.z = -0.3;
+      sweep.rotation.x = 0.3;
+      figure.add(sweep);
       [-1, 1].forEach((s) => {
-        const ring2 = new Mesh(new TorusGeometry(lensR, 24e-4, 8, 28), metal);
-        ring2.position.set(s * eyeX, eyeY, lensZ);
-        figure.add(ring2);
-        const l = new Mesh(new CircleGeometry(lensR * 0.97, 24), lens);
-        l.position.set(s * eyeX, eyeY, lensZ);
-        figure.add(l);
-        const arm = new Mesh(new CylinderGeometry(2e-3, 2e-3, hr * 1.2, 6), metal);
-        arm.rotation.x = Math.PI / 2;
-        arm.position.set(s * (eyeX + lensR), eyeY + 3e-3, lensZ - hr * 0.55);
-        figure.add(arm);
+        const a = latheOf(arm, 0.94, skin);
+        a.position.x = s * armX;
+        a.rotation.z = s * P.armTilt;
+        figure.add(a);
+        figure.add(ellipsoid([s * (armX + 0.02), palmY - 0.062, 6e-3], [0.035, 0.075, 0.027], skin));
       });
-      const bridge = new Mesh(new CylinderGeometry(2e-3, 2e-3, eyeX * 2 - lensR * 2 + 0.01, 6), metal);
-      bridge.rotation.z = Math.PI / 2;
-      bridge.position.set(0, eyeY + 8e-3, lensZ);
-      figure.add(bridge);
+      [-1, 1].forEach((s) => {
+        const l = latheOf(leg, P.legDepth, skin);
+        l.position.x = s * legHalf;
+        figure.add(l);
+        figure.add(ellipsoid([s * legHalf, base + 0.045, 0.055], [0.068, 0.045, 0.142], skin));
+      });
       figure.traverse((o) => {
         if (o.isMesh) {
           o.castShadow = true;
@@ -26778,6 +26650,316 @@
     build(model);
     return { group, figure, applyProfile: build, footY: () => FOOT_Y };
   }
+
+  // garment.js
+  var U3 = 1 / 50;
+  var BASE_BUST = SIZE_CHART["IT 40"].bust;
+  var MIN_EASE = 8e-3;
+  function sizeScale(size) {
+    return (SIZE_CHART[size] || SIZE_CHART["IT 40"]).bust / BASE_BUST;
+  }
+  function recommendSize(model) {
+    const bust = model.bust || 90;
+    let best = "IT 40", diff = Infinity;
+    SIZES.forEach((s) => {
+      const d = Math.abs(SIZE_CHART[s].bust - bust);
+      if (d < diff) {
+        diff = d;
+        best = s;
+      }
+    });
+    return best;
+  }
+  function fabricMat(hex, rough = 0.82) {
+    return new MeshStandardMaterial({
+      color: hex,
+      roughness: rough,
+      metalness: 0.02,
+      side: DoubleSide
+    });
+  }
+  function finish(g, mats) {
+    g.userData.dyeMaterials = mats;
+    g.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    return g;
+  }
+  var rOf = (cm) => Math.max(0.02, cm * U3 / (2 * Math.PI));
+  function easeAt(e, y, anchors) {
+    const { hipY, waistY, bustY, topY } = anchors;
+    const pts = [
+      [hipY - 0.3, e.hip],
+      [hipY, e.hip],
+      [waistY, e.waist],
+      [bustY, e.bust],
+      [topY + 0.2, e.bust]
+    ].sort((a, b) => a[0] - b[0]);
+    if (y <= pts[0][0]) return Math.max(pts[0][1], MIN_EASE);
+    if (y >= pts[pts.length - 1][0]) return Math.max(pts[pts.length - 1][1], MIN_EASE);
+    for (let i = 1; i < pts.length; i++) {
+      if (y <= pts[i][0]) {
+        const t = (y - pts[i - 1][0]) / (pts[i][0] - pts[i - 1][0] || 1);
+        return Math.max(pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t, MIN_EASE);
+      }
+    }
+    return MIN_EASE;
+  }
+  function bodyHalfWidth(P, y) {
+    const torsoR = radiusAt(P.torso, y);
+    if (y >= P.hipY - 0.02) return torsoR;
+    const legR = radiusAt(P.leg, y);
+    return Math.max(torsoR, P.legHalf + legR);
+  }
+  function skirtRadius(P, y, ease, hemR) {
+    const body = bodyHalfWidth(P, y) + Math.max(ease, MIN_EASE);
+    const t = Math.min(Math.max((y - P.hipY) / Math.max(P.waistY - P.hipY, 0.01), 0), 1);
+    const flare = hemR + (P.rHip + MIN_EASE - hemR) * t;
+    return Math.max(body, flare, 0.02);
+  }
+  function shellFrom(P, { y0, y1, easeFn, mat: mat2, samples = 30, radiusFn }) {
+    const geo = shellGeometry(
+      P,
+      y0,
+      y1,
+      samples,
+      radiusFn || ((y) => Math.max(bodyHalfWidth(P, y), 0.02)),
+      easeFn,
+      60
+    );
+    return new Mesh(geo, mat2);
+  }
+  function hemBand(P, y, easeFn, depth, mat2, h = 0.012) {
+    const pts = [];
+    for (let i = 0; i <= 4; i++) {
+      const yy = y + h * (i / 4);
+      const r = bodyHalfWidth(P, yy) + easeFn(yy) + 4e-3;
+      pts.push(new Vector2(Math.max(r, 0.02), yy));
+    }
+    const mesh = new Mesh(new LatheGeometry(pts, 44), mat2);
+    mesh.scale.z = P.depthAt(y + h * 0.5);
+    return mesh;
+  }
+  function sleeve(P, s, yTop, yEnd, ease, depth, mat2) {
+    const pts = [];
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const y = yTop + (yEnd - yTop) * (i / steps);
+      const r = radiusAt(P.arm, y) + Math.max(ease, MIN_EASE);
+      pts.push(new Vector2(Math.max(r, 0.02), y));
+    }
+    pts.sort((a, b) => a.y - b.y);
+    const tuck = (r) => Math.max(r - 0.01, 0.01);
+    pts[0].x = tuck(radiusAt(P.arm, pts[0].y));
+    pts[pts.length - 1].x = tuck(radiusAt(P.arm, pts[pts.length - 1].y));
+    const mesh = new Mesh(new LatheGeometry(pts, 30), mat2);
+    mesh.position.x = s * P.armX;
+    mesh.rotation.z = s * P.armTilt;
+    return mesh;
+  }
+  function legTube(P, s, yTop, yEnd, easeFn, mat2) {
+    const pts = [];
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const y = yTop + (yEnd - yTop) * (i / steps);
+      const r = radiusAt(P.leg, y) + Math.max(easeFn(y), MIN_EASE);
+      pts.push(new Vector2(Math.max(r, 0.02), y));
+    }
+    const mesh = new Mesh(new LatheGeometry(pts.sort((a, b) => a.y - b.y), 28), mat2);
+    mesh.position.x = s * P.legHalf;
+    mesh.scale.z = P.legDepth;
+    return mesh;
+  }
+  function shoulderBridge(P, mat2, extra) {
+    return [-1, 1].map((s) => {
+      const m = new Mesh(new SphereGeometry(1, 20, 14), mat2);
+      m.position.set(s * (P.armX - 0.085), P.topY + 0.028, 0);
+      m.scale.set(0.108 + extra, 0.062 + extra * 0.5, 0.08 + extra);
+      return m;
+    });
+  }
+  function buildGarment(itemId, size, model, colorHex, useRealBody = true) {
+    const item = DB_BY_ID[itemId];
+    if (!item) return null;
+    const P = bodyProfile(model);
+    const sc = sizeScale(size || "IT 40");
+    const M = item.measurements || {};
+    const sil = item.silhouette;
+    const cat = item.category;
+    const mat2 = fabricMat(colorHex, cat === "outer" ? 0.86 : 0.8);
+    const g = new Group();
+    const anchors = { hipY: P.hipY, waistY: P.waistY, bustY: P.bustY, topY: P.topY };
+    const depth = P.depth;
+    const ease = {
+      bust: rOf((M.bust || 90) * sc) - P.rBust,
+      waist: rOf((M.waist || 72) * sc) - P.rWaist,
+      hip: rOf((M.hip || 96) * sc) - P.rHip
+    };
+    const easeFn = (y) => easeAt(ease, y, anchors);
+    const outerPad = cat === "outer" ? rOf(6) : 0;
+    const easeFnOut = (y) => easeFn(y) + outerPad;
+    const lenCm = M.length || (cat === "bottoms" ? 60 : 90);
+    const sleeveCm = M.sleeve || 0;
+    if (cat === "dresses" || cat === "tops") {
+      const isSlip = sil === "slip";
+      const yTopGarment = isSlip ? P.bustY + 0.02 : P.topY + 0.085;
+      const hemY = Math.max(P.topY - lenCm * U3, P.base + 0.1);
+      g.add(shellFrom(P, {
+        y0: hemY,
+        y1: yTopGarment,
+        easeFn: easeFnOut,
+        mat: mat2,
+        samples: 40
+      }));
+      if (!isSlip) {
+        const pts = [];
+        const yA = yTopGarment;
+        const rTop = bodyHalfWidth(P, yA) + easeFnOut(yA);
+        const yB = P.topY + 0.135;
+        const rNeck = P.neckR * 1.5 + Math.max(ease.bust * 0.4, MIN_EASE);
+        for (let i = 0; i <= 8; i++) {
+          const t = i / 8;
+          const y = yA - 0.012 + (yB - yA + 0.012) * t;
+          const r = rTop * 1.008 + (rNeck - rTop * 1.008) * (t * t * (3 - 2 * t));
+          pts.push(new Vector2(Math.max(r, 0.02), y));
+        }
+        const collar = new Mesh(new LatheGeometry(pts, 44), mat2);
+        collar.scale.z = P.depthAt(P.topY + 0.1);
+        g.add(collar);
+      } else {
+        const strapEase = Math.max(ease.bust, MIN_EASE);
+        [-1, 1].forEach((s) => {
+          const p1 = new Vector3(s * P.rBust * 0.52, P.bustY + 0.03, (P.rBust + strapEase) * depth * 0.92);
+          const p2 = new Vector3(s * P.armX * 0.62, P.topY + 0.03, (P.rBust + strapEase) * depth * 0.55);
+          const dir = p2.clone().sub(p1);
+          const strap = new Mesh(new CylinderGeometry(0.016, 0.016, dir.length(), 8), mat2);
+          strap.position.copy(p1).add(p2).multiplyScalar(0.5);
+          strap.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize());
+          g.add(strap);
+        });
+      }
+      g.add(hemBand(P, hemY, easeFnOut, depth, mat2));
+      if (sleeveCm > 0) {
+        const yEnd = P.topY - sleeveCm * U3;
+        shoulderBridge(P, mat2, Math.max(ease.bust, 0)).forEach((m) => g.add(m));
+        [-1, 1].forEach((s) => g.add(sleeve(P, s, P.topY + 0.05, yEnd, ease.bust * 0.8, depth, mat2)));
+      }
+      if (sil === "wrap" || sil === "peplum") {
+        const r = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 0.012;
+        const belt = new Mesh(new TorusGeometry(r, 0.014, 8, 40), mat2);
+        belt.rotation.x = Math.PI / 2;
+        belt.position.y = P.waistY;
+        belt.scale.z = P.depthAt(P.waistY);
+        g.add(belt);
+      }
+    } else if (cat === "bottoms") {
+      const isSkirt = ["aline", "pencil", "flared"].includes(sil);
+      if (isSkirt) {
+        const hemY = Math.max(P.waistY - lenCm * U3, P.base + 0.12);
+        const hemR = Math.max(rOf(M.opening || 100) * sc, P.rHip + MIN_EASE);
+        g.add(shellFrom(P, {
+          y0: hemY,
+          y1: P.waistY + 0.04,
+          samples: 28,
+          mat: mat2,
+          easeFn: (y) => Math.max(easeFn(y), MIN_EASE),
+          radiusFn: (y) => Math.max(skirtRadius(P, y, easeFn(y), hemR) - Math.max(easeFn(y), MIN_EASE), 0.02)
+        }));
+        const band = hemBand(P, hemY, easeFn, depth, mat2);
+        g.add(band);
+        const wr = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 6e-3;
+        const waist = new Mesh(new TorusGeometry(wr, 0.013, 8, 40), mat2);
+        waist.rotation.x = Math.PI / 2;
+        waist.position.y = P.waistY + 0.03;
+        waist.scale.z = P.depthAt(P.waistY + 0.03);
+        g.add(waist);
+      } else {
+        const yWaist = P.waistY + 0.05;
+        g.add(shellFrom(P, {
+          y0: P.hipY - 0.16,
+          y1: yWaist,
+          easeFn: easeFnOut,
+          mat: mat2,
+          samples: 18
+        }));
+        const yTop = P.hipY - 0.02;
+        const yEnd = Math.max(P.base + 0.06, P.waistY - lenCm * U3);
+        const wide = sil === "wide" || sil === "mini";
+        [-1, 1].forEach((s) => {
+          g.add(legTube(P, s, yTop, yEnd, (y) => easeFn(y) + (wide ? 0.03 : 4e-3), mat2));
+        });
+        const wr = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 6e-3;
+        const waist = new Mesh(new TorusGeometry(wr, 0.013, 8, 40), mat2);
+        waist.rotation.x = Math.PI / 2;
+        waist.position.y = yWaist;
+        waist.scale.z = P.depthAt(yWaist);
+        g.add(waist);
+      }
+    } else if (cat === "outer") {
+      const hemY = Math.max(P.topY - lenCm * U3, P.base + 0.1);
+      g.add(shellFrom(P, {
+        y0: hemY,
+        y1: P.topY + 0.085,
+        easeFn: easeFnOut,
+        mat: mat2,
+        samples: 40
+      }));
+      const rTop = bodyHalfWidth(P, P.topY + 0.085) + easeFnOut(P.topY + 0.085);
+      [-1, 1].forEach((s) => {
+        const lapel = new Mesh(new BoxGeometry(0.115, 0.3, 0.016), mat2);
+        lapel.position.set(s * 0.072, P.topY - 0.075, rTop * depth * 0.97);
+        lapel.rotation.z = s * 0.3;
+        lapel.rotation.y = s * -0.22;
+        g.add(lapel);
+      });
+      const pts = [];
+      const rNeck = P.neckR * 1.62 + outerPad;
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        const y = P.topY + 0.085 + (P.topY + 0.14 - P.topY - 0.085) * t;
+        const r = rTop + (rNeck - rTop) * (t * t * (3 - 2 * t));
+        pts.push(new Vector2(Math.max(r, 0.02), y));
+      }
+      const collar = new Mesh(new LatheGeometry(pts, 44), mat2);
+      collar.scale.z = P.depthAt(P.topY + 0.1);
+      g.add(collar);
+      if (sleeveCm > 0) {
+        const yEnd = P.topY - sleeveCm * U3;
+        shoulderBridge(P, mat2, Math.max(ease.bust, 0) + outerPad).forEach((m) => g.add(m));
+        [-1, 1].forEach((s) => g.add(sleeve(P, s, P.topY + 0.06, yEnd, ease.bust * 0.8 + outerPad, depth, mat2)));
+      }
+      g.add(hemBand(P, hemY, easeFnOut, depth, mat2));
+      if (sil === "trench" || sil === "blazer") {
+        const r = radiusAt(P.torso, P.waistY) + easeFnOut(P.waistY) + 0.014;
+        const belt = new Mesh(new TorusGeometry(r, 0.016, 8, 40), mat2);
+        belt.rotation.x = Math.PI / 2;
+        belt.position.y = P.waistY;
+        belt.scale.z = P.depthAt(P.waistY);
+        g.add(belt);
+      }
+    }
+    return finish(g, [mat2]);
+  }
+  function specText(item, size) {
+    const M = item.measurements || {};
+    const sc = sizeScale(size);
+    const parts = [];
+    if (M.bust) parts.push(`\u80F8\u56F4 ${Math.round(M.bust * sc)}`);
+    if (M.waist) parts.push(`\u8170\u56F4 ${Math.round(M.waist * sc)}`);
+    if (M.hip) parts.push(`\u81C0\u56F4 ${Math.round(M.hip * sc)}`);
+    if (M.length) parts.push(`\u8863\u957F ${Math.round(M.length)}`);
+    return parts.join(" / ") + " cm";
+  }
+
+  // vendor/addons/loaders/GLTFLoader.js
+  var _q = new Quaternion();
+  var _identityMatrix = new Matrix4();
+
+  // realBody.js
+  var U4 = 1 / 50;
 
   // fitEngine.js
   var BASE_SIZE = "IT 40";
@@ -27572,9 +27754,6 @@
     if (!state.model) return;
     closeProfileModal();
   });
-  document.getElementById("btn-edit-model").addEventListener("click", () => {
-    toast("\u6A21\u7279\u5C3A\u5BF8\u5DF2\u6309\u5B9E\u6D4B\u6570\u636E\u9501\u5B9A\uFF0C\u4E0D\u53EF\u8C03\u6574");
-  });
   var tipEditEl2 = document.getElementById("tip-edit");
   if (tipEditEl2) tipEditEl2.addEventListener("click", (e) => {
     e.stopImmediatePropagation();
@@ -27596,21 +27775,7 @@
       moveCameraTo(VIEWS[b.dataset.view]);
     });
   });
-  document.getElementById("btn-reset").addEventListener("click", () => {
-    clearAll();
-    moveCameraTo(VIEWS.front);
-    els2.views.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
-    els2.views.querySelector('[data-view="front"]').classList.add("active");
-  });
   document.getElementById("btn-clear").addEventListener("click", clearAll);
-  document.getElementById("btn-snapshot").addEventListener("click", () => {
-    renderer.render(scene, camera);
-    const a = document.createElement("a");
-    a.href = renderer.domElement.toDataURL("image/png");
-    a.download = "atelier-look.png";
-    a.click();
-    toast("\u9020\u578B\u56FE\u7247\u5DF2\u4FDD\u5B58");
-  });
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
     if (!w || !h) return;

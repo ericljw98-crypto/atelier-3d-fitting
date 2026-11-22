@@ -1,25 +1,27 @@
+/* ============================================================
+   参数化服装建模 v2 —— 按人体剖面外偏移生成
+   ------------------------------------------------------------
+   旧版问题：衣服是一套独立几何，靠 bodyFit 之类的系数手调去凑人体，
+   永远贴不准、容易穿模。
+
+   新版做法：服装直接读取 bodyProfile() 的同一套剖面曲线，
+   在人体半径上叠加「布料放松量」逐层生成曲面：
+     成衣半径(y) = 人体半径(y) + 放松量(y)
+   放松量由成衣平铺尺寸与该模特围度之差得出，且下限为布料厚度，
+   因此任何尺码都不会穿模；偏小时视觉上贴合绷紧，偏大时自然松垮。
+   ============================================================ */
 import * as THREE from 'three';
 import { SIZE_CHART, SIZES, DB_BY_ID } from './data.js';
-import { bodyMetrics, FOOT_Y } from './body.js';
-
-/* ============================================================
-   参数化服装建模
-   ------------------------------------------------------------
-   成衣不再使用固定几何体，而是由三处数据共同决定：
-   1) 数据库款式的 measurements（成衣平铺尺寸，基准 IT 40）
-   2) 所选尺码相对基准尺码的缩放
-   3) 模特建档参数（围度、腿长、身高比例）
-   最终成衣半径 = (成衣围度/2) × 单位换算，衣长按身高比例投射。
-   ============================================================ */
+import { bodyProfile, radiusAt, shellGeometry } from './smoothBody.js';
 
 const U = 1 / 50;
 const BASE_BUST = SIZE_CHART['IT 40'].bust;
+const MIN_EASE = 0.008;          // 布料厚度 + 贴身压力（局部单位，约 4mm×2）
 
 export function sizeScale(size) {
   return (SIZE_CHART[size] || SIZE_CHART['IT 40']).bust / BASE_BUST;
 }
 
-/* 根据模特胸围推荐尺码 */
 export function recommendSize(model) {
   const bust = model.bust || 90;
   let best = 'IT 40', diff = Infinity;
@@ -30,296 +32,312 @@ export function recommendSize(model) {
   return best;
 }
 
-function fabricMat(hex) {
+function fabricMat(hex, rough = 0.82) {
   return new THREE.MeshStandardMaterial({
-    color: hex, roughness: 0.8, metalness: 0.02, side: THREE.DoubleSide,
+    color: hex, roughness: rough, metalness: 0.02, side: THREE.DoubleSide,
   });
 }
+
 function finish(g, mats) {
   g.userData.dyeMaterials = mats;
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
 }
-function lathe(profile, zScale, mat) {
-  const pts = profile.map(([r, y]) => new THREE.Vector2(Math.max(r, 0.01), y));
-  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), mat);
-  if (zScale !== 1) mesh.scale.z = zScale;
-  return mesh;
-}
-function limb(p1, p2, r1, r2, mat, seg = 14) {
-  const dir = new THREE.Vector3().subVectors(p2, p1);
-  const len = dir.length();
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, seg, 1), mat);
-  mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-  return mesh;
-}
-function ball(pos, scale, mat) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 14), mat);
-  mesh.position.copy(pos); mesh.scale.copy(scale);
-  return mesh;
-}
-function torus(r, tube, y, zScale, mat) {
-  const t = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 32), mat);
-  t.rotation.x = Math.PI / 2; t.position.y = y; t.scale.z = zScale;
-  return t;
+
+/* 围度(cm) → 半径(局部单位) */
+const rOf = cm => Math.max(0.02, cm * U / (2 * Math.PI));
+
+/** 分段线性插值：在给定锚点间求放松量 */
+function easeAt(e, y, anchors) {
+  const { hipY, waistY, bustY, topY } = anchors;
+  const pts = [
+    [hipY - 0.30, e.hip],
+    [hipY, e.hip],
+    [waistY, e.waist],
+    [bustY, e.bust],
+    [topY + 0.20, e.bust],
+  ].sort((a, b) => a[0] - b[0]);
+  if (y <= pts[0][0]) return Math.max(pts[0][1], MIN_EASE);
+  if (y >= pts[pts.length - 1][0]) return Math.max(pts[pts.length - 1][1], MIN_EASE);
+  for (let i = 1; i < pts.length; i++) {
+    if (y <= pts[i][0]) {
+      const t = (y - pts[i - 1][0]) / (pts[i][0] - pts[i - 1][0] || 1);
+      return Math.max(pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t, MIN_EASE);
+    }
+  }
+  return MIN_EASE;
 }
 
-/* 围度(cm) → 成衣半径(局部单位)。与人体同处局部坐标，由 avatarGroup 统一按身高比例缩放 */
-function gR(circumferenceCm, k) {
-  return Math.max(0.06, circumferenceCm * U * 0.5 / Math.PI);
-}
-/* 衣长(cm) → 局部单位 */
-function gL(lengthCm, k) {
-  return lengthCm * U;
+
+/** 身体某高度的实际半宽：髋线以上取躯干剖面，以下取双腿外缘（腿向两侧展开） */
+function bodyHalfWidth(P, y) {
+  const torsoR = radiusAt(P.torso, y);
+  if (y >= P.hipY - 0.02) return torsoR;
+  const legR = radiusAt(P.leg, y);
+  return Math.max(torsoR, P.legHalf + legR);
 }
 
-/* 主入口：按款式数据、尺码、模特、颜色构建服装 Group
-   useRealBody=true 时，用写实模特的实测骨骼基准定位围度截面 */
-export function buildGarment(itemId, size, model, colorHex, useRealBody = false) {
+/** 裙/下摆类壳体半径：必须包住双腿，同时保留下摆张开量 */
+function skirtRadius(P, y, ease, hemR) {
+  const body = bodyHalfWidth(P, y) + Math.max(ease, MIN_EASE);
+  const t = Math.min(Math.max((y - P.hipY) / Math.max(P.waistY - P.hipY, 0.01), 0), 1);
+  const flare = hemR + (P.rHip + MIN_EASE - hemR) * t;
+  return Math.max(body, flare, 0.02);
+}
+
+/** 服装壳体：直接复用人体曲面函数，半径等于人体半宽 + 布料放松量。
+    胸部等曲面细节自动跟随，因此天然贴合、不会穿模。 */
+function shellFrom(P, { y0, y1, easeFn, mat, samples = 30, radiusFn }) {
+  const geo = shellGeometry(P, y0, y1, samples,
+    radiusFn || (y => Math.max(bodyHalfWidth(P, y), 0.02)), easeFn, 60);
+  return new THREE.Mesh(geo, mat);
+}
+
+/** 下摆加厚：一圈略外扩的窄带，模拟布料边缘厚度 */
+function hemBand(P, y, easeFn, depth, mat, h = 0.012) {
+  const pts = [];
+  for (let i = 0; i <= 4; i++) {
+    const yy = y + h * (i / 4);
+    const r = bodyHalfWidth(P, yy) + easeFn(yy) + 0.004;
+    pts.push(new THREE.Vector2(Math.max(r, 0.02), yy));
+  }
+  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 44), mat);
+  mesh.scale.z = P.depthAt(y + h * 0.5);
+  return mesh;
+}
+
+/** 袖子：沿手臂剖面外偏移，顶端封口形成肩部 */
+function sleeve(P, s, yTop, yEnd, ease, depth, mat) {
+  const pts = [];
+  const steps = 20;
+  for (let i = 0; i <= steps; i++) {
+    const y = yTop + (yEnd - yTop) * (i / steps);
+    const r = radiusAt(P.arm, y) + Math.max(ease, MIN_EASE);
+    pts.push(new THREE.Vector2(Math.max(r, 0.02), y));
+  }
+  pts.sort((a, b) => a.y - b.y);
+  // 袖筒两端缩进手臂内部，藏住开口环（否则肩口与袖口会出现亮色楔形）
+  const tuck = r => Math.max(r - 0.010, 0.010);
+  pts[0].x = tuck(radiusAt(P.arm, pts[0].y));
+  pts[pts.length - 1].x = tuck(radiusAt(P.arm, pts[pts.length - 1].y));
+  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 30), mat);
+  mesh.position.x = s * P.armX;
+  mesh.rotation.z = s * P.armTilt;
+  // 手臂是整圆截面，袖筒不能压 z，否则手臂会从袖子里穿出来
+  return mesh;
+}
+
+/** 裤腿 / 裙片：沿腿部剖面外偏移 */
+function legTube(P, s, yTop, yEnd, easeFn, mat) {
+  const pts = [];
+  const steps = 20;
+  for (let i = 0; i <= steps; i++) {
+    const y = yTop + (yEnd - yTop) * (i / steps);
+    const r = radiusAt(P.leg, y) + Math.max(easeFn(y), MIN_EASE);
+    pts.push(new THREE.Vector2(Math.max(r, 0.02), y));
+  }
+  const mesh = new THREE.Mesh(new THREE.LatheGeometry(pts.sort((a, b) => a.y - b.y), 28), mat);
+  mesh.position.x = s * P.legHalf;
+  mesh.scale.z = P.legDepth;
+  return mesh;
+}
+
+
+
+/** 肩部桥接：把躯干壳体顶边与袖子连成一条肩缝，避免肩头露出裸皮 */
+function shoulderBridge(P, mat, extra) {
+  return [-1, 1].map(s => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), mat);
+    m.position.set(s * (P.armX - 0.085), P.topY + 0.028, 0);
+    m.scale.set(0.108 + extra, 0.062 + extra * 0.5, 0.080 + extra);
+    return m;
+  });
+}
+
+/* 主入口 */
+export function buildGarment(itemId, size, model, colorHex, useRealBody = true) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
-  const k = bodyMetrics(model);
+
+  const P = bodyProfile(model);
   const sc = sizeScale(size || 'IT 40');
-  const M = item.measurements;
-  const mat = fabricMat(colorHex);
-  const g = new THREE.Group();
-  // 写实人体前后厚度接近圆形，截面 depth 需接近 1 才能包裹身体避免穿模
-  const depth = useRealBody ? 0.96 : 0.78;
-
-  // 成衣各部位尺寸：严格按成衣平铺尺寸 × 尺码系数生成，不随模特体型变形。
-  // 这样当衣服偏小（成衣围度 < 人体围度）时会真实呈现紧绷/被撑开的效果，
-  // 偏大时呈现松垮效果——这就是合身判断的视觉依据。
-  // 写实模特躯干横截面比参数化换算更饱满，用系数补偿以正确包裹
-  const bodyFit = useRealBody ? 1.22 : 1.0;
-  let bustR = gR((M.bust || 90) * sc, k) * bodyFit;
-  let waistR = gR((M.waist || 72) * sc, k) * bodyFit;
-  let hipR = gR((M.hip || 96) * sc, k) * bodyFit;
-  const shoulderX = (M.shoulder || 40) * U * 0.5 * (useRealBody ? 1.15 : 1);
-  const sleeveLen = gL(M.sleeve || 0, k);
-  const length = gL(M.length || 80, k);
-  const openingR = gR((M.opening || 100) * sc, k);
-
-  let topY = k.shoulderY;            // 肩线
-  let waistY = k.waistY;
-  let hipY = k.hipY;
-  let bustY = k.bustY;
-
-  if (useRealBody) {
-    // 写实模特（Xbot）实测骨骼高度：相对脚底的归一化比例
-    // 脚底 FOOT_Y，全身高 = model.height*U；各关节占身高比例由 Mixamo 骨架测得
-    const H = (model.height || 170) * U;
-    const base = FOOT_Y;
-    topY   = base + H * 0.798;   // 肩 1.356/1.70
-    bustY  = base + H * 0.739;   // 胸 1.256/1.70
-    waistY = base + H * 0.633;   // 腰 1.076/1.70
-    hipY   = base + H * 0.576;   // 胯 0.980/1.70
-  }
-  const hemY = topY - length;    // 下摆
+  const M = item.measurements || {};
   const sil = item.silhouette;
+  const cat = item.category;
+  const mat = fabricMat(colorHex, cat === 'outer' ? 0.86 : 0.8);
 
-  /* ---------- 连衣裙 ---------- */
-  if (item.category === 'dresses') {
-    if (sil === 'slip') {
-      g.add(lathe([
-        [bustR * 0.92, bustY - 0.08], [bustR, bustY + 0.06],
-        [waistR * 0.95, waistY], [hipR * 1.02, hipY],
-        [hipR * 1.0, hipY - 0.22],                       // 大腿段保持宽度，避免身体穿出
-        [Math.max(hipR * 0.95, openingR * 0.82), hemY + 0.2],
-        [openingR, hemY],
-      ], depth, mat));
-      // 吊带置于胸部前方，避免被躯干厚度遮挡
-      const strapZ = bustR * depth + 0.02;
-      [-1, 1].forEach(s => g.add(limb(
-        new THREE.Vector3(s * bustR * 0.62, bustY + 0.04, strapZ),
-        new THREE.Vector3(s * (shoulderX * 0.8), topY + 0.06, strapZ * 0.75), 0.032, 0.03, mat)));
-    } else if (sil === 'fitted' || sil === 'blouse' || sil === 'wrap') {
-      g.add(lathe([
-        [bustR * 0.85, topY], [bustR, bustY],
-        [waistR, waistY], [hipR, hipY],
-        [hipR * 1.15, hemY + 0.25], [hipR * 1.3, hemY],
-      ], depth, mat));
-      if (M.sleeve > 0) addSleeves(g, s => [
-        new THREE.Vector3(s * shoulderX, topY - 0.02, 0),
-        new THREE.Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.55, 0),
-        new THREE.Vector3(s * (shoulderX + 0.07), topY - sleeveLen, 0),
-      ], 0.115, 0.085, mat);
-      if (sil === 'wrap') {
-        const belt = torus(waistR * 1.02, 0.022, waistY, depth, mat);
-        g.add(belt);
-      }
-    } else if (sil === 'aline' || sil === 'flared' || sil === 'cape') {
-      g.add(lathe([
-        [bustR * 0.9, topY], [bustR, bustY],
-        [waistR, waistY], [hipR, hipY],
-        [hipR + (openingR - hipR) * 0.5, hemY + 0.3],
-        [openingR, hemY],
-      ], depth, mat));
-      if (sil === 'cape') {
-        g.add(lathe([
-          [shoulderX * 1.05, topY + 0.06],
-          [openingR * 1.15, topY - 0.9],
-          [openingR * 1.35, topY - 1.35],
-        ], depth * 1.05, mat));
-      }
-    } else if (sil === 'straight' || sil === 'peplum') {
-      g.add(lathe([
-        [bustR * 0.88, topY], [bustR, bustY],
-        [waistR, waistY], [hipR, hipY],
-        [hipR * (sil === 'peplum' ? 1.28 : 1.05), hemY + 0.18],
-        [hipR * (sil === 'peplum' ? 1.34 : 1.06), hemY],
-      ], depth, mat));
-      if (sil === 'peplum') g.add(torus(waistR * 1.06, 0.03, waistY + 0.04, depth, mat));
-      if (M.sleeve > 0) addSleeves(g, s => [
-        new THREE.Vector3(s * shoulderX, topY - 0.02, 0),
-        new THREE.Vector3(s * (shoulderX + 0.04), topY - sleeveLen * 0.6, 0),
-        new THREE.Vector3(s * (shoulderX + 0.06), topY - sleeveLen, 0),
-      ], 0.105, 0.075, mat);
-    }
-    // 肩部覆盖球：仅在有袖款添加，吊带/无袖款保留裸露的肩关节
-    if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat, 0.13);
-  }
+  const g = new THREE.Group();
+  const anchors = { hipY: P.hipY, waistY: P.waistY, bustY: P.bustY, topY: P.topY };
+  const depth = P.depth;
 
-  /* ---------- 上装 ---------- */
-  else if (item.category === 'tops') {
-    if (sil === 'slip') {
-      g.add(lathe([
-        [bustR * 0.88, topY - 0.22], [bustR, bustY],
-        [waistR, waistY], [waistR * 0.95, hemY],
-      ], depth, mat));
-    } else if (sil === 'oversize' || sil === 'knit') {
-      g.add(lathe([
-        [bustR * 0.95, topY], [bustR, bustY],
-        [waistR * 1.02, waistY], [waistR * 1.05, hemY],
-      ], depth, mat));
-      if (M.sleeve > 0) addSleeves(g, s => [
-        new THREE.Vector3(s * shoulderX, topY - 0.02, 0),
-        new THREE.Vector3(s * (shoulderX + 0.06), topY - sleeveLen * 0.55, 0),
-        new THREE.Vector3(s * (shoulderX + 0.09), topY - sleeveLen, 0),
-      ], 0.135, 0.105, mat);
+  // 成衣围度与该模特人体的差值 → 各部位的布料放松量
+  const ease = {
+    bust: rOf((M.bust || 90) * sc) - P.rBust,
+    waist: rOf((M.waist || 72) * sc) - P.rWaist,
+    hip: rOf((M.hip || 96) * sc) - P.rHip,
+  };
+  const easeFn = y => easeAt(ease, y, anchors);
+  // 外套类统一加一层内搭空间
+  const outerPad = cat === 'outer' ? rOf(6) : 0;
+  const easeFnOut = y => easeFn(y) + outerPad;
+
+  const lenCm = M.length || (cat === 'bottoms' ? 60 : 90);
+  const sleeveCm = M.sleeve || 0;
+
+  /* ---------- 连衣/上装类：从肩线向下 ---------- */
+  if (cat === 'dresses' || cat === 'tops') {
+    const isSlip = sil === 'slip';
+    const yTopGarment = isSlip ? P.bustY + 0.02 : P.topY + 0.085;
+    const hemY = Math.max(P.topY - lenCm * U, P.base + 0.10);
+
+    g.add(shellFrom(P, {
+      y0: hemY, y1: yTopGarment, easeFn: easeFnOut, mat, samples: 40,
+    }));
+
+    // 领口：从肩线收向颈根，形成领围而不是敞开的大洞
+    if (!isSlip) {
+      const pts = [];
+      const yA = yTopGarment;
+      const rTop = bodyHalfWidth(P, yA) + easeFnOut(yA);
+      const yB = P.topY + 0.135;
+      const rNeck = P.neckR * 1.5 + Math.max(ease.bust * 0.4, MIN_EASE);
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        const y = (yA - 0.012) + (yB - yA + 0.012) * t;
+        // 起始半径略大于壳体顶环，避免两个共面环产生闪面
+        const r = (rTop * 1.008) + (rNeck - rTop * 1.008) * (t * t * (3 - 2 * t));
+        pts.push(new THREE.Vector2(Math.max(r, 0.02), y));
+      }
+      const collar = new THREE.Mesh(new THREE.LatheGeometry(pts, 44), mat);
+      collar.scale.z = P.depthAt(P.topY + 0.10);
+      g.add(collar);
     } else {
-      g.add(lathe([
-        [bustR * 0.85, topY], [bustR, bustY],
-        [waistR * 0.98, waistY], [waistR * 0.96, hemY],
-      ], depth, mat));
-      if (M.sleeve > 0) {
-        const short = sleeveLen < gL(30, k);
-        addSleeves(g, s => {
-          const p1 = new THREE.Vector3(s * shoulderX, topY - 0.02, 0);
-          const p3 = new THREE.Vector3(s * (shoulderX + (short ? 0.16 : 0.05)), topY - sleeveLen, 0);
-          const p2 = p1.clone().lerp(p3, 0.55);
-          return [p1, p2, p3];
-        }, short ? 0.125 : 0.105, short ? 0.115 : 0.075, mat);
-      }
-      // 领口
-      if (M.neck !== 0) {
-        g.add(torus(Math.min(bustR * 0.5, 0.14), 0.018, topY + 0.02, depth, mat));
-      }
+      // 吊带
+      const strapEase = Math.max(ease.bust, MIN_EASE);
+      [-1, 1].forEach(s => {
+        const p1 = new THREE.Vector3(s * P.rBust * 0.52, P.bustY + 0.03, (P.rBust + strapEase) * depth * 0.92);
+        const p2 = new THREE.Vector3(s * P.armX * 0.62, P.topY + 0.03, (P.rBust + strapEase) * depth * 0.55);
+        const dir = p2.clone().sub(p1);
+        const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, dir.length(), 8), mat);
+        strap.position.copy(p1).add(p2).multiplyScalar(0.5);
+        strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+        g.add(strap);
+      });
     }
-    if (M.sleeve > 0) addShoulderCaps(g, shoulderX, topY, mat, 0.12);
+
+    g.add(hemBand(P, hemY, easeFnOut, depth, mat));
+
+    // 袖子 + 肩缝
+    if (sleeveCm > 0) {
+      const yEnd = P.topY - sleeveCm * U;
+      shoulderBridge(P, mat, Math.max(ease.bust, 0)).forEach(m => g.add(m));
+      [-1, 1].forEach(s => g.add(sleeve(P, s, P.topY + 0.05, yEnd, ease.bust * 0.8, depth, mat)));
+    }
+
+    // 收腰款：加一条腰带提示版型
+    if (sil === 'wrap' || sil === 'peplum') {
+      const r = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 0.012;
+      const belt = new THREE.Mesh(new THREE.TorusGeometry(r, 0.014, 8, 40), mat);
+      belt.rotation.x = Math.PI / 2;
+      belt.position.y = P.waistY;
+      belt.scale.z = P.depthAt(P.waistY);
+      g.add(belt);
+    }
   }
 
   /* ---------- 下装 ---------- */
-  else if (item.category === 'bottoms') {
+  else if (cat === 'bottoms') {
     const isSkirt = ['aline', 'pencil', 'flared'].includes(sil);
     if (isSkirt) {
-      const hem = k.hipY - length + 0.5; // 裙长自腰部向下
-      const waistY2 = k.waistY;
-      let hemR = openingR;
-      if (sil === 'pencil') hemR = hipR * 0.96;
-      g.add(lathe([
-        [waistR * 1.02, waistY2 + 0.06],
-        [hipR, k.hipY],
-        [(hipR + hemR) * 0.5, (k.hipY + hem) * 0.5],
-        [hemR, hem],
-      ], depth, mat));
-      g.add(torus(waistR * 1.03, 0.02, waistY2 + 0.06, depth, mat));
+      const hemY = Math.max(P.waistY - lenCm * U, P.base + 0.12);
+      const hemR = Math.max(rOf(M.opening || 100) * sc, P.rHip + MIN_EASE);
+      g.add(shellFrom(P, {
+        y0: hemY, y1: P.waistY + 0.04, samples: 28, mat,
+        easeFn: y => Math.max(easeFn(y), MIN_EASE),
+        radiusFn: y => Math.max(skirtRadius(P, y, easeFn(y), hemR) - Math.max(easeFn(y), MIN_EASE), 0.02),
+      }));
+      const band = hemBand(P, hemY, easeFn, depth, mat);
+      g.add(band);
+      // 腰头
+      const wr = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 0.006;
+      const waist = new THREE.Mesh(new THREE.TorusGeometry(wr, 0.013, 8, 40), mat);
+      waist.rotation.x = Math.PI / 2;
+      waist.position.y = P.waistY + 0.03;
+      waist.scale.z = P.depthAt(P.waistY + 0.03);
+      g.add(waist);
     } else {
-      // 裤装：腰头 + 两条裤腿
-      g.add(lathe([
-        [waistR * 1.03, k.waistY + 0.06],
-        [hipR, k.hipY],
-        [hipR * 0.92, k.hipY - 0.25],
-      ], depth, mat));
-      const legTop = k.hipY - 0.12;
-      const legBottom = FOOT_Y + 0.12;
-      const legLen = legTop - legBottom;
-      const kneeY = legTop - legLen * 0.5;
-      const hipHalf = hipR * 0.5;
+      // 裤装：腰臀壳 + 两条裤腿
+      const yWaist = P.waistY + 0.05;
+      g.add(shellFrom(P, {
+        y0: P.hipY - 0.16, y1: yWaist, easeFn: easeFnOut, mat, samples: 18,
+      }));
+      const yTop = P.hipY - 0.02;
+      const yEnd = Math.max(P.base + 0.06, P.waistY - lenCm * U);
+      const wide = sil === 'wide' || sil === 'mini';
       [-1, 1].forEach(s => {
-        const wide = sil === 'wide' || sil === 'mini';
-        const rTop = wide ? hipR * 0.48 : hipR * 0.42;
-        const rHem = gR(openingR, k) * (wide ? 1.0 : 0.62);
-        g.add(limb(new THREE.Vector3(s * hipHalf, legTop, 0),
-                   new THREE.Vector3(s * hipHalf, kneeY, 0), rTop, (rTop + rHem) * 0.5, mat));
-        g.add(limb(new THREE.Vector3(s * hipHalf, kneeY, 0),
-                   new THREE.Vector3(s * hipHalf, legBottom, 0), (rTop + rHem) * 0.5, rHem, mat));
+        g.add(legTube(P, s, yTop, yEnd, y => easeFn(y) + (wide ? 0.03 : 0.004), mat));
       });
-      g.add(torus(waistR * 1.03, 0.02, k.waistY + 0.06, depth, mat));
+      const wr = radiusAt(P.torso, P.waistY) + easeFn(P.waistY) + 0.006;
+      const waist = new THREE.Mesh(new THREE.TorusGeometry(wr, 0.013, 8, 40), mat);
+      waist.rotation.x = Math.PI / 2;
+      waist.position.y = yWaist;
+      waist.scale.z = P.depthAt(yWaist);
+      g.add(waist);
     }
   }
 
   /* ---------- 外套 ---------- */
-  else if (item.category === 'outer') {
-    if (sil === 'cape') {
-      g.add(lathe([
-        [shoulderX * 1.12, topY + 0.08],
-        [bustR * 1.35, topY - 0.7],
-        [hipR * 1.5, topY - 1.3],
-        [openingR * 1.5, hemY],
-      ], depth, mat));
-    } else {
-      const outerBust = Math.max(bustR, k.rBust + 0.05);
-      g.add(lathe([
-        [outerBust * 0.88, topY], [outerBust, bustY],
-        [Math.max(waistR, k.rWaist + 0.05), waistY],
-        [Math.max(hipR, k.rHip + 0.04), hipY],
-        [Math.max(hipR, k.rHip + 0.06) * 1.06, hemY],
-      ], depth, mat));
-      if (sleeveLen > 0) {
-        addSleeves(g, s => [
-          new THREE.Vector3(s * shoulderX * 1.04, topY - 0.02, 0),
-          new THREE.Vector3(s * (shoulderX + 0.07), topY - sleeveLen * 0.55, 0),
-          new THREE.Vector3(s * (shoulderX + 0.1), topY - sleeveLen, 0),
-        ], 0.15, 0.115, mat);
-      }
-      // 翻领（西装 / 风衣 / 机车）
-      const lapelW = sil === 'trench' ? 0.19 : 0.15;
-      [-1, 1].forEach(s => {
-        const lp = new THREE.Mesh(new THREE.BoxGeometry(lapelW, 0.24, 0.02), mat);
-        lp.position.set(s * 0.085, topY - 0.06, bustR * depth + 0.01);
-        lp.rotation.z = s * 0.35;
-        g.add(lp);
-      });
-      if (sil === 'trench' || sil === 'blazer') {
-        g.add(torus(Math.max(waistR, k.rWaist + 0.05) * 1.02, 0.025, waistY, depth, mat));
-      }
+  else if (cat === 'outer') {
+    const hemY = Math.max(P.topY - lenCm * U, P.base + 0.10);
+    g.add(shellFrom(P, {
+      y0: hemY, y1: P.topY + 0.085, easeFn: easeFnOut, mat, samples: 40,
+    }));
+
+    // 驳领：沿领口向外翻的两片
+    const rTop = bodyHalfWidth(P, P.topY + 0.085) + easeFnOut(P.topY + 0.085);
+    [-1, 1].forEach(s => {
+      const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.30, 0.016), mat);
+      lapel.position.set(s * 0.072, P.topY - 0.075, rTop * depth * 0.97);
+      lapel.rotation.z = s * 0.30;
+      lapel.rotation.y = s * -0.22;
+      g.add(lapel);
+    });
+    // 领座
+    const pts = [];
+    const rNeck = P.neckR * 1.62 + outerPad;
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const y = (P.topY + 0.085) + (P.topY + 0.14 - P.topY - 0.085) * t;
+      const r = rTop + (rNeck - rTop) * (t * t * (3 - 2 * t));
+      pts.push(new THREE.Vector2(Math.max(r, 0.02), y));
     }
-    addShoulderCaps(g, shoulderX, topY, mat, 0.15);
+    const collar = new THREE.Mesh(new THREE.LatheGeometry(pts, 44), mat);
+    collar.scale.z = P.depthAt(P.topY + 0.10);
+    g.add(collar);
+
+    if (sleeveCm > 0) {
+      const yEnd = P.topY - sleeveCm * U;
+      shoulderBridge(P, mat, Math.max(ease.bust, 0) + outerPad).forEach(m => g.add(m));
+      [-1, 1].forEach(s => g.add(sleeve(P, s, P.topY + 0.06, yEnd, ease.bust * 0.8 + outerPad, depth, mat)));
+    }
+    g.add(hemBand(P, hemY, easeFnOut, depth, mat));
+    // 腰带（风衣/西装）
+    if (sil === 'trench' || sil === 'blazer') {
+      const r = radiusAt(P.torso, P.waistY) + easeFnOut(P.waistY) + 0.014;
+      const belt = new THREE.Mesh(new THREE.TorusGeometry(r, 0.016, 8, 40), mat);
+      belt.rotation.x = Math.PI / 2;
+      belt.position.y = P.waistY;
+      belt.scale.z = P.depthAt(P.waistY);
+      g.add(belt);
+    }
   }
 
   return finish(g, [mat]);
 }
 
-/* 袖子：两段圆柱 + 肩部过渡球 */
-function addSleeves(g, pathOf, r1, r2, mat) {
-  [-1, 1].forEach(s => {
-    const pts = pathOf(s);
-    g.add(limb(pts[0], pts[1], r1, (r1 + r2) * 0.5, mat));
-    g.add(limb(pts[1], pts[2], (r1 + r2) * 0.5, r2, mat));
-    g.add(ball(pts[2].clone(), new THREE.Vector3(r2, r2, r2), mat));
-  });
-}
-function addShoulderCaps(g, shoulderX, topY, mat, r) {
-  [-1, 1].forEach(s => {
-    g.add(ball(new THREE.Vector3(s * shoulderX, topY - 0.04, 0),
-               new THREE.Vector3(r, r * 0.92, r * 0.9), mat));
-  });
-}
-
-/* 成衣规格文字（用于界面展示） */
+/* 成衣规格文字 */
 export function specText(item, size) {
-  const M = item.measurements;
+  const M = item.measurements || {};
   const sc = sizeScale(size);
   const parts = [];
   if (M.bust) parts.push(`胸围 ${Math.round(M.bust * sc)}`);
