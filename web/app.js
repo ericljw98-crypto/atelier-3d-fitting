@@ -290,8 +290,12 @@ function openProfileModal(isEdit) {
   document.getElementById('profile-save').textContent = isEdit ? '保存并更新' : '创建模特并开始';
   renderProfileForm();
   profileModal.classList.add('open');
+  profileTip.classList.add('hidden');
 }
+const profileTip = document.getElementById('profile-tip');
 function closeProfileModal() { profileModal.classList.remove('open'); }
+document.getElementById('tip-edit').addEventListener('click', () => { openProfileModal(true); profileTip.classList.add('hidden'); });
+document.getElementById('tip-close').addEventListener('click', () => profileTip.classList.add('hidden'));
 
 function renderProfileForm() {
   const groups = [
@@ -694,21 +698,26 @@ const saved = loadProfile();
 if (saved) {
   state.model = saved;
   state.size = recommendSize(saved);
-  rebuildAvatar();
-  openProfileModal(false); // 已有档案：默认展示，可修改或关闭
-  // 初始化时不强制弹出，允许直接关闭
-  profileModal.classList.remove('open');
+} else {
+  // 未建档时先用默认档案，确保打开即可看到 3D 人体
+  state.model = { ...DEFAULT_MODEL };
+  state.size = recommendSize(state.model);
 }
+// 无论是否已建档，都先构建并显示 3D 人体模型
+rebuildAvatar();
 renderCategories();
 renderColors();
 renderSizes();
 renderModelChip();
+renderGarments();
+renderSummary();
+updateStatus();
 resize();
 animate();
 document.getElementById('loading').classList.add('hidden');
 
-/* 首次使用必须建档 */
-if (!state.model) openProfileModal(false);
+/* 首次使用弹出建档向导（侧边面板，模特在背景持续可见） */
+if (!saved) openProfileModal(false);
 
 /* 调试/自动化接口 */
 window.__atelier = {

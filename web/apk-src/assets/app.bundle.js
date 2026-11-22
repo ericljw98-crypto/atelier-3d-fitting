@@ -21842,10 +21842,17 @@
     document.getElementById("profile-save").textContent = isEdit ? "\u4FDD\u5B58\u5E76\u66F4\u65B0" : "\u521B\u5EFA\u6A21\u7279\u5E76\u5F00\u59CB";
     renderProfileForm();
     profileModal.classList.add("open");
+    profileTip.classList.add("hidden");
   }
+  var profileTip = document.getElementById("profile-tip");
   function closeProfileModal() {
     profileModal.classList.remove("open");
   }
+  document.getElementById("tip-edit").addEventListener("click", () => {
+    openProfileModal(true);
+    profileTip.classList.add("hidden");
+  });
+  document.getElementById("tip-close").addEventListener("click", () => profileTip.classList.add("hidden"));
   function renderProfileForm() {
     const groups = [
       { title: "\u57FA\u7840\u4FE1\u606F", fields: FIELD_META.slice(0, 2) },
@@ -22261,18 +22268,22 @@
   if (saved) {
     state.model = saved;
     state.size = recommendSize(saved);
-    rebuildAvatar();
-    openProfileModal(false);
-    profileModal.classList.remove("open");
+  } else {
+    state.model = { ...DEFAULT_MODEL };
+    state.size = recommendSize(state.model);
   }
+  rebuildAvatar();
   renderCategories();
   renderColors();
   renderSizes();
   renderModelChip();
+  renderGarments();
+  renderSummary();
+  updateStatus();
   resize();
   animate();
   document.getElementById("loading").classList.add("hidden");
-  if (!state.model) openProfileModal(false);
+  if (!saved) openProfileModal(false);
   window.__atelier = {
     state,
     DB,
