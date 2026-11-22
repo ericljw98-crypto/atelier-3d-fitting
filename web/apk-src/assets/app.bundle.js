@@ -56,8 +56,6 @@
   var ACESFilmicToneMapping = 4;
   var CustomToneMapping = 5;
   var AgXToneMapping = 6;
-  var AttachedBindMode = "attached";
-  var DetachedBindMode = "detached";
   var UVMapping = 300;
   var CubeReflectionMapping = 301;
   var CubeRefractionMapping = 302;
@@ -133,10 +131,6 @@
   var ZeroCurvatureEnding = 2400;
   var ZeroSlopeEnding = 2401;
   var WrapAroundEnding = 2402;
-  var NormalAnimationBlendMode = 2500;
-  var TrianglesDrawMode = 0;
-  var TriangleStripDrawMode = 1;
-  var TriangleFanDrawMode = 2;
   var LinearEncoding = 3e3;
   var sRGBEncoding = 3001;
   var BasicDepthPacking = 3200;
@@ -16540,9 +16534,9 @@
       let _clippingEnabled = false;
       let _localClippingEnabled = false;
       let _transmissionRenderTarget = null;
-      const _projScreenMatrix2 = new Matrix4();
+      const _projScreenMatrix = new Matrix4();
       const _vector22 = new Vector2();
-      const _vector32 = new Vector3();
+      const _vector3 = new Vector3();
       const _emptyScene = { background: null, fog: null, environment: null, overrideMaterial: null, isScene: true };
       function getTargetPixelRatio() {
         return _currentRenderTarget === null ? _pixelRatio : 1;
@@ -17043,8 +17037,8 @@
         currentRenderState = renderStates.get(scene2, renderStateStack.length);
         currentRenderState.init();
         renderStateStack.push(currentRenderState);
-        _projScreenMatrix2.multiplyMatrices(camera2.projectionMatrix, camera2.matrixWorldInverse);
-        _frustum.setFromProjectionMatrix(_projScreenMatrix2);
+        _projScreenMatrix.multiplyMatrices(camera2.projectionMatrix, camera2.matrixWorldInverse);
+        _frustum.setFromProjectionMatrix(_projScreenMatrix);
         _localClippingEnabled = this.localClippingEnabled;
         _clippingEnabled = clipping.init(this.clippingPlanes, _localClippingEnabled);
         currentRenderList = renderLists.get(scene2, renderListStack.length);
@@ -17109,12 +17103,12 @@
           } else if (object.isSprite) {
             if (!object.frustumCulled || _frustum.intersectsSprite(object)) {
               if (sortObjects) {
-                _vector32.setFromMatrixPosition(object.matrixWorld).applyMatrix4(_projScreenMatrix2);
+                _vector3.setFromMatrixPosition(object.matrixWorld).applyMatrix4(_projScreenMatrix);
               }
               const geometry = objects.update(object);
               const material = object.material;
               if (material.visible) {
-                currentRenderList.push(object, geometry, material, groupOrder, _vector32.z, null);
+                currentRenderList.push(object, geometry, material, groupOrder, _vector3.z, null);
               }
             }
           } else if (object.isMesh || object.isLine || object.isPoints) {
@@ -17124,12 +17118,12 @@
               if (sortObjects) {
                 if (object.boundingSphere !== void 0) {
                   if (object.boundingSphere === null) object.computeBoundingSphere();
-                  _vector32.copy(object.boundingSphere.center);
+                  _vector3.copy(object.boundingSphere.center);
                 } else {
                   if (geometry.boundingSphere === null) geometry.computeBoundingSphere();
-                  _vector32.copy(geometry.boundingSphere.center);
+                  _vector3.copy(geometry.boundingSphere.center);
                 }
-                _vector32.applyMatrix4(object.matrixWorld).applyMatrix4(_projScreenMatrix2);
+                _vector3.applyMatrix4(object.matrixWorld).applyMatrix4(_projScreenMatrix);
               }
               if (Array.isArray(material)) {
                 const groups = geometry.groups;
@@ -17137,11 +17131,11 @@
                   const group = groups[i];
                   const groupMaterial = material[group.materialIndex];
                   if (groupMaterial && groupMaterial.visible) {
-                    currentRenderList.push(object, geometry, groupMaterial, groupOrder, _vector32.z, group);
+                    currentRenderList.push(object, geometry, groupMaterial, groupOrder, _vector3.z, group);
                   }
                 }
               } else if (material.visible) {
-                currentRenderList.push(object, geometry, material, groupOrder, _vector32.z, null);
+                currentRenderList.push(object, geometry, material, groupOrder, _vector3.z, null);
               }
             }
           }
@@ -17438,7 +17432,7 @@
           p_uniforms.setValue(_gl, "viewMatrix", camera2.matrixWorldInverse);
           const uCamPos = p_uniforms.map.cameraPosition;
           if (uCamPos !== void 0) {
-            uCamPos.setValue(_gl, _vector32.setFromMatrixPosition(camera2.matrixWorld));
+            uCamPos.setValue(_gl, _vector3.setFromMatrixPosition(camera2.matrixWorld));
           }
           if (capabilities.logarithmicDepthBuffer) {
             p_uniforms.setValue(
@@ -17834,973 +17828,6 @@
       return data;
     }
   };
-  var InterleavedBuffer = class {
-    constructor(array, stride) {
-      this.isInterleavedBuffer = true;
-      this.array = array;
-      this.stride = stride;
-      this.count = array !== void 0 ? array.length / stride : 0;
-      this.usage = StaticDrawUsage;
-      this._updateRange = { offset: 0, count: -1 };
-      this.updateRanges = [];
-      this.version = 0;
-      this.uuid = generateUUID();
-    }
-    onUploadCallback() {
-    }
-    set needsUpdate(value) {
-      if (value === true) this.version++;
-    }
-    get updateRange() {
-      console.warn("THREE.InterleavedBuffer: updateRange() is deprecated and will be removed in r169. Use addUpdateRange() instead.");
-      return this._updateRange;
-    }
-    setUsage(value) {
-      this.usage = value;
-      return this;
-    }
-    addUpdateRange(start, count) {
-      this.updateRanges.push({ start, count });
-    }
-    clearUpdateRanges() {
-      this.updateRanges.length = 0;
-    }
-    copy(source) {
-      this.array = new source.array.constructor(source.array);
-      this.count = source.count;
-      this.stride = source.stride;
-      this.usage = source.usage;
-      return this;
-    }
-    copyAt(index1, attribute, index2) {
-      index1 *= this.stride;
-      index2 *= attribute.stride;
-      for (let i = 0, l = this.stride; i < l; i++) {
-        this.array[index1 + i] = attribute.array[index2 + i];
-      }
-      return this;
-    }
-    set(value, offset = 0) {
-      this.array.set(value, offset);
-      return this;
-    }
-    clone(data) {
-      if (data.arrayBuffers === void 0) {
-        data.arrayBuffers = {};
-      }
-      if (this.array.buffer._uuid === void 0) {
-        this.array.buffer._uuid = generateUUID();
-      }
-      if (data.arrayBuffers[this.array.buffer._uuid] === void 0) {
-        data.arrayBuffers[this.array.buffer._uuid] = this.array.slice(0).buffer;
-      }
-      const array = new this.array.constructor(data.arrayBuffers[this.array.buffer._uuid]);
-      const ib = new this.constructor(array, this.stride);
-      ib.setUsage(this.usage);
-      return ib;
-    }
-    onUpload(callback) {
-      this.onUploadCallback = callback;
-      return this;
-    }
-    toJSON(data) {
-      if (data.arrayBuffers === void 0) {
-        data.arrayBuffers = {};
-      }
-      if (this.array.buffer._uuid === void 0) {
-        this.array.buffer._uuid = generateUUID();
-      }
-      if (data.arrayBuffers[this.array.buffer._uuid] === void 0) {
-        data.arrayBuffers[this.array.buffer._uuid] = Array.from(new Uint32Array(this.array.buffer));
-      }
-      return {
-        uuid: this.uuid,
-        buffer: this.array.buffer._uuid,
-        type: this.array.constructor.name,
-        stride: this.stride
-      };
-    }
-  };
-  var _vector$6 = /* @__PURE__ */ new Vector3();
-  var InterleavedBufferAttribute = class _InterleavedBufferAttribute {
-    constructor(interleavedBuffer, itemSize, offset, normalized = false) {
-      this.isInterleavedBufferAttribute = true;
-      this.name = "";
-      this.data = interleavedBuffer;
-      this.itemSize = itemSize;
-      this.offset = offset;
-      this.normalized = normalized;
-    }
-    get count() {
-      return this.data.count;
-    }
-    get array() {
-      return this.data.array;
-    }
-    set needsUpdate(value) {
-      this.data.needsUpdate = value;
-    }
-    applyMatrix4(m) {
-      for (let i = 0, l = this.data.count; i < l; i++) {
-        _vector$6.fromBufferAttribute(this, i);
-        _vector$6.applyMatrix4(m);
-        this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-      }
-      return this;
-    }
-    applyNormalMatrix(m) {
-      for (let i = 0, l = this.count; i < l; i++) {
-        _vector$6.fromBufferAttribute(this, i);
-        _vector$6.applyNormalMatrix(m);
-        this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-      }
-      return this;
-    }
-    transformDirection(m) {
-      for (let i = 0, l = this.count; i < l; i++) {
-        _vector$6.fromBufferAttribute(this, i);
-        _vector$6.transformDirection(m);
-        this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-      }
-      return this;
-    }
-    setX(index, x) {
-      if (this.normalized) x = normalize(x, this.array);
-      this.data.array[index * this.data.stride + this.offset] = x;
-      return this;
-    }
-    setY(index, y) {
-      if (this.normalized) y = normalize(y, this.array);
-      this.data.array[index * this.data.stride + this.offset + 1] = y;
-      return this;
-    }
-    setZ(index, z) {
-      if (this.normalized) z = normalize(z, this.array);
-      this.data.array[index * this.data.stride + this.offset + 2] = z;
-      return this;
-    }
-    setW(index, w) {
-      if (this.normalized) w = normalize(w, this.array);
-      this.data.array[index * this.data.stride + this.offset + 3] = w;
-      return this;
-    }
-    getX(index) {
-      let x = this.data.array[index * this.data.stride + this.offset];
-      if (this.normalized) x = denormalize(x, this.array);
-      return x;
-    }
-    getY(index) {
-      let y = this.data.array[index * this.data.stride + this.offset + 1];
-      if (this.normalized) y = denormalize(y, this.array);
-      return y;
-    }
-    getZ(index) {
-      let z = this.data.array[index * this.data.stride + this.offset + 2];
-      if (this.normalized) z = denormalize(z, this.array);
-      return z;
-    }
-    getW(index) {
-      let w = this.data.array[index * this.data.stride + this.offset + 3];
-      if (this.normalized) w = denormalize(w, this.array);
-      return w;
-    }
-    setXY(index, x, y) {
-      index = index * this.data.stride + this.offset;
-      if (this.normalized) {
-        x = normalize(x, this.array);
-        y = normalize(y, this.array);
-      }
-      this.data.array[index + 0] = x;
-      this.data.array[index + 1] = y;
-      return this;
-    }
-    setXYZ(index, x, y, z) {
-      index = index * this.data.stride + this.offset;
-      if (this.normalized) {
-        x = normalize(x, this.array);
-        y = normalize(y, this.array);
-        z = normalize(z, this.array);
-      }
-      this.data.array[index + 0] = x;
-      this.data.array[index + 1] = y;
-      this.data.array[index + 2] = z;
-      return this;
-    }
-    setXYZW(index, x, y, z, w) {
-      index = index * this.data.stride + this.offset;
-      if (this.normalized) {
-        x = normalize(x, this.array);
-        y = normalize(y, this.array);
-        z = normalize(z, this.array);
-        w = normalize(w, this.array);
-      }
-      this.data.array[index + 0] = x;
-      this.data.array[index + 1] = y;
-      this.data.array[index + 2] = z;
-      this.data.array[index + 3] = w;
-      return this;
-    }
-    clone(data) {
-      if (data === void 0) {
-        console.log("THREE.InterleavedBufferAttribute.clone(): Cloning an interleaved buffer attribute will de-interleave buffer data.");
-        const array = [];
-        for (let i = 0; i < this.count; i++) {
-          const index = i * this.data.stride + this.offset;
-          for (let j = 0; j < this.itemSize; j++) {
-            array.push(this.data.array[index + j]);
-          }
-        }
-        return new BufferAttribute(new this.array.constructor(array), this.itemSize, this.normalized);
-      } else {
-        if (data.interleavedBuffers === void 0) {
-          data.interleavedBuffers = {};
-        }
-        if (data.interleavedBuffers[this.data.uuid] === void 0) {
-          data.interleavedBuffers[this.data.uuid] = this.data.clone(data);
-        }
-        return new _InterleavedBufferAttribute(data.interleavedBuffers[this.data.uuid], this.itemSize, this.offset, this.normalized);
-      }
-    }
-    toJSON(data) {
-      if (data === void 0) {
-        console.log("THREE.InterleavedBufferAttribute.toJSON(): Serializing an interleaved buffer attribute will de-interleave buffer data.");
-        const array = [];
-        for (let i = 0; i < this.count; i++) {
-          const index = i * this.data.stride + this.offset;
-          for (let j = 0; j < this.itemSize; j++) {
-            array.push(this.data.array[index + j]);
-          }
-        }
-        return {
-          itemSize: this.itemSize,
-          type: this.array.constructor.name,
-          array,
-          normalized: this.normalized
-        };
-      } else {
-        if (data.interleavedBuffers === void 0) {
-          data.interleavedBuffers = {};
-        }
-        if (data.interleavedBuffers[this.data.uuid] === void 0) {
-          data.interleavedBuffers[this.data.uuid] = this.data.toJSON(data);
-        }
-        return {
-          isInterleavedBufferAttribute: true,
-          itemSize: this.itemSize,
-          data: this.data.uuid,
-          offset: this.offset,
-          normalized: this.normalized
-        };
-      }
-    }
-  };
-  var _basePosition = /* @__PURE__ */ new Vector3();
-  var _skinIndex = /* @__PURE__ */ new Vector4();
-  var _skinWeight = /* @__PURE__ */ new Vector4();
-  var _vector3 = /* @__PURE__ */ new Vector3();
-  var _matrix4 = /* @__PURE__ */ new Matrix4();
-  var _vertex = /* @__PURE__ */ new Vector3();
-  var _sphere$4 = /* @__PURE__ */ new Sphere();
-  var _inverseMatrix$2 = /* @__PURE__ */ new Matrix4();
-  var _ray$2 = /* @__PURE__ */ new Ray();
-  var SkinnedMesh = class extends Mesh {
-    constructor(geometry, material) {
-      super(geometry, material);
-      this.isSkinnedMesh = true;
-      this.type = "SkinnedMesh";
-      this.bindMode = AttachedBindMode;
-      this.bindMatrix = new Matrix4();
-      this.bindMatrixInverse = new Matrix4();
-      this.boundingBox = null;
-      this.boundingSphere = null;
-    }
-    computeBoundingBox() {
-      const geometry = this.geometry;
-      if (this.boundingBox === null) {
-        this.boundingBox = new Box3();
-      }
-      this.boundingBox.makeEmpty();
-      const positionAttribute = geometry.getAttribute("position");
-      for (let i = 0; i < positionAttribute.count; i++) {
-        this.getVertexPosition(i, _vertex);
-        this.boundingBox.expandByPoint(_vertex);
-      }
-    }
-    computeBoundingSphere() {
-      const geometry = this.geometry;
-      if (this.boundingSphere === null) {
-        this.boundingSphere = new Sphere();
-      }
-      this.boundingSphere.makeEmpty();
-      const positionAttribute = geometry.getAttribute("position");
-      for (let i = 0; i < positionAttribute.count; i++) {
-        this.getVertexPosition(i, _vertex);
-        this.boundingSphere.expandByPoint(_vertex);
-      }
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.bindMode = source.bindMode;
-      this.bindMatrix.copy(source.bindMatrix);
-      this.bindMatrixInverse.copy(source.bindMatrixInverse);
-      this.skeleton = source.skeleton;
-      if (source.boundingBox !== null) this.boundingBox = source.boundingBox.clone();
-      if (source.boundingSphere !== null) this.boundingSphere = source.boundingSphere.clone();
-      return this;
-    }
-    raycast(raycaster, intersects) {
-      const material = this.material;
-      const matrixWorld = this.matrixWorld;
-      if (material === void 0) return;
-      if (this.boundingSphere === null) this.computeBoundingSphere();
-      _sphere$4.copy(this.boundingSphere);
-      _sphere$4.applyMatrix4(matrixWorld);
-      if (raycaster.ray.intersectsSphere(_sphere$4) === false) return;
-      _inverseMatrix$2.copy(matrixWorld).invert();
-      _ray$2.copy(raycaster.ray).applyMatrix4(_inverseMatrix$2);
-      if (this.boundingBox !== null) {
-        if (_ray$2.intersectsBox(this.boundingBox) === false) return;
-      }
-      this._computeIntersections(raycaster, intersects, _ray$2);
-    }
-    getVertexPosition(index, target) {
-      super.getVertexPosition(index, target);
-      this.applyBoneTransform(index, target);
-      return target;
-    }
-    bind(skeleton, bindMatrix) {
-      this.skeleton = skeleton;
-      if (bindMatrix === void 0) {
-        this.updateMatrixWorld(true);
-        this.skeleton.calculateInverses();
-        bindMatrix = this.matrixWorld;
-      }
-      this.bindMatrix.copy(bindMatrix);
-      this.bindMatrixInverse.copy(bindMatrix).invert();
-    }
-    pose() {
-      this.skeleton.pose();
-    }
-    normalizeSkinWeights() {
-      const vector = new Vector4();
-      const skinWeight = this.geometry.attributes.skinWeight;
-      for (let i = 0, l = skinWeight.count; i < l; i++) {
-        vector.fromBufferAttribute(skinWeight, i);
-        const scale = 1 / vector.manhattanLength();
-        if (scale !== Infinity) {
-          vector.multiplyScalar(scale);
-        } else {
-          vector.set(1, 0, 0, 0);
-        }
-        skinWeight.setXYZW(i, vector.x, vector.y, vector.z, vector.w);
-      }
-    }
-    updateMatrixWorld(force) {
-      super.updateMatrixWorld(force);
-      if (this.bindMode === AttachedBindMode) {
-        this.bindMatrixInverse.copy(this.matrixWorld).invert();
-      } else if (this.bindMode === DetachedBindMode) {
-        this.bindMatrixInverse.copy(this.bindMatrix).invert();
-      } else {
-        console.warn("THREE.SkinnedMesh: Unrecognized bindMode: " + this.bindMode);
-      }
-    }
-    applyBoneTransform(index, vector) {
-      const skeleton = this.skeleton;
-      const geometry = this.geometry;
-      _skinIndex.fromBufferAttribute(geometry.attributes.skinIndex, index);
-      _skinWeight.fromBufferAttribute(geometry.attributes.skinWeight, index);
-      _basePosition.copy(vector).applyMatrix4(this.bindMatrix);
-      vector.set(0, 0, 0);
-      for (let i = 0; i < 4; i++) {
-        const weight = _skinWeight.getComponent(i);
-        if (weight !== 0) {
-          const boneIndex = _skinIndex.getComponent(i);
-          _matrix4.multiplyMatrices(skeleton.bones[boneIndex].matrixWorld, skeleton.boneInverses[boneIndex]);
-          vector.addScaledVector(_vector3.copy(_basePosition).applyMatrix4(_matrix4), weight);
-        }
-      }
-      return vector.applyMatrix4(this.bindMatrixInverse);
-    }
-    boneTransform(index, vector) {
-      console.warn("THREE.SkinnedMesh: .boneTransform() was renamed to .applyBoneTransform() in r151.");
-      return this.applyBoneTransform(index, vector);
-    }
-  };
-  var Bone = class extends Object3D {
-    constructor() {
-      super();
-      this.isBone = true;
-      this.type = "Bone";
-    }
-  };
-  var DataTexture = class extends Texture {
-    constructor(data = null, width = 1, height = 1, format, type, mapping, wrapS, wrapT, magFilter = NearestFilter, minFilter = NearestFilter, anisotropy, colorSpace) {
-      super(null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy, colorSpace);
-      this.isDataTexture = true;
-      this.image = { data, width, height };
-      this.generateMipmaps = false;
-      this.flipY = false;
-      this.unpackAlignment = 1;
-    }
-  };
-  var _offsetMatrix = /* @__PURE__ */ new Matrix4();
-  var _identityMatrix$1 = /* @__PURE__ */ new Matrix4();
-  var Skeleton = class _Skeleton {
-    constructor(bones = [], boneInverses = []) {
-      this.uuid = generateUUID();
-      this.bones = bones.slice(0);
-      this.boneInverses = boneInverses;
-      this.boneMatrices = null;
-      this.boneTexture = null;
-      this.init();
-    }
-    init() {
-      const bones = this.bones;
-      const boneInverses = this.boneInverses;
-      this.boneMatrices = new Float32Array(bones.length * 16);
-      if (boneInverses.length === 0) {
-        this.calculateInverses();
-      } else {
-        if (bones.length !== boneInverses.length) {
-          console.warn("THREE.Skeleton: Number of inverse bone matrices does not match amount of bones.");
-          this.boneInverses = [];
-          for (let i = 0, il = this.bones.length; i < il; i++) {
-            this.boneInverses.push(new Matrix4());
-          }
-        }
-      }
-    }
-    calculateInverses() {
-      this.boneInverses.length = 0;
-      for (let i = 0, il = this.bones.length; i < il; i++) {
-        const inverse = new Matrix4();
-        if (this.bones[i]) {
-          inverse.copy(this.bones[i].matrixWorld).invert();
-        }
-        this.boneInverses.push(inverse);
-      }
-    }
-    pose() {
-      for (let i = 0, il = this.bones.length; i < il; i++) {
-        const bone = this.bones[i];
-        if (bone) {
-          bone.matrixWorld.copy(this.boneInverses[i]).invert();
-        }
-      }
-      for (let i = 0, il = this.bones.length; i < il; i++) {
-        const bone = this.bones[i];
-        if (bone) {
-          if (bone.parent && bone.parent.isBone) {
-            bone.matrix.copy(bone.parent.matrixWorld).invert();
-            bone.matrix.multiply(bone.matrixWorld);
-          } else {
-            bone.matrix.copy(bone.matrixWorld);
-          }
-          bone.matrix.decompose(bone.position, bone.quaternion, bone.scale);
-        }
-      }
-    }
-    update() {
-      const bones = this.bones;
-      const boneInverses = this.boneInverses;
-      const boneMatrices = this.boneMatrices;
-      const boneTexture = this.boneTexture;
-      for (let i = 0, il = bones.length; i < il; i++) {
-        const matrix = bones[i] ? bones[i].matrixWorld : _identityMatrix$1;
-        _offsetMatrix.multiplyMatrices(matrix, boneInverses[i]);
-        _offsetMatrix.toArray(boneMatrices, i * 16);
-      }
-      if (boneTexture !== null) {
-        boneTexture.needsUpdate = true;
-      }
-    }
-    clone() {
-      return new _Skeleton(this.bones, this.boneInverses);
-    }
-    computeBoneTexture() {
-      let size = Math.sqrt(this.bones.length * 4);
-      size = Math.ceil(size / 4) * 4;
-      size = Math.max(size, 4);
-      const boneMatrices = new Float32Array(size * size * 4);
-      boneMatrices.set(this.boneMatrices);
-      const boneTexture = new DataTexture(boneMatrices, size, size, RGBAFormat, FloatType);
-      boneTexture.needsUpdate = true;
-      this.boneMatrices = boneMatrices;
-      this.boneTexture = boneTexture;
-      return this;
-    }
-    getBoneByName(name) {
-      for (let i = 0, il = this.bones.length; i < il; i++) {
-        const bone = this.bones[i];
-        if (bone.name === name) {
-          return bone;
-        }
-      }
-      return void 0;
-    }
-    dispose() {
-      if (this.boneTexture !== null) {
-        this.boneTexture.dispose();
-        this.boneTexture = null;
-      }
-    }
-    fromJSON(json, bones) {
-      this.uuid = json.uuid;
-      for (let i = 0, l = json.bones.length; i < l; i++) {
-        const uuid = json.bones[i];
-        let bone = bones[uuid];
-        if (bone === void 0) {
-          console.warn("THREE.Skeleton: No bone found with UUID:", uuid);
-          bone = new Bone();
-        }
-        this.bones.push(bone);
-        this.boneInverses.push(new Matrix4().fromArray(json.boneInverses[i]));
-      }
-      this.init();
-      return this;
-    }
-    toJSON() {
-      const data = {
-        metadata: {
-          version: 4.6,
-          type: "Skeleton",
-          generator: "Skeleton.toJSON"
-        },
-        bones: [],
-        boneInverses: []
-      };
-      data.uuid = this.uuid;
-      const bones = this.bones;
-      const boneInverses = this.boneInverses;
-      for (let i = 0, l = bones.length; i < l; i++) {
-        const bone = bones[i];
-        data.bones.push(bone.uuid);
-        const boneInverse = boneInverses[i];
-        data.boneInverses.push(boneInverse.toArray());
-      }
-      return data;
-    }
-  };
-  var InstancedBufferAttribute = class extends BufferAttribute {
-    constructor(array, itemSize, normalized, meshPerAttribute = 1) {
-      super(array, itemSize, normalized);
-      this.isInstancedBufferAttribute = true;
-      this.meshPerAttribute = meshPerAttribute;
-    }
-    copy(source) {
-      super.copy(source);
-      this.meshPerAttribute = source.meshPerAttribute;
-      return this;
-    }
-    toJSON() {
-      const data = super.toJSON();
-      data.meshPerAttribute = this.meshPerAttribute;
-      data.isInstancedBufferAttribute = true;
-      return data;
-    }
-  };
-  var _instanceLocalMatrix = /* @__PURE__ */ new Matrix4();
-  var _instanceWorldMatrix = /* @__PURE__ */ new Matrix4();
-  var _instanceIntersects = [];
-  var _box3 = /* @__PURE__ */ new Box3();
-  var _identity = /* @__PURE__ */ new Matrix4();
-  var _mesh$1 = /* @__PURE__ */ new Mesh();
-  var _sphere$3 = /* @__PURE__ */ new Sphere();
-  var InstancedMesh = class extends Mesh {
-    constructor(geometry, material, count) {
-      super(geometry, material);
-      this.isInstancedMesh = true;
-      this.instanceMatrix = new InstancedBufferAttribute(new Float32Array(count * 16), 16);
-      this.instanceColor = null;
-      this.count = count;
-      this.boundingBox = null;
-      this.boundingSphere = null;
-      for (let i = 0; i < count; i++) {
-        this.setMatrixAt(i, _identity);
-      }
-    }
-    computeBoundingBox() {
-      const geometry = this.geometry;
-      const count = this.count;
-      if (this.boundingBox === null) {
-        this.boundingBox = new Box3();
-      }
-      if (geometry.boundingBox === null) {
-        geometry.computeBoundingBox();
-      }
-      this.boundingBox.makeEmpty();
-      for (let i = 0; i < count; i++) {
-        this.getMatrixAt(i, _instanceLocalMatrix);
-        _box3.copy(geometry.boundingBox).applyMatrix4(_instanceLocalMatrix);
-        this.boundingBox.union(_box3);
-      }
-    }
-    computeBoundingSphere() {
-      const geometry = this.geometry;
-      const count = this.count;
-      if (this.boundingSphere === null) {
-        this.boundingSphere = new Sphere();
-      }
-      if (geometry.boundingSphere === null) {
-        geometry.computeBoundingSphere();
-      }
-      this.boundingSphere.makeEmpty();
-      for (let i = 0; i < count; i++) {
-        this.getMatrixAt(i, _instanceLocalMatrix);
-        _sphere$3.copy(geometry.boundingSphere).applyMatrix4(_instanceLocalMatrix);
-        this.boundingSphere.union(_sphere$3);
-      }
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.instanceMatrix.copy(source.instanceMatrix);
-      if (source.instanceColor !== null) this.instanceColor = source.instanceColor.clone();
-      this.count = source.count;
-      if (source.boundingBox !== null) this.boundingBox = source.boundingBox.clone();
-      if (source.boundingSphere !== null) this.boundingSphere = source.boundingSphere.clone();
-      return this;
-    }
-    getColorAt(index, color) {
-      color.fromArray(this.instanceColor.array, index * 3);
-    }
-    getMatrixAt(index, matrix) {
-      matrix.fromArray(this.instanceMatrix.array, index * 16);
-    }
-    raycast(raycaster, intersects) {
-      const matrixWorld = this.matrixWorld;
-      const raycastTimes = this.count;
-      _mesh$1.geometry = this.geometry;
-      _mesh$1.material = this.material;
-      if (_mesh$1.material === void 0) return;
-      if (this.boundingSphere === null) this.computeBoundingSphere();
-      _sphere$3.copy(this.boundingSphere);
-      _sphere$3.applyMatrix4(matrixWorld);
-      if (raycaster.ray.intersectsSphere(_sphere$3) === false) return;
-      for (let instanceId = 0; instanceId < raycastTimes; instanceId++) {
-        this.getMatrixAt(instanceId, _instanceLocalMatrix);
-        _instanceWorldMatrix.multiplyMatrices(matrixWorld, _instanceLocalMatrix);
-        _mesh$1.matrixWorld = _instanceWorldMatrix;
-        _mesh$1.raycast(raycaster, _instanceIntersects);
-        for (let i = 0, l = _instanceIntersects.length; i < l; i++) {
-          const intersect = _instanceIntersects[i];
-          intersect.instanceId = instanceId;
-          intersect.object = this;
-          intersects.push(intersect);
-        }
-        _instanceIntersects.length = 0;
-      }
-    }
-    setColorAt(index, color) {
-      if (this.instanceColor === null) {
-        this.instanceColor = new InstancedBufferAttribute(new Float32Array(this.instanceMatrix.count * 3), 3);
-      }
-      color.toArray(this.instanceColor.array, index * 3);
-    }
-    setMatrixAt(index, matrix) {
-      matrix.toArray(this.instanceMatrix.array, index * 16);
-    }
-    updateMorphTargets() {
-    }
-    dispose() {
-      this.dispatchEvent({ type: "dispose" });
-    }
-  };
-  var LineBasicMaterial = class extends Material {
-    constructor(parameters) {
-      super();
-      this.isLineBasicMaterial = true;
-      this.type = "LineBasicMaterial";
-      this.color = new Color(16777215);
-      this.map = null;
-      this.linewidth = 1;
-      this.linecap = "round";
-      this.linejoin = "round";
-      this.fog = true;
-      this.setValues(parameters);
-    }
-    copy(source) {
-      super.copy(source);
-      this.color.copy(source.color);
-      this.map = source.map;
-      this.linewidth = source.linewidth;
-      this.linecap = source.linecap;
-      this.linejoin = source.linejoin;
-      this.fog = source.fog;
-      return this;
-    }
-  };
-  var _start$1 = /* @__PURE__ */ new Vector3();
-  var _end$1 = /* @__PURE__ */ new Vector3();
-  var _inverseMatrix$1 = /* @__PURE__ */ new Matrix4();
-  var _ray$1 = /* @__PURE__ */ new Ray();
-  var _sphere$1 = /* @__PURE__ */ new Sphere();
-  var Line = class extends Object3D {
-    constructor(geometry = new BufferGeometry(), material = new LineBasicMaterial()) {
-      super();
-      this.isLine = true;
-      this.type = "Line";
-      this.geometry = geometry;
-      this.material = material;
-      this.updateMorphTargets();
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.material = Array.isArray(source.material) ? source.material.slice() : source.material;
-      this.geometry = source.geometry;
-      return this;
-    }
-    computeLineDistances() {
-      const geometry = this.geometry;
-      if (geometry.index === null) {
-        const positionAttribute = geometry.attributes.position;
-        const lineDistances = [0];
-        for (let i = 1, l = positionAttribute.count; i < l; i++) {
-          _start$1.fromBufferAttribute(positionAttribute, i - 1);
-          _end$1.fromBufferAttribute(positionAttribute, i);
-          lineDistances[i] = lineDistances[i - 1];
-          lineDistances[i] += _start$1.distanceTo(_end$1);
-        }
-        geometry.setAttribute("lineDistance", new Float32BufferAttribute(lineDistances, 1));
-      } else {
-        console.warn("THREE.Line.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.");
-      }
-      return this;
-    }
-    raycast(raycaster, intersects) {
-      const geometry = this.geometry;
-      const matrixWorld = this.matrixWorld;
-      const threshold = raycaster.params.Line.threshold;
-      const drawRange = geometry.drawRange;
-      if (geometry.boundingSphere === null) geometry.computeBoundingSphere();
-      _sphere$1.copy(geometry.boundingSphere);
-      _sphere$1.applyMatrix4(matrixWorld);
-      _sphere$1.radius += threshold;
-      if (raycaster.ray.intersectsSphere(_sphere$1) === false) return;
-      _inverseMatrix$1.copy(matrixWorld).invert();
-      _ray$1.copy(raycaster.ray).applyMatrix4(_inverseMatrix$1);
-      const localThreshold = threshold / ((this.scale.x + this.scale.y + this.scale.z) / 3);
-      const localThresholdSq = localThreshold * localThreshold;
-      const vStart = new Vector3();
-      const vEnd = new Vector3();
-      const interSegment = new Vector3();
-      const interRay = new Vector3();
-      const step = this.isLineSegments ? 2 : 1;
-      const index = geometry.index;
-      const attributes = geometry.attributes;
-      const positionAttribute = attributes.position;
-      if (index !== null) {
-        const start = Math.max(0, drawRange.start);
-        const end = Math.min(index.count, drawRange.start + drawRange.count);
-        for (let i = start, l = end - 1; i < l; i += step) {
-          const a = index.getX(i);
-          const b = index.getX(i + 1);
-          vStart.fromBufferAttribute(positionAttribute, a);
-          vEnd.fromBufferAttribute(positionAttribute, b);
-          const distSq = _ray$1.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
-          if (distSq > localThresholdSq) continue;
-          interRay.applyMatrix4(this.matrixWorld);
-          const distance = raycaster.ray.origin.distanceTo(interRay);
-          if (distance < raycaster.near || distance > raycaster.far) continue;
-          intersects.push({
-            distance,
-            // What do we want? intersection point on the ray or on the segment??
-            // point: raycaster.ray.at( distance ),
-            point: interSegment.clone().applyMatrix4(this.matrixWorld),
-            index: i,
-            face: null,
-            faceIndex: null,
-            object: this
-          });
-        }
-      } else {
-        const start = Math.max(0, drawRange.start);
-        const end = Math.min(positionAttribute.count, drawRange.start + drawRange.count);
-        for (let i = start, l = end - 1; i < l; i += step) {
-          vStart.fromBufferAttribute(positionAttribute, i);
-          vEnd.fromBufferAttribute(positionAttribute, i + 1);
-          const distSq = _ray$1.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
-          if (distSq > localThresholdSq) continue;
-          interRay.applyMatrix4(this.matrixWorld);
-          const distance = raycaster.ray.origin.distanceTo(interRay);
-          if (distance < raycaster.near || distance > raycaster.far) continue;
-          intersects.push({
-            distance,
-            // What do we want? intersection point on the ray or on the segment??
-            // point: raycaster.ray.at( distance ),
-            point: interSegment.clone().applyMatrix4(this.matrixWorld),
-            index: i,
-            face: null,
-            faceIndex: null,
-            object: this
-          });
-        }
-      }
-    }
-    updateMorphTargets() {
-      const geometry = this.geometry;
-      const morphAttributes = geometry.morphAttributes;
-      const keys = Object.keys(morphAttributes);
-      if (keys.length > 0) {
-        const morphAttribute = morphAttributes[keys[0]];
-        if (morphAttribute !== void 0) {
-          this.morphTargetInfluences = [];
-          this.morphTargetDictionary = {};
-          for (let m = 0, ml = morphAttribute.length; m < ml; m++) {
-            const name = morphAttribute[m].name || String(m);
-            this.morphTargetInfluences.push(0);
-            this.morphTargetDictionary[name] = m;
-          }
-        }
-      }
-    }
-  };
-  var _start = /* @__PURE__ */ new Vector3();
-  var _end = /* @__PURE__ */ new Vector3();
-  var LineSegments = class extends Line {
-    constructor(geometry, material) {
-      super(geometry, material);
-      this.isLineSegments = true;
-      this.type = "LineSegments";
-    }
-    computeLineDistances() {
-      const geometry = this.geometry;
-      if (geometry.index === null) {
-        const positionAttribute = geometry.attributes.position;
-        const lineDistances = [];
-        for (let i = 0, l = positionAttribute.count; i < l; i += 2) {
-          _start.fromBufferAttribute(positionAttribute, i);
-          _end.fromBufferAttribute(positionAttribute, i + 1);
-          lineDistances[i] = i === 0 ? 0 : lineDistances[i - 1];
-          lineDistances[i + 1] = lineDistances[i] + _start.distanceTo(_end);
-        }
-        geometry.setAttribute("lineDistance", new Float32BufferAttribute(lineDistances, 1));
-      } else {
-        console.warn("THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.");
-      }
-      return this;
-    }
-  };
-  var LineLoop = class extends Line {
-    constructor(geometry, material) {
-      super(geometry, material);
-      this.isLineLoop = true;
-      this.type = "LineLoop";
-    }
-  };
-  var PointsMaterial = class extends Material {
-    constructor(parameters) {
-      super();
-      this.isPointsMaterial = true;
-      this.type = "PointsMaterial";
-      this.color = new Color(16777215);
-      this.map = null;
-      this.alphaMap = null;
-      this.size = 1;
-      this.sizeAttenuation = true;
-      this.fog = true;
-      this.setValues(parameters);
-    }
-    copy(source) {
-      super.copy(source);
-      this.color.copy(source.color);
-      this.map = source.map;
-      this.alphaMap = source.alphaMap;
-      this.size = source.size;
-      this.sizeAttenuation = source.sizeAttenuation;
-      this.fog = source.fog;
-      return this;
-    }
-  };
-  var _inverseMatrix = /* @__PURE__ */ new Matrix4();
-  var _ray = /* @__PURE__ */ new Ray();
-  var _sphere = /* @__PURE__ */ new Sphere();
-  var _position$2 = /* @__PURE__ */ new Vector3();
-  var Points = class extends Object3D {
-    constructor(geometry = new BufferGeometry(), material = new PointsMaterial()) {
-      super();
-      this.isPoints = true;
-      this.type = "Points";
-      this.geometry = geometry;
-      this.material = material;
-      this.updateMorphTargets();
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.material = Array.isArray(source.material) ? source.material.slice() : source.material;
-      this.geometry = source.geometry;
-      return this;
-    }
-    raycast(raycaster, intersects) {
-      const geometry = this.geometry;
-      const matrixWorld = this.matrixWorld;
-      const threshold = raycaster.params.Points.threshold;
-      const drawRange = geometry.drawRange;
-      if (geometry.boundingSphere === null) geometry.computeBoundingSphere();
-      _sphere.copy(geometry.boundingSphere);
-      _sphere.applyMatrix4(matrixWorld);
-      _sphere.radius += threshold;
-      if (raycaster.ray.intersectsSphere(_sphere) === false) return;
-      _inverseMatrix.copy(matrixWorld).invert();
-      _ray.copy(raycaster.ray).applyMatrix4(_inverseMatrix);
-      const localThreshold = threshold / ((this.scale.x + this.scale.y + this.scale.z) / 3);
-      const localThresholdSq = localThreshold * localThreshold;
-      const index = geometry.index;
-      const attributes = geometry.attributes;
-      const positionAttribute = attributes.position;
-      if (index !== null) {
-        const start = Math.max(0, drawRange.start);
-        const end = Math.min(index.count, drawRange.start + drawRange.count);
-        for (let i = start, il = end; i < il; i++) {
-          const a = index.getX(i);
-          _position$2.fromBufferAttribute(positionAttribute, a);
-          testPoint(_position$2, a, localThresholdSq, matrixWorld, raycaster, intersects, this);
-        }
-      } else {
-        const start = Math.max(0, drawRange.start);
-        const end = Math.min(positionAttribute.count, drawRange.start + drawRange.count);
-        for (let i = start, l = end; i < l; i++) {
-          _position$2.fromBufferAttribute(positionAttribute, i);
-          testPoint(_position$2, i, localThresholdSq, matrixWorld, raycaster, intersects, this);
-        }
-      }
-    }
-    updateMorphTargets() {
-      const geometry = this.geometry;
-      const morphAttributes = geometry.morphAttributes;
-      const keys = Object.keys(morphAttributes);
-      if (keys.length > 0) {
-        const morphAttribute = morphAttributes[keys[0]];
-        if (morphAttribute !== void 0) {
-          this.morphTargetInfluences = [];
-          this.morphTargetDictionary = {};
-          for (let m = 0, ml = morphAttribute.length; m < ml; m++) {
-            const name = morphAttribute[m].name || String(m);
-            this.morphTargetInfluences.push(0);
-            this.morphTargetDictionary[name] = m;
-          }
-        }
-      }
-    }
-  };
-  function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, intersects, object) {
-    const rayPointDistanceSq = _ray.distanceSqToPoint(point);
-    if (rayPointDistanceSq < localThresholdSq) {
-      const intersectPoint = new Vector3();
-      _ray.closestPointToPoint(point, intersectPoint);
-      intersectPoint.applyMatrix4(matrixWorld);
-      const distance = raycaster.ray.origin.distanceTo(intersectPoint);
-      if (distance < raycaster.near || distance > raycaster.far) return;
-      intersects.push({
-        distance,
-        distanceToRay: Math.sqrt(rayPointDistanceSq),
-        point: intersectPoint,
-        index,
-        face: null,
-        object
-      });
-    }
-  }
   var LatheGeometry = class _LatheGeometry extends BufferGeometry {
     constructor(points = [new Vector2(0, -0.5), new Vector2(0.5, 0), new Vector2(0, 0.5)], segments = 12, phiStart = 0, phiLength = Math.PI * 2) {
       super();
@@ -18897,6 +17924,53 @@
     }
     static fromJSON(data) {
       return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
+    }
+  };
+  var CircleGeometry = class _CircleGeometry extends BufferGeometry {
+    constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
+      super();
+      this.type = "CircleGeometry";
+      this.parameters = {
+        radius,
+        segments,
+        thetaStart,
+        thetaLength
+      };
+      segments = Math.max(3, segments);
+      const indices = [];
+      const vertices = [];
+      const normals = [];
+      const uvs = [];
+      const vertex2 = new Vector3();
+      const uv = new Vector2();
+      vertices.push(0, 0, 0);
+      normals.push(0, 0, 1);
+      uvs.push(0.5, 0.5);
+      for (let s = 0, i = 3; s <= segments; s++, i += 3) {
+        const segment = thetaStart + s / segments * thetaLength;
+        vertex2.x = radius * Math.cos(segment);
+        vertex2.y = radius * Math.sin(segment);
+        vertices.push(vertex2.x, vertex2.y, vertex2.z);
+        normals.push(0, 0, 1);
+        uv.x = (vertices[i] / radius + 1) / 2;
+        uv.y = (vertices[i + 1] / radius + 1) / 2;
+        uvs.push(uv.x, uv.y);
+      }
+      for (let i = 1; i <= segments; i++) {
+        indices.push(i, i + 1, 0);
+      }
+      this.setIndex(indices);
+      this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+      this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+      this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    }
+    copy(source) {
+      super.copy(source);
+      this.parameters = Object.assign({}, source.parameters);
+      return this;
+    }
+    static fromJSON(data) {
+      return new _CircleGeometry(data.radius, data.segments, data.thetaStart, data.thetaLength);
     }
   };
   var CylinderGeometry = class _CylinderGeometry extends BufferGeometry {
@@ -19289,139 +18363,6 @@
       return this;
     }
   };
-  var MeshPhysicalMaterial = class extends MeshStandardMaterial {
-    constructor(parameters) {
-      super();
-      this.isMeshPhysicalMaterial = true;
-      this.defines = {
-        "STANDARD": "",
-        "PHYSICAL": ""
-      };
-      this.type = "MeshPhysicalMaterial";
-      this.anisotropyRotation = 0;
-      this.anisotropyMap = null;
-      this.clearcoatMap = null;
-      this.clearcoatRoughness = 0;
-      this.clearcoatRoughnessMap = null;
-      this.clearcoatNormalScale = new Vector2(1, 1);
-      this.clearcoatNormalMap = null;
-      this.ior = 1.5;
-      Object.defineProperty(this, "reflectivity", {
-        get: function() {
-          return clamp(2.5 * (this.ior - 1) / (this.ior + 1), 0, 1);
-        },
-        set: function(reflectivity) {
-          this.ior = (1 + 0.4 * reflectivity) / (1 - 0.4 * reflectivity);
-        }
-      });
-      this.iridescenceMap = null;
-      this.iridescenceIOR = 1.3;
-      this.iridescenceThicknessRange = [100, 400];
-      this.iridescenceThicknessMap = null;
-      this.sheenColor = new Color(0);
-      this.sheenColorMap = null;
-      this.sheenRoughness = 1;
-      this.sheenRoughnessMap = null;
-      this.transmissionMap = null;
-      this.thickness = 0;
-      this.thicknessMap = null;
-      this.attenuationDistance = Infinity;
-      this.attenuationColor = new Color(1, 1, 1);
-      this.specularIntensity = 1;
-      this.specularIntensityMap = null;
-      this.specularColor = new Color(1, 1, 1);
-      this.specularColorMap = null;
-      this._anisotropy = 0;
-      this._clearcoat = 0;
-      this._iridescence = 0;
-      this._sheen = 0;
-      this._transmission = 0;
-      this.setValues(parameters);
-    }
-    get anisotropy() {
-      return this._anisotropy;
-    }
-    set anisotropy(value) {
-      if (this._anisotropy > 0 !== value > 0) {
-        this.version++;
-      }
-      this._anisotropy = value;
-    }
-    get clearcoat() {
-      return this._clearcoat;
-    }
-    set clearcoat(value) {
-      if (this._clearcoat > 0 !== value > 0) {
-        this.version++;
-      }
-      this._clearcoat = value;
-    }
-    get iridescence() {
-      return this._iridescence;
-    }
-    set iridescence(value) {
-      if (this._iridescence > 0 !== value > 0) {
-        this.version++;
-      }
-      this._iridescence = value;
-    }
-    get sheen() {
-      return this._sheen;
-    }
-    set sheen(value) {
-      if (this._sheen > 0 !== value > 0) {
-        this.version++;
-      }
-      this._sheen = value;
-    }
-    get transmission() {
-      return this._transmission;
-    }
-    set transmission(value) {
-      if (this._transmission > 0 !== value > 0) {
-        this.version++;
-      }
-      this._transmission = value;
-    }
-    copy(source) {
-      super.copy(source);
-      this.defines = {
-        "STANDARD": "",
-        "PHYSICAL": ""
-      };
-      this.anisotropy = source.anisotropy;
-      this.anisotropyRotation = source.anisotropyRotation;
-      this.anisotropyMap = source.anisotropyMap;
-      this.clearcoat = source.clearcoat;
-      this.clearcoatMap = source.clearcoatMap;
-      this.clearcoatRoughness = source.clearcoatRoughness;
-      this.clearcoatRoughnessMap = source.clearcoatRoughnessMap;
-      this.clearcoatNormalMap = source.clearcoatNormalMap;
-      this.clearcoatNormalScale.copy(source.clearcoatNormalScale);
-      this.ior = source.ior;
-      this.iridescence = source.iridescence;
-      this.iridescenceMap = source.iridescenceMap;
-      this.iridescenceIOR = source.iridescenceIOR;
-      this.iridescenceThicknessRange = [...source.iridescenceThicknessRange];
-      this.iridescenceThicknessMap = source.iridescenceThicknessMap;
-      this.sheen = source.sheen;
-      this.sheenColor.copy(source.sheenColor);
-      this.sheenColorMap = source.sheenColorMap;
-      this.sheenRoughness = source.sheenRoughness;
-      this.sheenRoughnessMap = source.sheenRoughnessMap;
-      this.transmission = source.transmission;
-      this.transmissionMap = source.transmissionMap;
-      this.thickness = source.thickness;
-      this.thicknessMap = source.thicknessMap;
-      this.attenuationDistance = source.attenuationDistance;
-      this.attenuationColor.copy(source.attenuationColor);
-      this.specularIntensity = source.specularIntensity;
-      this.specularIntensityMap = source.specularIntensityMap;
-      this.specularColor.copy(source.specularColor);
-      this.specularColorMap = source.specularColorMap;
-      return this;
-    }
-  };
   function convertArray(array, type, forceClone) {
     if (!array || // let 'undefined' and 'null' pass
     !forceClone && array.constructor === type) return array;
@@ -19432,64 +18373,6 @@
   }
   function isTypedArray(object) {
     return ArrayBuffer.isView(object) && !(object instanceof DataView);
-  }
-  function getKeyframeOrder(times) {
-    function compareTime(i, j) {
-      return times[i] - times[j];
-    }
-    const n = times.length;
-    const result = new Array(n);
-    for (let i = 0; i !== n; ++i) result[i] = i;
-    result.sort(compareTime);
-    return result;
-  }
-  function sortedArray(values, stride, order) {
-    const nValues = values.length;
-    const result = new values.constructor(nValues);
-    for (let i = 0, dstOffset = 0; dstOffset !== nValues; ++i) {
-      const srcOffset = order[i] * stride;
-      for (let j = 0; j !== stride; ++j) {
-        result[dstOffset++] = values[srcOffset + j];
-      }
-    }
-    return result;
-  }
-  function flattenJSON(jsonKeys, times, values, valuePropertyName) {
-    let i = 1, key2 = jsonKeys[0];
-    while (key2 !== void 0 && key2[valuePropertyName] === void 0) {
-      key2 = jsonKeys[i++];
-    }
-    if (key2 === void 0) return;
-    let value = key2[valuePropertyName];
-    if (value === void 0) return;
-    if (Array.isArray(value)) {
-      do {
-        value = key2[valuePropertyName];
-        if (value !== void 0) {
-          times.push(key2.time);
-          values.push.apply(values, value);
-        }
-        key2 = jsonKeys[i++];
-      } while (key2 !== void 0);
-    } else if (value.toArray !== void 0) {
-      do {
-        value = key2[valuePropertyName];
-        if (value !== void 0) {
-          times.push(key2.time);
-          value.toArray(values, values.length);
-        }
-        key2 = jsonKeys[i++];
-      } while (key2 !== void 0);
-    } else {
-      do {
-        value = key2[valuePropertyName];
-        if (value !== void 0) {
-          times.push(key2.time);
-          values.push(value);
-        }
-        key2 = jsonKeys[i++];
-      } while (key2 !== void 0);
-    }
   }
   var Interpolant = class {
     constructor(parameterPositions, sampleValues, sampleSize, resultBuffer) {
@@ -19946,280 +18829,6 @@
   var VectorKeyframeTrack = class extends KeyframeTrack {
   };
   VectorKeyframeTrack.prototype.ValueTypeName = "vector";
-  var AnimationClip = class {
-    constructor(name, duration = -1, tracks, blendMode = NormalAnimationBlendMode) {
-      this.name = name;
-      this.tracks = tracks;
-      this.duration = duration;
-      this.blendMode = blendMode;
-      this.uuid = generateUUID();
-      if (this.duration < 0) {
-        this.resetDuration();
-      }
-    }
-    static parse(json) {
-      const tracks = [], jsonTracks = json.tracks, frameTime = 1 / (json.fps || 1);
-      for (let i = 0, n = jsonTracks.length; i !== n; ++i) {
-        tracks.push(parseKeyframeTrack(jsonTracks[i]).scale(frameTime));
-      }
-      const clip = new this(json.name, json.duration, tracks, json.blendMode);
-      clip.uuid = json.uuid;
-      return clip;
-    }
-    static toJSON(clip) {
-      const tracks = [], clipTracks = clip.tracks;
-      const json = {
-        "name": clip.name,
-        "duration": clip.duration,
-        "tracks": tracks,
-        "uuid": clip.uuid,
-        "blendMode": clip.blendMode
-      };
-      for (let i = 0, n = clipTracks.length; i !== n; ++i) {
-        tracks.push(KeyframeTrack.toJSON(clipTracks[i]));
-      }
-      return json;
-    }
-    static CreateFromMorphTargetSequence(name, morphTargetSequence, fps, noLoop) {
-      const numMorphTargets = morphTargetSequence.length;
-      const tracks = [];
-      for (let i = 0; i < numMorphTargets; i++) {
-        let times = [];
-        let values = [];
-        times.push(
-          (i + numMorphTargets - 1) % numMorphTargets,
-          i,
-          (i + 1) % numMorphTargets
-        );
-        values.push(0, 1, 0);
-        const order = getKeyframeOrder(times);
-        times = sortedArray(times, 1, order);
-        values = sortedArray(values, 1, order);
-        if (!noLoop && times[0] === 0) {
-          times.push(numMorphTargets);
-          values.push(values[0]);
-        }
-        tracks.push(
-          new NumberKeyframeTrack(
-            ".morphTargetInfluences[" + morphTargetSequence[i].name + "]",
-            times,
-            values
-          ).scale(1 / fps)
-        );
-      }
-      return new this(name, -1, tracks);
-    }
-    static findByName(objectOrClipArray, name) {
-      let clipArray = objectOrClipArray;
-      if (!Array.isArray(objectOrClipArray)) {
-        const o = objectOrClipArray;
-        clipArray = o.geometry && o.geometry.animations || o.animations;
-      }
-      for (let i = 0; i < clipArray.length; i++) {
-        if (clipArray[i].name === name) {
-          return clipArray[i];
-        }
-      }
-      return null;
-    }
-    static CreateClipsFromMorphTargetSequences(morphTargets, fps, noLoop) {
-      const animationToMorphTargets = {};
-      const pattern = /^([\w-]*?)([\d]+)$/;
-      for (let i = 0, il = morphTargets.length; i < il; i++) {
-        const morphTarget = morphTargets[i];
-        const parts = morphTarget.name.match(pattern);
-        if (parts && parts.length > 1) {
-          const name = parts[1];
-          let animationMorphTargets = animationToMorphTargets[name];
-          if (!animationMorphTargets) {
-            animationToMorphTargets[name] = animationMorphTargets = [];
-          }
-          animationMorphTargets.push(morphTarget);
-        }
-      }
-      const clips = [];
-      for (const name in animationToMorphTargets) {
-        clips.push(this.CreateFromMorphTargetSequence(name, animationToMorphTargets[name], fps, noLoop));
-      }
-      return clips;
-    }
-    // parse the animation.hierarchy format
-    static parseAnimation(animation, bones) {
-      if (!animation) {
-        console.error("THREE.AnimationClip: No animation in JSONLoader data.");
-        return null;
-      }
-      const addNonemptyTrack = function(trackType, trackName, animationKeys, propertyName, destTracks) {
-        if (animationKeys.length !== 0) {
-          const times = [];
-          const values = [];
-          flattenJSON(animationKeys, times, values, propertyName);
-          if (times.length !== 0) {
-            destTracks.push(new trackType(trackName, times, values));
-          }
-        }
-      };
-      const tracks = [];
-      const clipName = animation.name || "default";
-      const fps = animation.fps || 30;
-      const blendMode = animation.blendMode;
-      let duration = animation.length || -1;
-      const hierarchyTracks = animation.hierarchy || [];
-      for (let h = 0; h < hierarchyTracks.length; h++) {
-        const animationKeys = hierarchyTracks[h].keys;
-        if (!animationKeys || animationKeys.length === 0) continue;
-        if (animationKeys[0].morphTargets) {
-          const morphTargetNames = {};
-          let k;
-          for (k = 0; k < animationKeys.length; k++) {
-            if (animationKeys[k].morphTargets) {
-              for (let m = 0; m < animationKeys[k].morphTargets.length; m++) {
-                morphTargetNames[animationKeys[k].morphTargets[m]] = -1;
-              }
-            }
-          }
-          for (const morphTargetName in morphTargetNames) {
-            const times = [];
-            const values = [];
-            for (let m = 0; m !== animationKeys[k].morphTargets.length; ++m) {
-              const animationKey = animationKeys[k];
-              times.push(animationKey.time);
-              values.push(animationKey.morphTarget === morphTargetName ? 1 : 0);
-            }
-            tracks.push(new NumberKeyframeTrack(".morphTargetInfluence[" + morphTargetName + "]", times, values));
-          }
-          duration = morphTargetNames.length * fps;
-        } else {
-          const boneName = ".bones[" + bones[h].name + "]";
-          addNonemptyTrack(
-            VectorKeyframeTrack,
-            boneName + ".position",
-            animationKeys,
-            "pos",
-            tracks
-          );
-          addNonemptyTrack(
-            QuaternionKeyframeTrack,
-            boneName + ".quaternion",
-            animationKeys,
-            "rot",
-            tracks
-          );
-          addNonemptyTrack(
-            VectorKeyframeTrack,
-            boneName + ".scale",
-            animationKeys,
-            "scl",
-            tracks
-          );
-        }
-      }
-      if (tracks.length === 0) {
-        return null;
-      }
-      const clip = new this(clipName, duration, tracks, blendMode);
-      return clip;
-    }
-    resetDuration() {
-      const tracks = this.tracks;
-      let duration = 0;
-      for (let i = 0, n = tracks.length; i !== n; ++i) {
-        const track = this.tracks[i];
-        duration = Math.max(duration, track.times[track.times.length - 1]);
-      }
-      this.duration = duration;
-      return this;
-    }
-    trim() {
-      for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].trim(0, this.duration);
-      }
-      return this;
-    }
-    validate() {
-      let valid = true;
-      for (let i = 0; i < this.tracks.length; i++) {
-        valid = valid && this.tracks[i].validate();
-      }
-      return valid;
-    }
-    optimize() {
-      for (let i = 0; i < this.tracks.length; i++) {
-        this.tracks[i].optimize();
-      }
-      return this;
-    }
-    clone() {
-      const tracks = [];
-      for (let i = 0; i < this.tracks.length; i++) {
-        tracks.push(this.tracks[i].clone());
-      }
-      return new this.constructor(this.name, this.duration, tracks, this.blendMode);
-    }
-    toJSON() {
-      return this.constructor.toJSON(this);
-    }
-  };
-  function getTrackTypeForValueTypeName(typeName) {
-    switch (typeName.toLowerCase()) {
-      case "scalar":
-      case "double":
-      case "float":
-      case "number":
-      case "integer":
-        return NumberKeyframeTrack;
-      case "vector":
-      case "vector2":
-      case "vector3":
-      case "vector4":
-        return VectorKeyframeTrack;
-      case "color":
-        return ColorKeyframeTrack;
-      case "quaternion":
-        return QuaternionKeyframeTrack;
-      case "bool":
-      case "boolean":
-        return BooleanKeyframeTrack;
-      case "string":
-        return StringKeyframeTrack;
-    }
-    throw new Error("THREE.KeyframeTrack: Unsupported typeName: " + typeName);
-  }
-  function parseKeyframeTrack(json) {
-    if (json.type === void 0) {
-      throw new Error("THREE.KeyframeTrack: track type undefined, can not parse");
-    }
-    const trackType = getTrackTypeForValueTypeName(json.type);
-    if (json.times === void 0) {
-      const times = [], values = [];
-      flattenJSON(json.keys, times, values, "value");
-      json.times = times;
-      json.values = values;
-    }
-    if (trackType.parse !== void 0) {
-      return trackType.parse(json);
-    } else {
-      return new trackType(json.name, json.times, json.values, json.interpolation);
-    }
-  }
-  var Cache = {
-    enabled: false,
-    files: {},
-    add: function(key2, file) {
-      if (this.enabled === false) return;
-      this.files[key2] = file;
-    },
-    get: function(key2) {
-      if (this.enabled === false) return;
-      return this.files[key2];
-    },
-    remove: function(key2) {
-      delete this.files[key2];
-    },
-    clear: function() {
-      this.files = {};
-    }
-  };
   var LoadingManager = class {
     constructor(onLoad, onProgress, onError) {
       const scope = this;
@@ -20334,211 +18943,6 @@
     }
   };
   Loader.DEFAULT_MATERIAL_NAME = "__DEFAULT";
-  var loading = {};
-  var HttpError = class extends Error {
-    constructor(message, response) {
-      super(message);
-      this.response = response;
-    }
-  };
-  var FileLoader = class extends Loader {
-    constructor(manager) {
-      super(manager);
-    }
-    load(url, onLoad, onProgress, onError) {
-      if (url === void 0) url = "";
-      if (this.path !== void 0) url = this.path + url;
-      url = this.manager.resolveURL(url);
-      const cached = Cache.get(url);
-      if (cached !== void 0) {
-        this.manager.itemStart(url);
-        setTimeout(() => {
-          if (onLoad) onLoad(cached);
-          this.manager.itemEnd(url);
-        }, 0);
-        return cached;
-      }
-      if (loading[url] !== void 0) {
-        loading[url].push({
-          onLoad,
-          onProgress,
-          onError
-        });
-        return;
-      }
-      loading[url] = [];
-      loading[url].push({
-        onLoad,
-        onProgress,
-        onError
-      });
-      const req = new Request(url, {
-        headers: new Headers(this.requestHeader),
-        credentials: this.withCredentials ? "include" : "same-origin"
-        // An abort controller could be added within a future PR
-      });
-      const mimeType = this.mimeType;
-      const responseType = this.responseType;
-      fetch(req).then((response) => {
-        if (response.status === 200 || response.status === 0) {
-          if (response.status === 0) {
-            console.warn("THREE.FileLoader: HTTP Status 0 received.");
-          }
-          if (typeof ReadableStream === "undefined" || response.body === void 0 || response.body.getReader === void 0) {
-            return response;
-          }
-          const callbacks = loading[url];
-          const reader = response.body.getReader();
-          const contentLength = response.headers.get("Content-Length") || response.headers.get("X-File-Size");
-          const total = contentLength ? parseInt(contentLength) : 0;
-          const lengthComputable = total !== 0;
-          let loaded = 0;
-          const stream = new ReadableStream({
-            start(controller) {
-              readData();
-              function readData() {
-                reader.read().then(({ done, value }) => {
-                  if (done) {
-                    controller.close();
-                  } else {
-                    loaded += value.byteLength;
-                    const event = new ProgressEvent("progress", { lengthComputable, loaded, total });
-                    for (let i = 0, il = callbacks.length; i < il; i++) {
-                      const callback = callbacks[i];
-                      if (callback.onProgress) callback.onProgress(event);
-                    }
-                    controller.enqueue(value);
-                    readData();
-                  }
-                });
-              }
-            }
-          });
-          return new Response(stream);
-        } else {
-          throw new HttpError(`fetch for "${response.url}" responded with ${response.status}: ${response.statusText}`, response);
-        }
-      }).then((response) => {
-        switch (responseType) {
-          case "arraybuffer":
-            return response.arrayBuffer();
-          case "blob":
-            return response.blob();
-          case "document":
-            return response.text().then((text) => {
-              const parser = new DOMParser();
-              return parser.parseFromString(text, mimeType);
-            });
-          case "json":
-            return response.json();
-          default:
-            if (mimeType === void 0) {
-              return response.text();
-            } else {
-              const re = /charset="?([^;"\s]*)"?/i;
-              const exec = re.exec(mimeType);
-              const label = exec && exec[1] ? exec[1].toLowerCase() : void 0;
-              const decoder = new TextDecoder(label);
-              return response.arrayBuffer().then((ab) => decoder.decode(ab));
-            }
-        }
-      }).then((data) => {
-        Cache.add(url, data);
-        const callbacks = loading[url];
-        delete loading[url];
-        for (let i = 0, il = callbacks.length; i < il; i++) {
-          const callback = callbacks[i];
-          if (callback.onLoad) callback.onLoad(data);
-        }
-      }).catch((err) => {
-        const callbacks = loading[url];
-        if (callbacks === void 0) {
-          this.manager.itemError(url);
-          throw err;
-        }
-        delete loading[url];
-        for (let i = 0, il = callbacks.length; i < il; i++) {
-          const callback = callbacks[i];
-          if (callback.onError) callback.onError(err);
-        }
-        this.manager.itemError(url);
-      }).finally(() => {
-        this.manager.itemEnd(url);
-      });
-      this.manager.itemStart(url);
-    }
-    setResponseType(value) {
-      this.responseType = value;
-      return this;
-    }
-    setMimeType(value) {
-      this.mimeType = value;
-      return this;
-    }
-  };
-  var ImageLoader = class extends Loader {
-    constructor(manager) {
-      super(manager);
-    }
-    load(url, onLoad, onProgress, onError) {
-      if (this.path !== void 0) url = this.path + url;
-      url = this.manager.resolveURL(url);
-      const scope = this;
-      const cached = Cache.get(url);
-      if (cached !== void 0) {
-        scope.manager.itemStart(url);
-        setTimeout(function() {
-          if (onLoad) onLoad(cached);
-          scope.manager.itemEnd(url);
-        }, 0);
-        return cached;
-      }
-      const image = createElementNS("img");
-      function onImageLoad() {
-        removeEventListeners();
-        Cache.add(url, this);
-        if (onLoad) onLoad(this);
-        scope.manager.itemEnd(url);
-      }
-      function onImageError(event) {
-        removeEventListeners();
-        if (onError) onError(event);
-        scope.manager.itemError(url);
-        scope.manager.itemEnd(url);
-      }
-      function removeEventListeners() {
-        image.removeEventListener("load", onImageLoad, false);
-        image.removeEventListener("error", onImageError, false);
-      }
-      image.addEventListener("load", onImageLoad, false);
-      image.addEventListener("error", onImageError, false);
-      if (url.slice(0, 5) !== "data:") {
-        if (this.crossOrigin !== void 0) image.crossOrigin = this.crossOrigin;
-      }
-      scope.manager.itemStart(url);
-      image.src = url;
-      return image;
-    }
-  };
-  var TextureLoader = class extends Loader {
-    constructor(manager) {
-      super(manager);
-    }
-    load(url, onLoad, onProgress, onError) {
-      const texture = new Texture();
-      const loader = new ImageLoader(this.manager);
-      loader.setCrossOrigin(this.crossOrigin);
-      loader.setPath(this.path);
-      loader.load(url, function(image) {
-        texture.image = image;
-        texture.needsUpdate = true;
-        if (onLoad !== void 0) {
-          onLoad(texture);
-        }
-      }, onProgress, onError);
-      return texture;
-    }
-  };
   var Light = class extends Object3D {
     constructor(color, intensity = 1) {
       super();
@@ -20677,164 +19081,6 @@
       return object;
     }
   };
-  var SpotLightShadow = class extends LightShadow {
-    constructor() {
-      super(new PerspectiveCamera(50, 1, 0.5, 500));
-      this.isSpotLightShadow = true;
-      this.focus = 1;
-    }
-    updateMatrices(light) {
-      const camera2 = this.camera;
-      const fov2 = RAD2DEG * 2 * light.angle * this.focus;
-      const aspect2 = this.mapSize.width / this.mapSize.height;
-      const far = light.distance || camera2.far;
-      if (fov2 !== camera2.fov || aspect2 !== camera2.aspect || far !== camera2.far) {
-        camera2.fov = fov2;
-        camera2.aspect = aspect2;
-        camera2.far = far;
-        camera2.updateProjectionMatrix();
-      }
-      super.updateMatrices(light);
-    }
-    copy(source) {
-      super.copy(source);
-      this.focus = source.focus;
-      return this;
-    }
-  };
-  var SpotLight = class extends Light {
-    constructor(color, intensity, distance = 0, angle = Math.PI / 3, penumbra = 0, decay = 2) {
-      super(color, intensity);
-      this.isSpotLight = true;
-      this.type = "SpotLight";
-      this.position.copy(Object3D.DEFAULT_UP);
-      this.updateMatrix();
-      this.target = new Object3D();
-      this.distance = distance;
-      this.angle = angle;
-      this.penumbra = penumbra;
-      this.decay = decay;
-      this.map = null;
-      this.shadow = new SpotLightShadow();
-    }
-    get power() {
-      return this.intensity * Math.PI;
-    }
-    set power(power) {
-      this.intensity = power / Math.PI;
-    }
-    dispose() {
-      this.shadow.dispose();
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.distance = source.distance;
-      this.angle = source.angle;
-      this.penumbra = source.penumbra;
-      this.decay = source.decay;
-      this.target = source.target.clone();
-      this.shadow = source.shadow.clone();
-      return this;
-    }
-  };
-  var _projScreenMatrix = /* @__PURE__ */ new Matrix4();
-  var _lightPositionWorld = /* @__PURE__ */ new Vector3();
-  var _lookTarget = /* @__PURE__ */ new Vector3();
-  var PointLightShadow = class extends LightShadow {
-    constructor() {
-      super(new PerspectiveCamera(90, 1, 0.5, 500));
-      this.isPointLightShadow = true;
-      this._frameExtents = new Vector2(4, 2);
-      this._viewportCount = 6;
-      this._viewports = [
-        // These viewports map a cube-map onto a 2D texture with the
-        // following orientation:
-        //
-        //  xzXZ
-        //   y Y
-        //
-        // X - Positive x direction
-        // x - Negative x direction
-        // Y - Positive y direction
-        // y - Negative y direction
-        // Z - Positive z direction
-        // z - Negative z direction
-        // positive X
-        new Vector4(2, 1, 1, 1),
-        // negative X
-        new Vector4(0, 1, 1, 1),
-        // positive Z
-        new Vector4(3, 1, 1, 1),
-        // negative Z
-        new Vector4(1, 1, 1, 1),
-        // positive Y
-        new Vector4(3, 0, 1, 1),
-        // negative Y
-        new Vector4(1, 0, 1, 1)
-      ];
-      this._cubeDirections = [
-        new Vector3(1, 0, 0),
-        new Vector3(-1, 0, 0),
-        new Vector3(0, 0, 1),
-        new Vector3(0, 0, -1),
-        new Vector3(0, 1, 0),
-        new Vector3(0, -1, 0)
-      ];
-      this._cubeUps = [
-        new Vector3(0, 1, 0),
-        new Vector3(0, 1, 0),
-        new Vector3(0, 1, 0),
-        new Vector3(0, 1, 0),
-        new Vector3(0, 0, 1),
-        new Vector3(0, 0, -1)
-      ];
-    }
-    updateMatrices(light, viewportIndex = 0) {
-      const camera2 = this.camera;
-      const shadowMatrix = this.matrix;
-      const far = light.distance || camera2.far;
-      if (far !== camera2.far) {
-        camera2.far = far;
-        camera2.updateProjectionMatrix();
-      }
-      _lightPositionWorld.setFromMatrixPosition(light.matrixWorld);
-      camera2.position.copy(_lightPositionWorld);
-      _lookTarget.copy(camera2.position);
-      _lookTarget.add(this._cubeDirections[viewportIndex]);
-      camera2.up.copy(this._cubeUps[viewportIndex]);
-      camera2.lookAt(_lookTarget);
-      camera2.updateMatrixWorld();
-      shadowMatrix.makeTranslation(-_lightPositionWorld.x, -_lightPositionWorld.y, -_lightPositionWorld.z);
-      _projScreenMatrix.multiplyMatrices(camera2.projectionMatrix, camera2.matrixWorldInverse);
-      this._frustum.setFromProjectionMatrix(_projScreenMatrix);
-    }
-  };
-  var PointLight = class extends Light {
-    constructor(color, intensity, distance = 0, decay = 2) {
-      super(color, intensity);
-      this.isPointLight = true;
-      this.type = "PointLight";
-      this.distance = distance;
-      this.decay = decay;
-      this.shadow = new PointLightShadow();
-    }
-    get power() {
-      return this.intensity * 4 * Math.PI;
-    }
-    set power(power) {
-      this.intensity = power / (4 * Math.PI);
-    }
-    dispose() {
-      this.shadow.dispose();
-    }
-    copy(source, recursive) {
-      super.copy(source, recursive);
-      this.distance = source.distance;
-      this.decay = source.decay;
-      this.shadow = source.shadow.clone();
-      return this;
-    }
-  };
   var DirectionalLightShadow = class extends LightShadow {
     constructor() {
       super(new OrthographicCamera(-5, 5, 5, -5, 0.5, 500));
@@ -20866,98 +19112,6 @@
       super(color, intensity);
       this.isAmbientLight = true;
       this.type = "AmbientLight";
-    }
-  };
-  var LoaderUtils = class {
-    static decodeText(array) {
-      if (typeof TextDecoder !== "undefined") {
-        return new TextDecoder().decode(array);
-      }
-      let s = "";
-      for (let i = 0, il = array.length; i < il; i++) {
-        s += String.fromCharCode(array[i]);
-      }
-      try {
-        return decodeURIComponent(escape(s));
-      } catch (e) {
-        return s;
-      }
-    }
-    static extractUrlBase(url) {
-      const index = url.lastIndexOf("/");
-      if (index === -1) return "./";
-      return url.slice(0, index + 1);
-    }
-    static resolveURL(url, path) {
-      if (typeof url !== "string" || url === "") return "";
-      if (/^https?:\/\//i.test(path) && /^\//.test(url)) {
-        path = path.replace(/(^https?:\/\/[^\/]+).*/i, "$1");
-      }
-      if (/^(https?:)?\/\//i.test(url)) return url;
-      if (/^data:.*,.*$/i.test(url)) return url;
-      if (/^blob:.*$/i.test(url)) return url;
-      return path + url;
-    }
-  };
-  var ImageBitmapLoader = class extends Loader {
-    constructor(manager) {
-      super(manager);
-      this.isImageBitmapLoader = true;
-      if (typeof createImageBitmap === "undefined") {
-        console.warn("THREE.ImageBitmapLoader: createImageBitmap() not supported.");
-      }
-      if (typeof fetch === "undefined") {
-        console.warn("THREE.ImageBitmapLoader: fetch() not supported.");
-      }
-      this.options = { premultiplyAlpha: "none" };
-    }
-    setOptions(options) {
-      this.options = options;
-      return this;
-    }
-    load(url, onLoad, onProgress, onError) {
-      if (url === void 0) url = "";
-      if (this.path !== void 0) url = this.path + url;
-      url = this.manager.resolveURL(url);
-      const scope = this;
-      const cached = Cache.get(url);
-      if (cached !== void 0) {
-        scope.manager.itemStart(url);
-        if (cached.then) {
-          cached.then((imageBitmap) => {
-            if (onLoad) onLoad(imageBitmap);
-            scope.manager.itemEnd(url);
-          }).catch((e) => {
-            if (onError) onError(e);
-          });
-          return;
-        }
-        setTimeout(function() {
-          if (onLoad) onLoad(cached);
-          scope.manager.itemEnd(url);
-        }, 0);
-        return cached;
-      }
-      const fetchOptions = {};
-      fetchOptions.credentials = this.crossOrigin === "anonymous" ? "same-origin" : "include";
-      fetchOptions.headers = this.requestHeader;
-      const promise = fetch(url, fetchOptions).then(function(res) {
-        return res.blob();
-      }).then(function(blob) {
-        return createImageBitmap(blob, Object.assign(scope.options, { colorSpaceConversion: "none" }));
-      }).then(function(imageBitmap) {
-        Cache.add(url, imageBitmap);
-        if (onLoad) onLoad(imageBitmap);
-        scope.manager.itemEnd(url);
-        return imageBitmap;
-      }).catch(function(e) {
-        if (onError) onError(e);
-        Cache.remove(url);
-        scope.manager.itemError(url);
-        scope.manager.itemEnd(url);
-      });
-      Cache.add(url, promise);
-      scope.manager.itemStart(url);
     }
   };
   var _RESERVED_CHARS_RE = "\\[\\]\\.:\\/";
@@ -21398,7 +19552,7 @@
   var _changeEvent = { type: "change" };
   var _startEvent = { type: "start" };
   var _endEvent = { type: "end" };
-  var _ray2 = new Ray();
+  var _ray = new Ray();
   var _plane = new Plane();
   var TILT_LIMIT = Math.cos(70 * MathUtils.DEG2RAD);
   var OrbitControls = class extends EventDispatcher {
@@ -21562,13 +19716,13 @@
               if (this.screenSpacePanning) {
                 scope.target.set(0, 0, -1).transformDirection(scope.object.matrix).multiplyScalar(newRadius).add(scope.object.position);
               } else {
-                _ray2.origin.copy(scope.object.position);
-                _ray2.direction.set(0, 0, -1).transformDirection(scope.object.matrix);
-                if (Math.abs(scope.object.up.dot(_ray2.direction)) < TILT_LIMIT) {
+                _ray.origin.copy(scope.object.position);
+                _ray.direction.set(0, 0, -1).transformDirection(scope.object.matrix);
+                if (Math.abs(scope.object.up.dot(_ray.direction)) < TILT_LIMIT) {
                   object.lookAt(scope.target);
                 } else {
                   _plane.setFromNormalAndCoplanarPoint(scope.object.up, scope.target);
-                  _ray2.intersectPlane(_plane, scope.target);
+                  _ray.intersectPlane(_plane, scope.target);
                 }
               }
             }
@@ -22108,652 +20262,5770 @@
     }
   };
 
-  // balmain.js
-  function buildBalmainDB(C2, ALL2) {
+  // realDB.js
+  function buildRealDB(C, ALL2) {
     return [
-      /* ================= 连衣裙 Dresses ================= */
+      /* DOLCE & GABBANA */
       {
-        id: "bl-dr-001",
-        code: "BL-SS25-DR-001",
-        name: "\u91D1\u6263\u9488\u7EC7\u8FDE\u8863\u88D9",
-        nameEn: "Gold-Button Knit Dress",
-        category: "dresses",
-        silhouette: "knit",
-        fit: "\u4FEE\u8EAB",
-        season: "SS 2025",
-        collection: "Signature",
-        fabric: "\u5F39\u529B\u9488\u7EC7",
-        colors: [C2.black, C2.navy, C2.ivory, C2.wine],
-        sizes: ALL2,
-        measurements: { bust: 86, waist: 68, hip: 92, shoulder: 40, sleeve: 60, length: 102 },
-        ease: { bust: -4, waist: -2, hip: -4 }
-      },
-      {
-        id: "bl-dr-002",
-        code: "BL-FW25-DR-002",
-        name: "\u7ED3\u6784\u80A9\u897F\u88C5\u8FDE\u8863\u88D9",
-        nameEn: "Structured Shoulder Blazer Dress",
+        id: "dg-001",
+        code: "F620UZFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 jacquard dress",
+        brand: "DG",
         category: "dresses",
         silhouette: "fitted",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Tailoring",
-        fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-        colors: [C2.black, C2.ivory, C2.navy, C2.red],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 90, waist: 70, hip: 96, shoulder: 44, sleeve: 60, length: 92 },
-        ease: { bust: 0, waist: 0, hip: 0 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F620UZFJODW.jpg"
       },
       {
-        id: "bl-dr-003",
-        code: "BL-FW25-DR-003",
-        name: "\u76AE\u9769\u88F9\u8EAB\u8FDE\u8863\u88D9",
-        nameEn: "Leather Wrap Dress",
+        id: "dg-002",
+        code: "F620OZGDD0V",
+        name: "\u63D0\u82B1\u8FDE\u8863\u88D9\u914D\u523A\u7EE3",
+        nameEn: "Jacquard dress with embroidery",
+        brand: "DG",
         category: "dresses",
-        silhouette: "wrap",
+        silhouette: "fitted",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u8F6F\u7F8A\u76AE",
-        colors: [C2.black, C2.chocolate, C2.wine],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 88, waist: 70, hip: 96, shoulder: 40, sleeve: 58, length: 100 },
-        ease: { bust: -2, waist: 0, hip: 0 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 7500,
+        priceCNY: 62250,
+        image: "images/dg_F620OZGDD0V.jpg"
       },
       {
-        id: "bl-dr-004",
-        code: "BL-FW25-DR-004",
-        name: "\u683C\u7EB9\u7F8A\u6BDB A \u5B57\u88D9",
-        nameEn: "Checked Wool A-Line Dress",
+        id: "dg-003",
+        code: "F620VZFJUBP",
+        name: "\u91D1\u8471\u63D0\u82B1\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 jacquard dress",
+        brand: "DG",
         category: "dresses",
-        silhouette: "aline",
-        fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Heritage",
-        fabric: "\u683C\u7EB9\u7F8A\u6BDB",
-        colors: [C2.camel, C2.black, C2.olive, C2.wine],
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 92, waist: 74, hip: 100, shoulder: 41, sleeve: 0, length: 98 },
-        ease: { bust: 2, waist: 4, hip: 4 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F620VZFJUBP.jpg"
       },
       {
-        id: "bl-dr-005",
-        code: "BL-FW25-DR-005",
-        name: "\u6D41\u82CF\u665A\u793C\u670D",
-        nameEn: "Fringe Evening Gown",
+        id: "dg-004",
+        code: "F620NZGDD0V",
+        name: "\u63D0\u82B1\u8FDE\u8863\u88D9\u914D\u523A\u7EE3",
+        nameEn: "Jacquard dress with embroidery",
+        brand: "DG",
         category: "dresses",
-        silhouette: "flared",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Couture",
-        fabric: "\u4E1D\u7ED2 / \u6D41\u82CF",
-        colors: [C2.black, C2.gold, C2.emerald, C2.wine],
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 90, waist: 70, hip: 98, shoulder: 40, sleeve: 0, length: 138 },
-        ease: { bust: 0, waist: 0, hip: 2 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 13500,
+        priceCNY: 112050,
+        image: "images/dg_F620NZGDD0V.jpg"
       },
       {
-        id: "bl-dr-006",
-        code: "BL-SS25-DR-006",
-        name: "\u519B\u88C5\u98CE\u886C\u886B\u88D9",
-        nameEn: "Military Shirt Dress",
+        id: "dg-005",
+        code: "F621UTILME4",
+        name: "\u4EAE\u7247\u8FDE\u8863\u88D9",
+        nameEn: "Sequin dress",
+        brand: "DG",
         category: "dresses",
-        silhouette: "blouse",
-        fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Military",
-        fabric: "\u68C9\u8D28\u659C\u7EB9",
-        colors: [C2.olive, C2.black, C2.camel, C2.navy],
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 94, waist: 76, hip: 102, shoulder: 43, sleeve: 59, length: 104 },
-        ease: { bust: 4, waist: 6, hip: 6 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 3250,
+        priceCNY: 26975,
+        image: "images/dg_F621UTILME4.jpg"
       },
       {
-        id: "bl-dr-007",
-        code: "BL-SS25-DR-007",
-        name: "\u7F0E\u9762\u540A\u5E26\u957F\u88D9",
-        nameEn: "Satin Slip Gown",
+        id: "dg-006",
+        code: "F62OYZFJODX",
+        name: "\u91D1\u8471\u7EC7\u9526\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 brocade dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2750,
+        priceCNY: 22825,
+        image: "images/dg_F62OYZFJODX.jpg"
+      },
+      {
+        id: "dg-007",
+        code: "F620OTFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 jacquard dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_F620OTFJODW.jpg"
+      },
+      {
+        id: "dg-008",
+        code: "F6TJOTILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 lace dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 5500,
+        priceCNY: 45650,
+        image: "images/dg_F6TJOTILMFJ.jpg"
+      },
+      {
+        id: "dg-009",
+        code: "F623UZFJODZ",
+        name: "\u91D1\u8471\u63D0\u82B1\u8FDE\u8863\u88D9",
+        nameEn: "Lam\xE9 jacquard dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 6500,
+        priceCNY: 53950,
+        image: "images/dg_F623UZFJODZ.jpg"
+      },
+      {
+        id: "dg-010",
+        code: "F622GTFLSM7",
+        name: "\u4EAE\u7247\u8FDE\u8863\u88D9",
+        nameEn: "Sequin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F622GTFLSM7.jpg"
+      },
+      {
+        id: "dg-011",
+        code: "F621ITFUAF0",
+        name: "\u8986\u819C\u7F0E\u9762\u8FDE\u8863\u88D9",
+        nameEn: "Laminated satin dress",
+        brand: "DG",
         category: "dresses",
         silhouette: "slip",
         fit: "\u4FEE\u8EAB",
-        season: "SS 2025",
-        collection: "Signature",
-        fabric: "\u91CD\u78C5\u771F\u4E1D\u7F0E",
-        colors: [C2.black, C2.nude, C2.red, C2.emerald],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 88, waist: 70, hip: 94, shoulder: 0, sleeve: 0, length: 128 },
-        ease: { bust: -2, waist: 0, hip: -2 }
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 3250,
+        priceCNY: 26975,
+        image: "images/dg_F621ITFUAF0.jpg"
       },
       {
-        id: "bl-dr-008",
-        code: "BL-SS25-DR-008",
-        name: "\u8377\u53F6\u8170\u8FF7\u4F60\u88D9",
-        nameEn: "Peplum Mini Dress",
-        category: "dresses",
-        silhouette: "peplum",
-        fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Signature",
-        fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
-        colors: [C2.black, C2.ivory, C2.red, C2.navy],
-        sizes: ALL2,
-        measurements: { bust: 90, waist: 72, hip: 98, shoulder: 44, sleeve: 22, length: 90 },
-        ease: { bust: 0, waist: 2, hip: 2 }
-      },
-      {
-        id: "bl-dr-009",
-        code: "BL-FW25-DR-009",
-        name: "\u76F4\u7B52\u9488\u7EC7\u957F\u88D9",
-        nameEn: "Column Knit Dress",
-        category: "dresses",
-        silhouette: "straight",
-        fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Knitwear",
-        fabric: "\u7F57\u7EB9\u7F8A\u7ED2",
-        colors: [C2.black, C2.camel, C2.chocolate, C2.olive],
-        sizes: ALL2,
-        measurements: { bust: 86, waist: 70, hip: 92, shoulder: 39, sleeve: 0, length: 118 },
-        ease: { bust: -4, waist: 0, hip: -4 }
-      },
-      {
-        id: "bl-dr-010",
-        code: "BL-FW25-DR-010",
-        name: "\u6597\u7BF7\u5F0F\u793C\u670D\u88D9",
-        nameEn: "Cape Column Gown",
-        category: "dresses",
-        silhouette: "cape",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Couture",
-        fabric: "\u7F8A\u6BDB\u7ED2 / \u771F\u4E1D",
-        colors: [C2.black, C2.red, C2.gold, C2.navy],
-        sizes: ALL2,
-        measurements: { bust: 92, waist: 72, hip: 98, shoulder: 44, sleeve: 0, length: 124 },
-        ease: { bust: 2, waist: 2, hip: 2 }
-      },
-      {
-        id: "bl-dr-011",
-        code: "BL-SS25-DR-011",
-        name: "\u6CE2\u70B9\u96EA\u7EBA\u957F\u88D9",
-        nameEn: "Polka Dot Chiffon Maxi",
-        category: "dresses",
-        silhouette: "flared",
-        fit: "\u5BBD\u677E",
-        season: "SS 2025",
-        collection: "Retro",
-        fabric: "\u771F\u4E1D\u96EA\u7EBA",
-        colors: [C2.ivory, C2.black, C2.red, C2.sky],
-        sizes: ALL2,
-        measurements: { bust: 94, waist: 76, hip: 104, shoulder: 40, sleeve: 20, length: 132 },
-        ease: { bust: 4, waist: 6, hip: 8 }
-      },
-      {
-        id: "bl-dr-012",
-        code: "BL-FW25-DR-012",
-        name: "\u4E1D\u7ED2\u7D27\u8EAB\u957F\u88D9",
-        nameEn: "Velvet Bodycon Gown",
+        id: "dg-012",
+        code: "F6TJPTGDD6Z",
+        name: "\u857E\u4E1D\u8FDE\u8863\u88D9",
+        nameEn: "Lace dress",
+        brand: "DG",
         category: "dresses",
         silhouette: "fitted",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u5F39\u529B\u4E1D\u7ED2",
-        colors: [C2.wine, C2.black, C2.emerald, C2.navy],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 86, waist: 66, hip: 92, shoulder: 39, sleeve: 58, length: 130 },
-        ease: { bust: -4, waist: -4, hip: -4 }
-      },
-      /* ================= 上装 Tops ================= */
-      {
-        id: "bl-tp-001",
-        code: "BL-SS25-TP-001",
-        name: "\u91D1\u6263\u53CC\u6392\u6263\u4E0A\u8863",
-        nameEn: "Gold-Button Double-Breasted Top",
-        category: "tops",
-        silhouette: "blouse",
-        fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Signature",
-        fabric: "\u68C9\u8D28\u6DF7\u7EBA",
-        colors: [C2.black, C2.ivory, C2.navy, C2.red],
-        sizes: ALL2,
-        measurements: { bust: 94, waist: 88, shoulder: 44, sleeve: 60, length: 64 },
-        ease: { bust: 4, waist: 2 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 6950,
+        priceCNY: 57685,
+        image: "images/dg_F6TJPTGDD6Z.jpg"
       },
       {
-        id: "bl-tp-002",
-        code: "BL-FW25-TP-002",
-        name: "\u7ED3\u6784\u80A9\u9488\u7EC7\u886B",
-        nameEn: "Structured Shoulder Knit",
-        category: "tops",
-        silhouette: "knit",
-        fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Knitwear",
-        fabric: "\u7F8A\u6BDB\u9488\u7EC7",
-        colors: [C2.black, C2.ivory, C2.camel, C2.wine],
-        sizes: ALL2,
-        measurements: { bust: 88, waist: 82, shoulder: 44, sleeve: 61, length: 60 },
-        ease: { bust: -2, waist: 0 }
-      },
-      {
-        id: "bl-tp-003",
-        code: "BL-FW25-TP-003",
-        name: "\u76AE\u9769\u77ED\u4E0A\u8863",
-        nameEn: "Cropped Leather Top",
-        category: "tops",
+        id: "dg-013",
+        code: "F623MTILME4",
+        name: "\u4EAE\u7247\u8FDE\u8863\u88D9",
+        nameEn: "One-shoulder sequin dress",
+        brand: "DG",
+        category: "dresses",
         silhouette: "fitted",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u5C0F\u725B\u76AE",
-        colors: [C2.black, C2.chocolate, C2.red],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 86, waist: 78, shoulder: 40, sleeve: 58, length: 44 },
-        ease: { bust: -4, waist: -4 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2650,
+        priceCNY: 21995,
+        image: "images/dg_F623MTILME4.jpg"
       },
       {
-        id: "bl-tp-004",
-        code: "BL-SS25-TP-004",
-        name: "\u6761\u7EB9\u6D77\u519B\u886B",
-        nameEn: "Breton Stripe Top",
-        category: "tops",
-        silhouette: "blouse",
-        fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Retro",
-        fabric: "\u68C9\u8D28\u9488\u7EC7",
-        colors: [C2.ivory, C2.navy, C2.red],
+        id: "dg-014",
+        code: "F625YTILME7",
+        name: "\u857E\u4E1D\u8FDE\u8863\u88D9",
+        nameEn: "Lace dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 92, waist: 88, shoulder: 41, sleeve: 22, length: 62 },
-        ease: { bust: 2, waist: 2 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F625YTILME7.jpg"
       },
       {
-        id: "bl-tp-005",
-        code: "BL-FW25-TP-005",
-        name: "\u5ED3\u5F62\u7F8A\u6BDB\u886B",
-        nameEn: "Oversize Wool Sweater",
-        category: "tops",
-        silhouette: "oversize",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Knitwear",
-        fabric: "\u7C97\u7EBA\u7F8A\u6BDB",
-        colors: [C2.camel, C2.black, C2.chocolate, C2.olive],
+        id: "dg-015",
+        code: "F631RTHJMRF",
+        name: "\u7EC7\u9526\u8FDE\u8863\u88D9",
+        nameEn: "Brocade dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.lilac],
         sizes: ALL2,
-        measurements: { bust: 112, waist: 108, shoulder: 48, sleeve: 61, length: 72 },
-        ease: { bust: 22, waist: 20 }
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F631RTHJMRF.jpg"
       },
       {
-        id: "bl-tp-006",
-        code: "BL-SS25-TP-006",
-        name: "\u857E\u4E1D\u540A\u5E26\u4E0A\u8863",
-        nameEn: "Lace Camisole",
-        category: "tops",
+        id: "dg-016",
+        code: "F628CTFSA90",
+        name: "\u82B1\u5349\u5370\u82B1\u771F\u4E1D\u7F0E\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print charmeuse dress",
+        brand: "DG",
+        category: "dresses",
         silhouette: "slip",
         fit: "\u4FEE\u8EAB",
-        season: "SS 2025",
-        collection: "Signature",
-        fabric: "\u5F39\u529B\u857E\u4E1D",
-        colors: [C2.black, C2.ivory, C2.powder, C2.red],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 86, waist: 76, shoulder: 0, sleeve: 0, length: 48 },
-        ease: { bust: -4, waist: -2 }
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_F628CTFSA90.jpg"
       },
       {
-        id: "bl-tp-007",
-        code: "BL-SS25-TP-007",
-        name: "\u8377\u53F6\u8FB9\u886C\u886B",
-        nameEn: "Ruffle Blouse",
-        category: "tops",
-        silhouette: "blouse",
-        fit: "\u5BBD\u677E",
-        season: "SS 2025",
-        collection: "Romantic",
-        fabric: "\u771F\u4E1D\u96EA\u7EBA",
-        colors: [C2.ivory, C2.black, C2.powder, C2.navy],
+        id: "dg-017",
+        code: "F6DIHTFURAD",
+        name: "\u7F0E\u9762\u8FDE\u8863\u88D9",
+        nameEn: "Satin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.lilac],
         sizes: ALL2,
-        measurements: { bust: 100, waist: 98, shoulder: 43, sleeve: 57, length: 66 },
-        ease: { bust: 10, waist: 10 }
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F6DIHTFURAD.jpg"
       },
       {
-        id: "bl-tp-008",
-        code: "BL-FW25-TP-008",
-        name: "\u7F57\u7EB9\u4FEE\u8EAB\u80CC\u5FC3",
-        nameEn: "Ribbed Fitted Vest",
+        id: "dg-018",
+        code: "F628ETFU61A",
+        name: "\u5E9C\u7EF8\u8FDE\u8863\u88D9",
+        nameEn: "Poplin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.ivory],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F628ETFU61A.jpg"
+      },
+      {
+        id: "dg-019",
+        code: "F6GAVTHSAAE",
+        name: "\u82B1\u5349\u5370\u82B1\u7F0E\u9762\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print satin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2750,
+        priceCNY: 22825,
+        image: "images/dg_F6GAVTHSAAE.jpg"
+      },
+      {
+        id: "dg-020",
+        code: "F626EZHJMSL",
+        name: "\u7EC7\u9526\u8FDE\u8863\u88D9",
+        nameEn: "Brocade dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2850,
+        priceCNY: 23655,
+        image: "images/dg_F626EZHJMSL.jpg"
+      },
+      {
+        id: "dg-021",
+        code: "F628DTHS5WS",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print poplin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F628DTHS5WS.jpg"
+      },
+      {
+        id: "dg-022",
+        code: "F624MTHSAAD",
+        name: "\u82B1\u5349\u5370\u82B1\u7F0E\u9762\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print satin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2750,
+        priceCNY: 22825,
+        image: "images/dg_F624MTHSAAD.jpg"
+      },
+      {
+        id: "dg-023",
+        code: "F628DTHS5WT",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print poplin dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F628DTHS5WT.jpg"
+      },
+      {
+        id: "dg-024",
+        code: "F628ATFSA9W",
+        name: "\u82B1\u5349\u5370\u82B1\u771F\u4E1D\u7F0E\u8FDE\u8863\u88D9",
+        nameEn: "Floral-print charmeuse dress",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2850,
+        priceCNY: 23655,
+        image: "images/dg_F628ATFSA9W.jpg"
+      },
+      {
+        id: "dg-025",
+        code: "PN1000WHI10",
+        name: "PRE ORDER",
+        nameEn: "PRE ORDER",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 53,
+        priceCNY: 440,
+        image: "images/dg_PN1000WHI10.jpg"
+      },
+      {
+        id: "dg-026",
+        code: "PN0802GRE20",
+        name: "\u914D",
+        nameEn: "Sicilian Pistachio panettone with a velvety Pistachio cream",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4E1D\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 59,
+        priceCNY: 490,
+        image: "images/dg_PN0802GRE20.jpg"
+      },
+      {
+        id: "dg-027",
+        code: "BB7116B1001",
+        name: "\u8FF7\u4F60",
+        nameEn: "Mini Sicily handbag in dauphine calfskin",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1550,
+        priceCNY: 12865,
+        image: "images/dg_BB7116B1001.jpg"
+      },
+      {
+        id: "dg-028",
+        code: "VT00PCVT000",
+        name: "Devotion For Men Eau de Parfum",
+        nameEn: "Devotion For Men Eau de Parfum",
+        brand: "DG",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 102,
+        priceCNY: 847,
+        image: "images/dg_VT00PCVT000.jpg"
+      },
+      {
+        id: "dg-029",
+        code: "F7BX9TFLSM7",
+        name: "\u4EAE\u7247\u4E0A\u88C5",
+        nameEn: "Sequin top",
+        brand: "DG",
         category: "tops",
         silhouette: "fitted",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Knitwear",
-        fabric: "\u7F57\u7EB9\u5F39\u529B\u9488\u7EC7",
-        colors: [C2.black, C2.ivory, C2.olive, C2.wine],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 82, waist: 76, shoulder: 0, sleeve: 0, length: 58 },
-        ease: { bust: -8, waist: -4 }
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/dg_F7BX9TFLSM7.jpg"
       },
       {
-        id: "bl-tp-009",
-        code: "BL-FW25-TP-009",
-        name: "\u519B\u88C5\u91D1\u6263\u4E0A\u8863",
-        nameEn: "Military Gold-Button Top",
+        id: "dg-030",
+        code: "F7BJ1TILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u4E0A\u88C5",
+        nameEn: "Lam\xE9 lace top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F7BJ1TILMFJ.jpg"
+      },
+      {
+        id: "dg-031",
+        code: "F7BZ1TILME2",
+        name: "\u4EAE\u7247\u4E0A\u88C5",
+        nameEn: "Sequin top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/dg_F7BZ1TILME2.jpg"
+      },
+      {
+        id: "dg-032",
+        code: "F5U83TILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u886C\u886B",
+        nameEn: "Lam\xE9 lace shirt",
+        brand: "DG",
         category: "tops",
         silhouette: "blouse",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Military",
-        fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
-        colors: [C2.olive, C2.black, C2.navy, C2.camel],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 96, waist: 90, shoulder: 45, sleeve: 60, length: 66 },
-        ease: { bust: 6, waist: 4 }
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F5U83TILMFJ.jpg"
       },
       {
-        id: "bl-tp-010",
-        code: "BL-SS25-TP-010",
-        name: "\u9542\u7A7A\u9488\u7EC7\u4E0A\u8863",
-        nameEn: "Crochet Knit Top",
+        id: "dg-033",
+        code: "F7BV7TILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u4E0A\u88C5",
+        nameEn: "Lam\xE9 lace top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F7BV7TILMFJ.jpg"
+      },
+      {
+        id: "dg-034",
+        code: "F5V09TFU61A",
+        name: "\u68C9\u5E9C\u7EF8\u886C\u886B",
+        nameEn: "Cotton poplin shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.ivory],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 695,
+        priceCNY: 5769,
+        image: "images/dg_F5V09TFU61A.jpg"
+      },
+      {
+        id: "dg-035",
+        code: "F7CD5TFU61A",
+        name: "\u5E9C\u7EF8\u4E0A\u88C5",
+        nameEn: "Poplin top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 750,
+        priceCNY: 6225,
+        image: "images/dg_F7CD5TFU61A.jpg"
+      },
+      {
+        id: "dg-036",
+        code: "F7CD4TFU61A",
+        name: "\u5E9C\u7EF8\u4E0A\u88C5",
+        nameEn: "Poplin top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 595,
+        priceCNY: 4938,
+        image: "images/dg_F7CD4TFU61A.jpg"
+      },
+      {
+        id: "dg-037",
+        code: "F5Q03TIS173",
+        name: "\u82B1\u5349\u5370\u82B1\u534E\u4E3D\u886C\u886B",
+        nameEn: "Floral-print vanity twill shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F5Q03TIS173.jpg"
+      },
+      {
+        id: "dg-038",
+        code: "F5N70TIS154",
+        name: "\u82B1\u5349\u5370\u82B1\u96EA\u7EBA\u886C\u886B",
+        nameEn: "Floral-print chiffon shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F5N70TIS154.jpg"
+      },
+      {
+        id: "dg-039",
+        code: "F5V47ZFU5WO",
+        name: "\u68C9\u5E9C\u7EF8\u886C\u886B",
+        nameEn: "Cotton poplin shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.ivory],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 695,
+        priceCNY: 5769,
+        image: "images/dg_F5V47ZFU5WO.jpg"
+      },
+      {
+        id: "dg-040",
+        code: "F7CC8TIS155",
+        name: "\u82B1\u5349\u5370\u82B1\u96EA\u7EBA\u4E0A\u88C5",
+        nameEn: "Floral-print chiffon top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1550,
+        priceCNY: 12865,
+        image: "images/dg_F7CC8TIS155.jpg"
+      },
+      {
+        id: "dg-041",
+        code: "F7CD4THS5WS",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u4E0A\u88C5",
+        nameEn: "Floral-print poplin top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 895,
+        priceCNY: 7429,
+        image: "images/dg_F7CD4THS5WS.jpg"
+      },
+      {
+        id: "dg-042",
+        code: "F5G67TIS16J",
+        name: "\u82B1\u5349\u5370\u82B1\u534E\u4E3D\u886C\u886B",
+        nameEn: "Floral-print vanity twill shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F5G67TIS16J.jpg"
+      },
+      {
+        id: "dg-043",
+        code: "F5V35THS5WS",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u886C\u886B",
+        nameEn: "Floral-print poplin shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_F5V35THS5WS.jpg"
+      },
+      {
+        id: "dg-044",
+        code: "F7CD5THS5WT",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u4E0A\u88C5",
+        nameEn: "Floral-print poplin top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_F7CD5THS5WT.jpg"
+      },
+      {
+        id: "dg-045",
+        code: "F8X03ZHLMCK",
+        name: "\u857E\u4E1D\u4E0A\u88C5\u914D",
+        nameEn: "Lace top with brooches",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F8X03ZHLMCK.jpg"
+      },
+      {
+        id: "dg-046",
+        code: "F5Q03TIS16J",
+        name: "\u82B1\u5349\u5370\u82B1\u534E\u4E3D\u886C\u886B",
+        nameEn: "Floral-print vanity twill shirt",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F5Q03TIS16J.jpg"
+      },
+      {
+        id: "dg-047",
+        code: "F7CE9THLMCK",
+        name: "\u857E\u4E1D\u4E0A\u88C5",
+        nameEn: "Lace top",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1350,
+        priceCNY: 11205,
+        image: "images/dg_F7CE9THLMCK.jpg"
+      },
+      {
+        id: "dg-048",
+        code: "F5V01TFBMGD",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 695,
+        priceCNY: 5769,
+        image: "images/dg_F5V01TFBMGD.jpg"
+      },
+      {
+        id: "dg-049",
+        code: "F7BO3TILMD2",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F7BO3TILMD2.jpg"
+      },
+      {
+        id: "dg-050",
+        code: "F7BJ9TIS16H",
+        name: "\u5370\u82B1\u771F\u4E1D\u96EA\u7EBA\u886C\u886B",
+        nameEn: "Bouquet-print silk chiffon blouse",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/dg_F7BJ9TIS16H.jpg"
+      },
+      {
+        id: "dg-051",
+        code: "F7CE8THLMCK",
+        name: "\u857E\u4E1D\u886C\u886B",
+        nameEn: "Lace blouse",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F7CE8THLMCK.jpg"
+      },
+      {
+        id: "dg-052",
+        code: "FXVDZZJGMI3",
+        name: "\u91D1\u5C5E\u5149\u6CFD\u5F00\u886B",
+        nameEn: "Metallic viscose cardigan",
+        brand: "DG",
         category: "tops",
         silhouette: "knit",
         fit: "\u4FEE\u8EAB",
-        season: "SS 2025",
-        collection: "Knitwear",
-        fabric: "\u68C9\u7EBF\u94A9\u7EC7",
-        colors: [C2.ivory, C2.nude, C2.sky, C2.powder],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { bust: 88, waist: 82, shoulder: 39, sleeve: 24, length: 56 },
-        ease: { bust: -2, waist: 0 }
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXVDZZJGMI3.jpg"
       },
-      /* ================= 下装 Bottoms ================= */
       {
-        id: "bl-bt-001",
-        code: "BL-FW25-BT-001",
-        name: "\u9AD8\u8170\u7D27\u8EAB\u76AE\u88E4",
-        nameEn: "High-Rise Leather Leggings",
-        category: "bottoms",
-        silhouette: "skinny",
+        id: "dg-053",
+        code: "FXXBZZJGMI3",
+        name: "\u91D1\u5C5E\u5149\u6CFD\u5957\u5934\u886B",
+        nameEn: "Metallic viscose pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
         fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u5F39\u529B\u76AE\u9769",
-        colors: [C2.black, C2.chocolate, C2.wine],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { waist: 68, hip: 92, length: 102, opening: 26 },
-        ease: { waist: -2, hip: -4 }
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_FXXBZZJGMI3.jpg"
       },
       {
-        id: "bl-bt-002",
-        code: "BL-SS25-BT-002",
-        name: "\u9614\u817F\u897F\u88C5\u88E4",
-        nameEn: "Tailored Wide-Leg Trousers",
-        category: "bottoms",
-        silhouette: "wide",
-        fit: "\u5BBD\u677E",
-        season: "SS 2025",
-        collection: "Tailoring",
-        fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-        colors: [C2.black, C2.camel, C2.navy, C2.ivory],
+        id: "dg-054",
+        code: "FXVF5TJBSR9",
+        name: "\u771F\u4E1D\u5F00\u886B",
+        nameEn: "Silk cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.lilac],
         sizes: ALL2,
-        measurements: { waist: 74, hip: 100, length: 110, opening: 58 },
-        ease: { waist: 4, hip: 4 }
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_FXVF5TJBSR9.jpg"
       },
       {
-        id: "bl-bt-003",
-        code: "BL-SS25-BT-003",
-        name: "\u76F4\u7B52\u725B\u4ED4\u88E4",
-        nameEn: "Straight Jeans",
-        category: "bottoms",
-        silhouette: "straight",
+        id: "dg-055",
+        code: "FXXDCTJBW3A",
+        name: "\u7F8A\u7ED2\u5957\u5934\u886B",
+        nameEn: "Cashmere pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_FXXDCTJBW3A.jpg"
+      },
+      {
+        id: "dg-056",
+        code: "FXT95TJBSR9",
+        name: "\u771F\u4E1D\u5957\u5934\u886B",
+        nameEn: "Silk pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_FXT95TJBSR9.jpg"
+      },
+      {
+        id: "dg-057",
+        code: "FXVGGZJBW3E",
+        name: "\u7F8A\u7ED2\u5F00\u886B\u914D",
+        nameEn: "Cashmere cardigan with brooches",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 6950,
+        priceCNY: 57685,
+        image: "images/dg_FXVGGZJBW3E.jpg"
+      },
+      {
+        id: "dg-058",
+        code: "FXVH2ZJDVP3",
+        name: "\u7F8A\u6BDB\u5F00\u886B",
+        nameEn: "Virgin wool cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_FXVH2ZJDVP3.jpg"
+      },
+      {
+        id: "dg-059",
+        code: "FXVH8TJBW45",
+        name: "\u7F8A\u7ED2\u5F00\u886B",
+        nameEn: "Cashmere cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 2550,
+        priceCNY: 21165,
+        image: "images/dg_FXVH8TJBW45.jpg"
+      },
+      {
+        id: "dg-060",
+        code: "FXXD9TJBSR9",
+        name: "\u886C\u886B\u771F\u4E1D",
+        nameEn: "Henley shirt in silk",
+        brand: "DG",
+        category: "tops",
+        silhouette: "blouse",
         fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Denim",
-        fabric: "\u5F39\u529B\u4E39\u5B81",
-        colors: [C2.navy, C2.black, C2.sky, C2.ivory],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.camel],
         sizes: ALL2,
-        measurements: { waist: 72, hip: 96, length: 106, opening: 40 },
-        ease: { waist: 2, hip: 0 }
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_FXXD9TJBSR9.jpg"
       },
       {
-        id: "bl-bt-004",
-        code: "BL-FW25-BT-004",
-        name: "A \u5B57\u76AE\u9769\u77ED\u88D9",
-        nameEn: "Leather A-Line Mini",
+        id: "dg-061",
+        code: "FXY56TJBW45",
+        name: "\u7F8A\u7ED2\u5957\u5934\u886B",
+        nameEn: "Cashmere pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXY56TJBW45.jpg"
+      },
+      {
+        id: "dg-062",
+        code: "FXWA4ZJGMOU",
+        name: "\u7F8A\u6BDB",
+        nameEn: "Wool-blend turtleneck",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_FXWA4ZJGMOU.jpg"
+      },
+      {
+        id: "dg-063",
+        code: "FXZ59TJBW24",
+        name: "\u7F8A\u7ED2\u5957\u5934\u886B",
+        nameEn: "Cashmere pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/dg_FXZ59TJBW24.jpg"
+      },
+      {
+        id: "dg-064",
+        code: "FXZ55TJBW2R",
+        name: "\u7F8A\u7ED2\u5957\u5934\u886B",
+        nameEn: "Cashmere pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.ivory],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXZ55TJBW2R.jpg"
+      },
+      {
+        id: "dg-065",
+        code: "FXY43TJBW2R",
+        name: "\u7F8A\u7ED2\u5957\u5934\u886B",
+        nameEn: "Cashmere pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/dg_FXY43TJBW2R.jpg"
+      },
+      {
+        id: "dg-066",
+        code: "FXR41TJAISB",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_FXR41TJAISB.jpg"
+      },
+      {
+        id: "dg-067",
+        code: "FXVG2TJBCLF",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 7950,
+        priceCNY: 65985,
+        image: "images/dg_FXVG2TJBCLF.jpg"
+      },
+      {
+        id: "dg-068",
+        code: "FXVG4TJBCLG",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 4500,
+        priceCNY: 37350,
+        image: "images/dg_FXVG4TJBCLG.jpg"
+      },
+      {
+        id: "dg-069",
+        code: "FXVF5TJBW25",
+        name: "\u7F8A\u7ED2\u5F00\u886B",
+        nameEn: "Ribbed cashmere cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXVF5TJBW25.jpg"
+      },
+      {
+        id: "dg-070",
+        code: "FXVG1TJAISA",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_FXVG1TJAISA.jpg"
+      },
+      {
+        id: "dg-071",
+        code: "FXXCSTJBMP8",
+        name: "\u857E\u4E1D\u5957\u5934\u886B",
+        nameEn: "Lace pullover",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1550,
+        priceCNY: 12865,
+        image: "images/dg_FXXCSTJBMP8.jpg"
+      },
+      {
+        id: "dg-072",
+        code: "FXVFGTJBW2C",
+        name: "\u7F8A\u7ED2\u5F00\u886B",
+        nameEn: "Cashmere cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 2250,
+        priceCNY: 18675,
+        image: "images/dg_FXVFGTJBW2C.jpg"
+      },
+      {
+        id: "dg-073",
+        code: "FXV07TJBW2C",
+        name: "\u7F8A\u7ED2\u5F00\u886B",
+        nameEn: "Cashmere cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u7ED2",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXV07TJBW2C.jpg"
+      },
+      {
+        id: "dg-074",
+        code: "FXVFITJDVMT",
+        name: "\u9488\u7EC7\u5F00\u886B",
+        nameEn: "Half english rib knit cardigan",
+        brand: "DG",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_FXVFITJDVMT.jpg"
+      },
+      {
+        id: "dg-075",
+        code: "F4DE8ZGDD0V",
+        name: "\u63D0\u82B1\u534A\u8EAB\u88D9\u914D\u523A\u7EE3",
+        nameEn: "Jacquard skirt with embroidery",
+        brand: "DG",
         category: "bottoms",
         silhouette: "aline",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u8F6F\u7F8A\u76AE",
-        colors: [C2.black, C2.chocolate, C2.red],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { waist: 72, hip: 96, length: 42, opening: 108 },
-        ease: { waist: 2, hip: 0 }
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 4750,
+        priceCNY: 39425,
+        image: "images/dg_F4DE8ZGDD0V.jpg"
       },
       {
-        id: "bl-bt-005",
-        code: "BL-FW25-BT-005",
-        name: "\u7F8A\u6BDB\u94C5\u7B14\u88D9",
-        nameEn: "Wool Pencil Skirt",
+        id: "dg-076",
+        code: "F4DFPTFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u534A\u8EAB\u88D9",
+        nameEn: "Lam\xE9 jacquard skirt",
+        brand: "DG",
         category: "bottoms",
-        silhouette: "pencil",
-        fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Tailoring",
-        fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-        colors: [C2.black, C2.wine, C2.navy, C2.leopard],
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { waist: 70, hip: 94, length: 66, opening: 92 },
-        ease: { waist: 0, hip: -2 }
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1550,
+        priceCNY: 12865,
+        image: "images/dg_F4DFPTFJODW.jpg"
       },
       {
-        id: "bl-bt-006",
-        code: "BL-SS25-BT-006",
-        name: "\u767E\u8936\u4E2D\u957F\u88D9",
-        nameEn: "Pleated Midi Skirt",
+        id: "dg-077",
+        code: "F4DE8TFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u534A\u8EAB\u88D9",
+        nameEn: "Lam\xE9 jacquard skirt",
+        brand: "DG",
         category: "bottoms",
-        silhouette: "flared",
-        fit: "\u5BBD\u677E",
-        season: "SS 2025",
-        collection: "Retro",
-        fabric: "\u538B\u8936\u96EA\u7EBA",
-        colors: [C2.ivory, C2.black, C2.navy, C2.gold],
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { waist: 72, hip: 98, length: 78, opening: 158 },
-        ease: { waist: 2, hip: 2 }
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_F4DE8TFJODW.jpg"
       },
       {
-        id: "bl-bt-007",
-        code: "BL-SS25-BT-007",
-        name: "\u9AD8\u8170\u77ED\u88E4",
-        nameEn: "High-Rise Shorts",
+        id: "dg-078",
+        code: "F4DFQTILME2",
+        name: "\u4EAE\u7247\u534A\u8EAB\u88D9",
+        nameEn: "Sequin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_F4DFQTILME2.jpg"
+      },
+      {
+        id: "dg-079",
+        code: "F4B7ITILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u534A\u8EAB\u88D9",
+        nameEn: "Lam\xE9 lace skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2250,
+        priceCNY: 18675,
+        image: "images/dg_F4B7ITILMFJ.jpg"
+      },
+      {
+        id: "dg-080",
+        code: "F4DGFTILMFR",
+        name: "\u7C97\u82B1\u5462\u534A\u8EAB\u88D9\u914D\u4EAE\u7247",
+        nameEn: "Tweed skirt with sequins",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F4DGFTILMFR.jpg"
+      },
+      {
+        id: "dg-081",
+        code: "F4DGGZHUMXR",
+        name: "\u91D1\u8471\u7C97\u82B1\u5462\u534A\u8EAB\u88D9",
+        nameEn: "Lam\xE9 tweed skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F4DGGZHUMXR.jpg"
+      },
+      {
+        id: "dg-082",
+        code: "F4DKGTIS155",
+        name: "\u82B1\u5349\u5370\u82B1\u96EA\u7EBA\u534A\u8EAB\u88D9",
+        nameEn: "Floral-print chiffon skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2250,
+        priceCNY: 18675,
+        image: "images/dg_F4DKGTIS155.jpg"
+      },
+      {
+        id: "dg-083",
+        code: "F4DKKTFU61A",
+        name: "\u5E9C\u7EF8\u534A\u8EAB\u88D9",
+        nameEn: "Poplin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 750,
+        priceCNY: 6225,
+        image: "images/dg_F4DKKTFU61A.jpg"
+      },
+      {
+        id: "dg-084",
+        code: "F4DG1THSAAE",
+        name: "\u82B1\u5349\u5370\u82B1\u7F0E\u9762\u534A\u8EAB\u88D9",
+        nameEn: "Floral-print satin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_F4DG1THSAAE.jpg"
+      },
+      {
+        id: "dg-085",
+        code: "F4DM5ZHJMSL",
+        name: "\u7EC7\u9526\u534A\u8EAB\u88D9\u914D\u73E0\u5B9D\u7EBD\u6263",
+        nameEn: "Brocade skirt with jewel buttons",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2250,
+        priceCNY: 18675,
+        image: "images/dg_F4DM5ZHJMSL.jpg"
+      },
+      {
+        id: "dg-086",
+        code: "F4DIFTFQZBF",
+        name: "\u7C97\u82B1\u5462\u534A\u8EAB\u88D9",
+        nameEn: "Rachel check tweed skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_F4DIFTFQZBF.jpg"
+      },
+      {
+        id: "dg-087",
+        code: "F4DIITFSA9W",
+        name: "\u82B1\u5349\u5370\u82B1\u771F\u4E1D\u7F0E\u534A\u8EAB\u88D9",
+        nameEn: "Floral-print charmeuse skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F4DIITFSA9W.jpg"
+      },
+      {
+        id: "dg-088",
+        code: "F4DKITFU61A",
+        name: "\u5E9C\u7EF8\u534A\u8EAB\u88D9",
+        nameEn: "Poplin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.ivory],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1550,
+        priceCNY: 12865,
+        image: "images/dg_F4DKITFU61A.jpg"
+      },
+      {
+        id: "dg-089",
+        code: "F4DKITHS5WT",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u534A\u8EAB\u88D9",
+        nameEn: "Floral-print poplin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F4DKITHS5WT.jpg"
+      },
+      {
+        id: "dg-090",
+        code: "F4DKKTHS5WS",
+        name: "\u82B1\u5349\u5370\u82B1\u5E9C\u7EF8\u534A\u8EAB\u88D9",
+        nameEn: "Floral-print poplin skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_F4DKKTHS5WS.jpg"
+      },
+      {
+        id: "dg-091",
+        code: "F4DENTFCZAY",
+        name: "\u7F8A\u6BDB\u4EBA\u5B57\u7EB9\u534A\u8EAB\u88D9",
+        nameEn: "Wool-blend chevron skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_F4DENTFCZAY.jpg"
+      },
+      {
+        id: "dg-092",
+        code: "F4CSOTIS17H",
+        name: "\u5370\u82B1\u771F\u4E1D\u96EA\u7EBA\u534A\u8EAB\u88D9",
+        nameEn: "Rose-print silk chiffon skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1950,
+        priceCNY: 16185,
+        image: "images/dg_F4CSOTIS17H.jpg"
+      },
+      {
+        id: "dg-093",
+        code: "F4DENTFU2L8",
+        name: "\u7F8A\u6BDB\u7EC9\u7EB1\u534A\u8EAB\u88D9",
+        nameEn: "Double wool crepe skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_F4DENTFU2L8.jpg"
+      },
+      {
+        id: "dg-094",
+        code: "F4C0UTILMA8",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 3750,
+        priceCNY: 31125,
+        image: "images/dg_F4C0UTILMA8.jpg"
+      },
+      {
+        id: "dg-095",
+        code: "F4C7XTFU1AT",
+        name: "\u96EA\u7EBA\u534A\u8EAB\u88D9",
+        nameEn: "Chiffon skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F4C7XTFU1AT.jpg"
+      },
+      {
+        id: "dg-096",
+        code: "F4CS8TFSAKB",
+        name: "\u6CE2\u70B9\u5370\u82B1\u771F\u4E1D\u771F\u4E1D\u7F0E\u534A\u8EAB\u88D9",
+        nameEn: "Polka-dot print silk charmeuse skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_F4CS8TFSAKB.jpg"
+      },
+      {
+        id: "dg-097",
+        code: "F4CSOTIS17A",
+        name: "\u6CE2\u70B9\u5370\u82B1\u771F\u4E1D\u96EA\u7EBA\u534A\u8EAB\u88D9",
+        nameEn: "Polka-dot print silk chiffon skirt",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u96EA\u7EBA",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_F4CSOTIS17A.jpg"
+      },
+      {
+        id: "dg-098",
+        code: "FTC1YTILMFJ",
+        name: "\u91D1\u8471\u857E\u4E1D\u957F\u88E4",
+        nameEn: "Lam\xE9 lace trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2750,
+        priceCNY: 22825,
+        image: "images/dg_FTC1YTILMFJ.jpg"
+      },
+      {
+        id: "dg-099",
+        code: "FTAM2TFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u957F\u88E4",
+        nameEn: "Lam\xE9 jacquard trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_FTAM2TFJODW.jpg"
+      },
+      {
+        id: "dg-100",
+        code: "FTDPMTIS16J",
+        name: "\u82B1\u5349\u5370\u82B1\u957F\u88E4",
+        nameEn: "Floral-print twill trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1650,
+        priceCNY: 13695,
+        image: "images/dg_FTDPMTIS16J.jpg"
+      },
+      {
+        id: "dg-101",
+        code: "FTDPBTFM2HT",
+        name: "\u9E1F\u773C\u7EB9\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Birdseye wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1750,
+        priceCNY: 14525,
+        image: "images/dg_FTDPBTFM2HT.jpg"
+      },
+      {
+        id: "dg-102",
+        code: "FTDO4TFCZAY",
+        name: "\u7F8A\u6BDB\u4EBA\u5B57\u7EB9\u957F\u88E4",
+        nameEn: "Wool-blend chevron trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_FTDO4TFCZAY.jpg"
+      },
+      {
+        id: "dg-103",
+        code: "FTDQ4TFM2HT",
+        name: "\u9E1F\u773C\u7EB9\u7F8A\u6BDB\u767E\u6155\u5927\u77ED\u88E4\u77ED\u88E4",
+        nameEn: "Birdseye wool bermuda shorts",
+        brand: "DG",
         category: "bottoms",
         silhouette: "mini",
         fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Casual",
-        fabric: "\u68C9\u8D28\u659C\u7EB9",
-        colors: [C2.ivory, C2.black, C2.camel, C2.sky],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
         sizes: ALL2,
-        measurements: { waist: 72, hip: 96, length: 40, opening: 54 },
-        ease: { waist: 2, hip: 0 }
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_FTDQ4TFM2HT.jpg"
       },
       {
-        id: "bl-bt-008",
-        code: "BL-FW25-BT-008",
-        name: "\u683C\u7EB9\u9525\u5F62\u88E4",
-        nameEn: "Checked Tapered Trousers",
+        id: "dg-104",
+        code: "FTDI5TFUBG5",
+        name: "\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Wool trousers",
+        brand: "DG",
         category: "bottoms",
         silhouette: "straight",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Heritage",
-        fabric: "\u683C\u7EB9\u7F8A\u6BDB",
-        colors: [C2.camel, C2.black, C2.olive, C2.wine],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.lilac],
         sizes: ALL2,
-        measurements: { waist: 74, hip: 98, length: 102, opening: 36 },
-        ease: { waist: 4, hip: 2 }
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_FTDI5TFUBG5.jpg"
       },
       {
-        id: "bl-bt-009",
-        code: "BL-FW25-BT-009",
-        name: "\u6D41\u82CF\u8FF7\u4F60\u88D9",
-        nameEn: "Fringe Mini Skirt",
+        id: "dg-105",
+        code: "FTBVHTHJMSN",
+        name: "\u7EC7\u9526\u767E\u6155\u5927\u77ED\u88E4\u77ED\u88E4",
+        nameEn: "Brocade bermuda shorts",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_FTBVHTHJMSN.jpg"
+      },
+      {
+        id: "dg-106",
+        code: "FTDB8TIS16J",
+        name: "\u82B1\u5349\u5370\u82B1\u534E\u4E3D\u767E\u6155\u5927\u77ED\u88E4\u77ED\u88E4",
+        nameEn: "Floral-print vanity twill bermuda shorts",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_FTDB8TIS16J.jpg"
+      },
+      {
+        id: "dg-107",
+        code: "FTAGNTHS5WS",
+        name: "\u82B1\u5349\u5370\u82B1\u68C9\u5E9C\u7EF8\u957F\u88E4",
+        nameEn: "Floral-print cotton poplin trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u5E9C\u7EF8",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 995,
+        priceCNY: 8258,
+        image: "images/dg_FTAGNTHS5WS.jpg"
+      },
+      {
+        id: "dg-108",
+        code: "FTAM2TFUBGN",
+        name: "\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Melange wool-blend trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 895,
+        priceCNY: 7429,
+        image: "images/dg_FTAM2TFUBGN.jpg"
+      },
+      {
+        id: "dg-109",
+        code: "FTDPMTIS173",
+        name: "\u82B1\u5349\u5370\u82B1\u957F\u88E4",
+        nameEn: "Floral-print twill trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1650,
+        priceCNY: 13695,
+        image: "images/dg_FTDPMTIS173.jpg"
+      },
+      {
+        id: "dg-110",
+        code: "FTDQDTFR22V",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1350,
+        priceCNY: 11205,
+        image: "images/dg_FTDQDTFR22V.jpg"
+      },
+      {
+        id: "dg-111",
+        code: "FTDQKTFR22A",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1650,
+        priceCNY: 13695,
+        image: "images/dg_FTDQKTFR22A.jpg"
+      },
+      {
+        id: "dg-112",
+        code: "FTDQCTFBZAG",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1450,
+        priceCNY: 12035,
+        image: "images/dg_FTDQCTFBZAG.jpg"
+      },
+      {
+        id: "dg-113",
+        code: "FTDM2TFRBDU",
+        name: "\u7EC6\u6761\u7EB9\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Pinstripe wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_FTDM2TFRBDU.jpg"
+      },
+      {
+        id: "dg-114",
+        code: "FTDI5TFM2G4",
+        name: "\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_FTDI5TFM2G4.jpg"
+      },
+      {
+        id: "dg-115",
+        code: "FTDPETFRTBF",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_FTDPETFRTBF.jpg"
+      },
+      {
+        id: "dg-116",
+        code: "FTC17TFQ2O5",
+        name: "\u957F\u88E4",
+        nameEn: "Glen plaid flannel trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/dg_FTC17TFQ2O5.jpg"
+      },
+      {
+        id: "dg-117",
+        code: "FTC31TFQZAX",
+        name: "\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Glen plaid wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1150,
+        priceCNY: 9545,
+        image: "images/dg_FTC31TFQZAX.jpg"
+      },
+      {
+        id: "dg-118",
+        code: "FTAM2TFRBDR",
+        name: "\u7EC6\u6761\u7EB9\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Pinstripe wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 795,
+        priceCNY: 6599,
+        image: "images/dg_FTAM2TFRBDR.jpg"
+      },
+      {
+        id: "dg-119",
+        code: "FTAM2TGDD1H",
+        name: "\u7EC6\u6761\u7EB9\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Pinstripe wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 895,
+        priceCNY: 7429,
+        image: "images/dg_FTAM2TGDD1H.jpg"
+      },
+      {
+        id: "dg-120",
+        code: "FTAM2TFRBDQ",
+        name: "\u7EC6\u6761\u7EB9\u7F8A\u6BDB\u957F\u88E4",
+        nameEn: "Pinstripe wool trousers",
+        brand: "DG",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 795,
+        priceCNY: 6599,
+        image: "images/dg_FTAM2TFRBDQ.jpg"
+      },
+      {
+        id: "dg-121",
+        code: "F27KAZILMFR",
+        name: "\u7C97\u82B1\u5462\u5939\u514B\u914D\u4EAE\u7247",
+        nameEn: "Tweed jacket with sequins",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 5950,
+        priceCNY: 49385,
+        image: "images/dg_F27KAZILMFR.jpg"
+      },
+      {
+        id: "dg-122",
+        code: "F29QGTFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u5939\u514B",
+        nameEn: "Lam\xE9 single-breasted jacquard jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F29QGTFJODW.jpg"
+      },
+      {
+        id: "dg-123",
+        code: "F27JRZGDD0V",
+        name: "\u63D0\u82B1\u5939\u514B\u914D\u523A\u7EE3",
+        nameEn: "Jacquard jacket with embroidery",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 13500,
+        priceCNY: 112050,
+        image: "images/dg_F27JRZGDD0V.jpg"
+      },
+      {
+        id: "dg-124",
+        code: "F27KBZHUMXR",
+        name: "\u91D1\u8471\u7C97\u82B1\u5462\u5939\u514B",
+        nameEn: "Lam\xE9 tweed jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u91D1\u8471",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 4500,
+        priceCNY: 37350,
+        image: "images/dg_F27KBZHUMXR.jpg"
+      },
+      {
+        id: "dg-125",
+        code: "F27KWZFJODW",
+        name: "\u91D1\u8471\u63D0\u82B1\u5939\u514B",
+        nameEn: "Lam\xE9 jacquard jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 4500,
+        priceCNY: 37350,
+        image: "images/dg_F27KWZFJODW.jpg"
+      },
+      {
+        id: "dg-126",
+        code: "F27LZZHJMSL",
+        name: "\u7EC7\u9526\u5939\u514B\u914D\u73E0\u5B9D\u7EBD\u6263",
+        nameEn: "Brocade jacket with jewel buttons",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F27LZZHJMSL.jpg"
+      },
+      {
+        id: "dg-127",
+        code: "F29KKTFCZAY",
+        name: "\u5939\u514B\u7F8A\u6BDB\u4EBA\u5B57\u7EB9",
+        nameEn: "Double-breasted jacket in wool-blend chevron",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F29KKTFCZAY.jpg"
+      },
+      {
+        id: "dg-128",
+        code: "F27LSZHJMSN",
+        name: "\u5939\u514B\u7EC7\u9526\u914D\u73E0\u5B9D\u7EBD\u6263",
+        nameEn: "Double-breasted jacket in brocade with jewel buttons",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 5500,
+        priceCNY: 45650,
+        image: "images/dg_F27LSZHJMSN.jpg"
+      },
+      {
+        id: "dg-129",
+        code: "F2JBFTFUBGN",
+        name: "\u5939\u514B\u7F8A\u6BDB",
+        nameEn: "Jacket in melange wool-blend",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2650,
+        priceCNY: 21995,
+        image: "images/dg_F2JBFTFUBGN.jpg"
+      },
+      {
+        id: "dg-130",
+        code: "F27KQTFM2HT",
+        name: "\u9E1F\u773C\u7EB9\u7F8A\u6BDB\u5939\u514B",
+        nameEn: "Single-breasted birdseye wool jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F27KQTFM2HT.jpg"
+      },
+      {
+        id: "dg-131",
+        code: "F27LSTGDEFP",
+        name: "\u5939\u514B\u7F8A\u6BDB\u4EBA\u5B57\u7EB9",
+        nameEn: "Double-breasted jacket in wool chevron",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F27LSTGDEFP.jpg"
+      },
+      {
+        id: "dg-132",
+        code: "F2JEMTHJMRF",
+        name: "\u5939\u514B\u7EC7\u9526",
+        nameEn: "Jacket in brocade",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7EC7\u9526",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3650,
+        priceCNY: 30295,
+        image: "images/dg_F2JEMTHJMRF.jpg"
+      },
+      {
+        id: "dg-133",
+        code: "F27LXZFQZBG",
+        name: "\u5939\u514B\u7C97\u82B1\u5462",
+        nameEn: "Single-breasted jacket in check rachel tweed",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 5750,
+        priceCNY: 47725,
+        image: "images/dg_F27LXZFQZBG.jpg"
+      },
+      {
+        id: "dg-134",
+        code: "F27LWTFU2L8",
+        name: "\u5939\u514B\u7F8A\u6BDB\u7EC9\u7EB1",
+        nameEn: "Jacket in double wool crepe",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.lilac],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F27LWTFU2L8.jpg"
+      },
+      {
+        id: "dg-135",
+        code: "F27ADTGDD6Y",
+        name: "\u5939\u514B\u7F8A\u6BDB\u7EC9\u7EB1",
+        nameEn: "Jacket in double wool crepe",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2950,
+        priceCNY: 24485,
+        image: "images/dg_F27ADTGDD6Y.jpg"
+      },
+      {
+        id: "dg-136",
+        code: "F2JBGTFRZAT",
+        name: "\u7EC6\u6761\u7EB9\u7F8A\u6BDB\u5939\u514B",
+        nameEn: "Pinstripe wool jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3250,
+        priceCNY: 26975,
+        image: "images/dg_F2JBGTFRZAT.jpg"
+      },
+      {
+        id: "dg-137",
+        code: "F2JCPTFBZAG",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F2JCPTFBZAG.jpg"
+      },
+      {
+        id: "dg-138",
+        code: "F27LPTHU2BB",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2450,
+        priceCNY: 20335,
+        image: "images/dg_F27LPTHU2BB.jpg"
+      },
+      {
+        id: "dg-139",
+        code: "F27KKTFUZE1",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3750,
+        priceCNY: 31125,
+        image: "images/dg_F27KKTFUZE1.jpg"
+      },
+      {
+        id: "dg-140",
+        code: "F27BXTFU2L8",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3750,
+        priceCNY: 31125,
+        image: "images/dg_F27BXTFU2L8.jpg"
+      },
+      {
+        id: "dg-141",
+        code: "F27LQTFQZBD",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3450,
+        priceCNY: 28635,
+        image: "images/dg_F27LQTFQZBD.jpg"
+      },
+      {
+        id: "dg-142",
+        code: "F27EUTFUTB2",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F27EUTFUTB2.jpg"
+      },
+      {
+        id: "dg-143",
+        code: "F2JCMTFR22V",
+        name: "\u79C0\u573A",
+        nameEn: "RUNWAY",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.gold],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3750,
+        priceCNY: 31125,
+        image: "images/dg_F2JCMTFR22V.jpg"
+      },
+      {
+        id: "dg-144",
+        code: "F27JKTHUMUS",
+        name: "\u7F8A\u6BDB\u5939\u514B",
+        nameEn: "Wool cady double-breasted jacket",
+        brand: "DG",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3950,
+        priceCNY: 32785,
+        image: "images/dg_F27JKTHUMUS.jpg"
+      },
+      /* BALMAIN */
+      {
+        id: "bl-001",
+        code: "DR0000000259E05F",
+        name: "\u8FDE\u8863\u88D9\u957F\u9488\u7EC7\u5782\u5760",
+        nameEn: "Robe longue en jersey fluide",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 86, "waist": 68, "hip": 92, "shoulder": 40, "sleeve": 60, "length": 102 },
+        ease: { "bust": -4, "waist": -2, "hip": -4, "shoulder": 0 },
+        priceEUR: 2300,
+        priceCNY: 19090,
+        image: "images/bl_DR0000000259E05F.jpg"
+      },
+      {
+        id: "bl-002",
+        code: "DR0000000245E05F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u9488\u7EC7\u5782\u5760",
+        nameEn: "Robe drap\xE9e en jersey fluide",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_DR0000000245E05F.jpg"
+      },
+      {
+        id: "bl-003",
+        code: "DR0000000315F40F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u63D0\u82B1\u4E1D\u7ED2",
+        nameEn: "Robe drap\xE9e en jacquard velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 3500,
+        priceCNY: 29050,
+        image: "images/bl_DR0000000315F40F.jpg"
+      },
+      {
+        id: "bl-004",
+        code: "DR00000002380PAF",
+        name: "\u8FDE\u8863\u88D9\u675F\u8170\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Robe ceintur\xE9e en cuir d'agneau",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "peplum",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 100, "shoulder": 40, "sleeve": 22, "length": 88 },
+        ease: { "bust": 0, "waist": 2, "hip": 4, "shoulder": 0 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_DR00000002380PAF.jpg"
+      },
+      {
+        id: "bl-005",
+        code: "DR00000000720PAF",
+        name: "\u8FDE\u8863\u88D9\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Robe dos-nu en cuir d'agneau",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_DR00000000720PAF.jpg"
+      },
+      {
+        id: "bl-006",
+        code: "DR00000001450PAF",
+        name: "\u8FDE\u8863\u88D9\u9488\u7EC7\u5782\u5760",
+        nameEn: "Robe dos-nu en jersey fluide",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 86, "waist": 68, "hip": 92, "shoulder": 40, "sleeve": 60, "length": 102 },
+        ease: { "bust": -4, "waist": -2, "hip": -4, "shoulder": 0 },
+        priceEUR: 1690,
+        priceCNY: 14027,
+        image: "images/bl_DR00000001450PAF.jpg"
+      },
+      {
+        id: "bl-007",
+        code: "DR0000000321AAAF",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u7F0E\u9762\u771F\u4E1D\u5370\u82B1",
+        nameEn: "Robe drap\xE9e en satin de soie imprim\xE9",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2300,
+        priceCNY: 19090,
+        image: "images/bl_DR0000000321AAAF.jpg"
+      },
+      {
+        id: "bl-008",
+        code: "DR0000000319AAAF",
+        name: "\u8FDE\u8863\u88D9\u8377\u53F6\u8FB9\u7F0E\u9762\u771F\u4E1D\u5370\u82B1",
+        nameEn: "Robe \xE0 volants en satin de soie imprim\xE9",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_DR0000000319AAAF.jpg"
+      },
+      {
+        id: "bl-009",
+        code: "DR00000002020PAF",
+        name: "\u8FDE\u8863\u88D9\u957F",
+        nameEn: "Robe longue en punto milano et cristaux",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_DR00000002020PAF.jpg"
+      },
+      {
+        id: "bl-010",
+        code: "DR0000000176C12F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u9488\u7EC7\u5782\u5760",
+        nameEn: "Robe drap\xE9e en jersey fluide",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 1890,
+        priceCNY: 15687,
+        image: "images/bl_DR0000000176C12F.jpg"
+      },
+      {
+        id: "bl-011",
+        code: "DR00000000930PAF",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u9488\u7EC7\u5782\u5760",
+        nameEn: "Robe drap\xE9e en jersey fluide",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 1790,
+        priceCNY: 14857,
+        image: "images/bl_DR00000000930PAF.jpg"
+      },
+      {
+        id: "bl-012",
+        code: "DR0000000311D82F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u7F0E\u9762\u771F\u4E1D",
+        nameEn: "Robe drap\xE9e en satin de soie",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "slip",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 70, "hip": 94, "shoulder": 40, "sleeve": 0, "length": 118 },
+        ease: { "bust": -2, "waist": 0, "hip": -2, "shoulder": 0 },
+        priceEUR: 2600,
+        priceCNY: 21580,
+        image: "images/bl_DR0000000311D82F.jpg"
+      },
+      {
+        id: "bl-013",
+        code: "DR00000001700PAF",
+        name: "\u8FDE\u8863\u88D9\u957F\u4EAE\u7247",
+        nameEn: "Robe longue \xE0 sequins",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 3500,
+        priceCNY: 29050,
+        image: "images/bl_DR00000001700PAF.jpg"
+      },
+      {
+        id: "bl-014",
+        code: "DR0000000295F93F",
+        name: "\u8FDE\u8863\u88D9\u63D0\u82B1\u4E1D\u7ED2",
+        nameEn: "Robe fines bretelles en jacquard velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2990,
+        priceCNY: 24817,
+        image: "images/bl_DR0000000295F93F.jpg"
+      },
+      {
+        id: "bl-015",
+        code: "DR0000000155B29F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u63D0\u82B1\u4E1D\u7ED2",
+        nameEn: "Robe drap\xE9e en jacquard velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 4500,
+        priceCNY: 37350,
+        image: "images/bl_DR0000000155B29F.jpg"
+      },
+      {
+        id: "bl-016",
+        code: "DR0000000127B29F",
+        name: "\u8FDE\u8863\u88D9\u957F\u63D0\u82B1\u4E1D\u7ED2",
+        nameEn: "Robe longue en jacquard velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 6900,
+        priceCNY: 57270,
+        image: "images/bl_DR0000000127B29F.jpg"
+      },
+      {
+        id: "bl-017",
+        code: "DR0000000201EAHF",
+        name: "\u8FDE\u8863\u88D9\u4E1D\u7ED2",
+        nameEn: "Robe en velours brod\xE9 python",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4E1D\u7ED2",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 6800,
+        priceCNY: 56440,
+        image: "images/bl_DR0000000201EAHF.jpg"
+      },
+      {
+        id: "bl-018",
+        code: "DR0000000173B96F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u63D0\u82B1\u4E1D\u7ED2",
+        nameEn: "Robe drap\xE9e en jacquard velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_DR0000000173B96F.jpg"
+      },
+      {
+        id: "bl-019",
+        code: "DR00000001570PAF",
+        name: "\u8FDE\u8863\u88D9\u957F\u4E1D\u7ED2\u857E\u4E1D",
+        nameEn: "Robe longue en velours et dentelle",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 3500,
+        priceCNY: 29050,
+        image: "images/bl_DR00000001570PAF.jpg"
+      },
+      {
+        id: "bl-020",
+        code: "DR00000001861KAF",
+        name: "\u8FDE\u8863\u88D9\u4EAE\u7247",
+        nameEn: "Robe \xE0 sequins",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 2990,
+        priceCNY: 24817,
+        image: "images/bl_DR00000001861KAF.jpg"
+      },
+      {
+        id: "bl-021",
+        code: "DR0000000130A69F",
+        name: "\u8FDE\u8863\u88D9\u7CFB\u7ED3\u4E1D\u7ED2\u857E\u4E1D",
+        nameEn: "Robe nou\xE9e en velours avec brassi\xE8re en dentelle",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 2900,
+        priceCNY: 24070,
+        image: "images/bl_DR0000000130A69F.jpg"
+      },
+      {
+        id: "bl-022",
+        code: "DR0000000133A65F",
+        name: "\u8FDE\u8863\u88D9\u5782\u5760\u63D0\u82B1",
+        nameEn: "Robe drap\xE9e en jacquard cloqu\xE9",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "wrap",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 90, "waist": 72, "hip": 98, "shoulder": 40, "sleeve": 58, "length": 108 },
+        ease: { "bust": 0, "waist": 2, "hip": 2, "shoulder": 0 },
+        priceEUR: 2590,
+        priceCNY: 21497,
+        image: "images/bl_DR0000000133A65F.jpg"
+      },
+      {
+        id: "bl-023",
+        code: "DR00000000920PAF",
+        name: "\u8FDE\u8863\u88D9\u957F\u523A\u7EE3\u9488\u7EC7",
+        nameEn: "Robe longue brod\xE9e en jersey Milano",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 86, "waist": 68, "hip": 92, "shoulder": 40, "sleeve": 60, "length": 102 },
+        ease: { "bust": -4, "waist": -2, "hip": -4, "shoulder": 0 },
+        priceEUR: 2690,
+        priceCNY: 22327,
+        image: "images/bl_DR00000000920PAF.jpg"
+      },
+      {
+        id: "bl-024",
+        code: "DR0000000150EDBF",
+        name: "\u8FDE\u8863\u88D9\u523A\u7EE3\u4E1D\u7ED2",
+        nameEn: "Robe brod\xE9e tigre en velours",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4E1D\u7ED2",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 5500,
+        priceCNY: 45650,
+        image: "images/bl_DR0000000150EDBF.jpg"
+      },
+      {
+        id: "bl-025",
+        code: "DR0000000262D12F",
+        name: "\u8FDE\u8863\u88D9\u7C97\u82B1\u5462",
+        nameEn: "Robe fines bretelles en tweed tricot\xE9",
+        brand: "BL",
+        category: "dresses",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 20, "length": 104 },
+        ease: { "bust": -2, "waist": -2, "hip": -2, "shoulder": 0 },
+        priceEUR: 1490,
+        priceCNY: 12367,
+        image: "images/bl_DR0000000262D12F.jpg"
+      },
+      {
+        id: "bl-026",
+        code: "TO0000000234AAAF",
+        name: "\u886C\u886B\u7CFB\u7ED3\u7F0E\u9762\u5370\u82B1",
+        nameEn: "Blouse nou\xE9e en satin imprim\xE9",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_TO0000000234AAAF.jpg"
+      },
+      {
+        id: "bl-027",
+        code: "TO0000000231AAAF",
+        name: "\u8377\u53F6\u8FB9\u7F0E\u9762\u771F\u4E1D\u5370\u82B1",
+        nameEn: "D\xE9bardeur \xE0 volants en satin de soie imprim\xE9",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 890,
+        priceCNY: 7387,
+        image: "images/bl_TO0000000231AAAF.jpg"
+      },
+      {
+        id: "bl-028",
+        code: "TO00000000340PAF",
+        name: "\u886C\u886B\u7CFB\u7ED3\u7F0E\u9762\u771F\u4E1D",
+        nameEn: "Blouse nou\xE9e en satin de soie",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1850,
+        priceCNY: 15355,
+        image: "images/bl_TO00000000340PAF.jpg"
+      },
+      {
+        id: "bl-029",
+        code: "TO0000000055A52F",
+        name: "\u886C\u886B\u7CFB\u7ED3\u771F\u4E1D",
+        nameEn: "Blouse \xE9paul\xE9e nou\xE9e en soie charmeuse",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_TO0000000055A52F.jpg"
+      },
+      {
+        id: "bl-030",
+        code: "TO00000001960PAF",
+        name: "\u4E0A\u88C5\u9488\u7EC7",
+        nameEn: "Top pliss\xE9 en jersey",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 990,
+        priceCNY: 8217,
+        image: "images/bl_TO00000001960PAF.jpg"
+      },
+      {
+        id: "bl-031",
+        code: "TO0000000044A49F",
+        name: "\u4E0A\u88C5\u9488\u7EC7\u5782\u5760",
+        nameEn: "Top pliss\xE9 en jersey fluide",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 990,
+        priceCNY: 8217,
+        image: "images/bl_TO0000000044A49F.jpg"
+      },
+      {
+        id: "bl-032",
+        code: "TO0000000002A91F",
+        name: "\u9488\u7EC7\u857E\u4E1D",
+        nameEn: "D\xE9bardeur en maille et dentelle",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1100,
+        priceCNY: 9130,
+        image: "images/bl_TO0000000002A91F.jpg"
+      },
+      {
+        id: "bl-033",
+        code: "TO00000000020PAF",
+        name: "\u9488\u7EC7\u857E\u4E1D",
+        nameEn: "D\xE9bardeur en maille et dentelle",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1100,
+        priceCNY: 9130,
+        image: "images/bl_TO00000000020PAF.jpg"
+      },
+      {
+        id: "bl-034",
+        code: "TO00000000240PAF",
+        name: "\u4E0A\u88C5\u9488\u7EC7\u5782\u5760",
+        nameEn: "Top drap\xE9 en jersey fluide",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_TO00000000240PAF.jpg"
+      },
+      {
+        id: "bl-035",
+        code: "TO0000000133C13F",
+        name: "\u4E0A\u88C5\u9488\u7EC7",
+        nameEn: "Top dos-nu en jersey lurex",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 990,
+        priceCNY: 8217,
+        image: "images/bl_TO0000000133C13F.jpg"
+      },
+      {
+        id: "bl-036",
+        code: "TO00000000700PAF",
+        name: "\u4E0A\u88C5\u771F\u4E1D",
+        nameEn: "Top dos-nu en soie charmeuse",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1790,
+        priceCNY: 14857,
+        image: "images/bl_TO00000000700PAF.jpg"
+      },
+      {
+        id: "bl-037",
+        code: "TO0000000070A50F",
+        name: "\u4E0A\u88C5\u771F\u4E1D",
+        nameEn: "Top dos-nu en soie charmeuse",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1790,
+        priceCNY: 14857,
+        image: "images/bl_TO0000000070A50F.jpg"
+      },
+      {
+        id: "bl-038",
+        code: "PO0000000014D12F",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Polo en tweed tricot\xE9",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1250,
+        priceCNY: 10375,
+        image: "images/bl_PO0000000014D12F.jpg"
+      },
+      {
+        id: "bl-039",
+        code: "TO0000000084EADF",
+        name: "\u4E0A\u88C5\u4EAE\u7247",
+        nameEn: "Top \xE0 sequins avec n\u0153ud",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_TO0000000084EADF.jpg"
+      },
+      {
+        id: "bl-040",
+        code: "SH00000000270FAF",
+        name: "\u7F0E\u9762\u771F\u4E1D",
+        nameEn: "Chemise en satin de soie",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_SH00000000270FAF.jpg"
+      },
+      {
+        id: "bl-041",
+        code: "TO0000000065A50F",
+        name: "\u886C\u886B\u5782\u5760\u771F\u4E1D",
+        nameEn: "Blouse drap\xE9e en soie charmeuse",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D\u7F0E",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_TO0000000065A50F.jpg"
+      },
+      {
+        id: "bl-042",
+        code: "TO0000000012B30F",
+        name: "\u886C\u886B\u7CFB\u7ED3\u9488\u7EC7\u5782\u5760",
+        nameEn: "Blouse nou\xE9e en jersey fluide",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1100,
+        priceCNY: 9130,
+        image: "images/bl_TO0000000012B30F.jpg"
+      },
+      {
+        id: "bl-043",
+        code: "4883072width1400",
+        name: "\u4E0A\u88C5\u65E0\u8896\u9488\u7EC7",
+        nameEn: "Top sans manches en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 590,
+        priceCNY: 4897,
+        image: "images/bl_4883072width1400.jpg"
+      },
+      {
+        id: "bl-044",
+        code: "4909978width1400",
+        name: "\u771F\u4E1D",
+        nameEn: "Chemise en soie \xE0 col nou\xE9",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_4909978width1400.jpg"
+      },
+      {
+        id: "bl-045",
+        code: "4909954width1400",
+        name: "\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Body en maille c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1190,
+        priceCNY: 9877,
+        image: "images/bl_4909954width1400.jpg"
+      },
+      {
+        id: "bl-046",
+        code: "5579257width1400",
+        name: "Body bustier en cr\xEApe avec d\xE9tail ceinture",
+        nameEn: "Body bustier en cr\xEApe avec d\xE9tail ceinture",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1490,
+        priceCNY: 12367,
+        image: "images/bl_5579257width1400.jpg"
+      },
+      {
+        id: "bl-047",
+        code: "2414366width1400",
+        name: "\u4E0A\u88C5\u9488\u7EC7",
+        nameEn: "Top dos-nu en maille quilted",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 850,
+        priceCNY: 7055,
+        image: "images/bl_2414366width1400.jpg"
+      },
+      {
+        id: "bl-048",
+        code: "2414325width1400",
+        name: "\u4E0A\u88C5\u9488\u7EC7",
+        nameEn: "Top dos-nu en maille quilted",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 850,
+        priceCNY: 7055,
+        image: "images/bl_2414325width1400.jpg"
+      },
+      {
+        id: "bl-049",
+        code: "4904565width1400",
+        name: "\u4E0A\u88C5\u65E0\u8896",
+        nameEn: "Top sans manches en mousseline",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1690,
+        priceCNY: 14027,
+        image: "images/bl_4904565width1400.jpg"
+      },
+      {
+        id: "bl-050",
+        code: "4909929width1400",
+        name: "\u4E0A\u88C5\u65E0\u8896",
+        nameEn: "Top sans manches asym\xE9trique en viscose",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1590,
+        priceCNY: 13197,
+        image: "images/bl_4909929width1400.jpg"
+      },
+      {
+        id: "bl-051",
+        code: "5578091width1400",
+        name: "\u5782\u5760\u65E0\u8896",
+        nameEn: "Chemise drap\xE9e sans manches en popeline de coton",
+        brand: "BL",
+        category: "tops",
+        silhouette: "blouse",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 96, "waist": 80, "shoulder": 40, "sleeve": 58, "length": 66 },
+        ease: { "bust": 6, "waist": 10, "shoulder": 0 },
+        priceEUR: 790,
+        priceCNY: 6557,
+        image: "images/bl_5578091width1400.jpg"
+      },
+      {
+        id: "bl-052",
+        code: "4908988width1400",
+        name: "\u9488\u7EC7",
+        nameEn: "Polo 3 boutons en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 890,
+        priceCNY: 7387,
+        image: "images/bl_4908988width1400.jpg"
+      },
+      {
+        id: "bl-053",
+        code: "CA0000000019B62F",
+        name: "\u5F00\u886B\u9488\u7EC7",
+        nameEn: "Cardigan Balmain B en fine maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 890,
+        priceCNY: 7387,
+        image: "images/bl_CA0000000019B62F.jpg"
+      },
+      {
+        id: "bl-054",
+        code: "TO00000002390PAF",
+        name: "\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Pull en maille c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1190,
+        priceCNY: 9877,
+        image: "images/bl_TO00000002390PAF.jpg"
+      },
+      {
+        id: "bl-055",
+        code: "SH00000000140PAF",
+        name: "\u5F00\u886B\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Cardigan boutonn\xE9 en maille c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_SH00000000140PAF.jpg"
+      },
+      {
+        id: "bl-056",
+        code: "SK00000000820PAF",
+        name: "\u534A\u8EAB\u88D9\u957F\u9488\u7EC7\u857E\u4E1D",
+        nameEn: "Jupe mi-longue en maille et dentelle",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_SK00000000820PAF.jpg"
+      },
+      {
+        id: "bl-057",
+        code: "SK0000000082A91F",
+        name: "\u534A\u8EAB\u88D9\u957F\u9488\u7EC7\u857E\u4E1D",
+        nameEn: "Jupe mi-longue en maille et dentelle",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u857E\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_SK0000000082A91F.jpg"
+      },
+      {
+        id: "bl-058",
+        code: "CA0000000014A86F",
+        name: "\u5F00\u886B\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Cardigan boutonn\xE9 en maille c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_CA0000000014A86F.jpg"
+      },
+      {
+        id: "bl-059",
+        code: "PU00000000210PAF",
+        name: "\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Pull en maille fluffy c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_PU00000000210PAF.jpg"
+      },
+      {
+        id: "bl-060",
+        code: "84909025width400",
+        name: "\u9488\u7EC7",
+        nameEn: "Pull en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 990,
+        priceCNY: 8217,
+        image: "images/bl_84909025width400.jpg"
+      },
+      {
+        id: "bl-061",
+        code: "PU00000000100PAF",
+        name: "Pull \xE0 galon brod\xE9 en cachemire",
+        nameEn: "Pull \xE0 galon brod\xE9 en cachemire",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_PU00000000100PAF.jpg"
+      },
+      {
+        id: "bl-062",
+        code: "84909954width400",
+        name: "\u9488\u7EC7\u7F57\u7EB9",
+        nameEn: "Body en maille c\xF4tel\xE9e",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1190,
+        priceCNY: 9877,
+        image: "images/bl_84909954width400.jpg"
+      },
+      {
+        id: "bl-063",
+        code: "84883072width400",
+        name: "\u4E0A\u88C5\u65E0\u8896\u9488\u7EC7",
+        nameEn: "Top sans manches en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 590,
+        priceCNY: 4897,
+        image: "images/bl_84883072width400.jpg"
+      },
+      {
+        id: "bl-064",
+        code: "84801704width400",
+        name: "\u8FDE\u8863\u88D9\u957F\u9488\u7EC7",
+        nameEn: "Robe longue en maille Fl\xE9chage",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 2900,
+        priceCNY: 24070,
+        image: "images/bl_84801704width400.jpg"
+      },
+      {
+        id: "bl-065",
+        code: "84801710width400",
+        name: "\u8FDE\u8863\u88D9\u957F\u5782\u5760",
+        nameEn: "Robe longue drap\xE9e en viscose",
+        brand: "BL",
+        category: "tops",
+        silhouette: "fitted",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 92, "waist": 76, "shoulder": 40, "sleeve": 58, "length": 62 },
+        ease: { "bust": 2, "waist": 6, "shoulder": 0 },
+        priceEUR: 2600,
+        priceCNY: 21580,
+        image: "images/bl_84801710width400.jpg"
+      },
+      {
+        id: "bl-066",
+        code: "4909068width1400",
+        name: "\u5F00\u886B\u9488\u7EC7",
+        nameEn: "Cardigan en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_4909068width1400.jpg"
+      },
+      {
+        id: "bl-067",
+        code: "4909604width1400",
+        name: "\u5F00\u886B",
+        nameEn: "Cardigan en cachemire",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_4909604width1400.jpg"
+      },
+      {
+        id: "bl-068",
+        code: "4909654width1400",
+        name: "\u5F00\u886B\u9488\u7EC7",
+        nameEn: "Cardigan court en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_4909654width1400.jpg"
+      },
+      {
+        id: "bl-069",
+        code: "4884155width1400",
+        name: "\u5F00\u886B\u9488\u7EC7",
+        nameEn: "Cardigan court en maille",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1890,
+        priceCNY: 15687,
+        image: "images/bl_4884155width1400.jpg"
+      },
+      {
+        id: "bl-070",
+        code: "4883105width1400",
+        name: "\u5F00\u886B",
+        nameEn: "Cardigan en cachemire",
+        brand: "BL",
+        category: "tops",
+        silhouette: "knit",
+        fit: "\u4FEE\u8EAB",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 88, "waist": 72, "shoulder": 40, "sleeve": 60, "length": 60 },
+        ease: { "bust": -2, "waist": 2, "shoulder": 0 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_4883105width1400.jpg"
+      },
+      {
+        id: "bl-071",
+        code: "PA00000001200PAF",
+        name: "\u957F\u88E4\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Pantalon en cuir d'agneau lisse",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_PA00000001200PAF.jpg"
+      },
+      {
+        id: "bl-072",
+        code: "PA00000000520PAF",
+        name: "\u957F\u88E4\u7F0E\u9762\u7F8A\u6BDB",
+        nameEn: "Pantalon taille basse en satin de laine",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1190,
+        priceCNY: 9877,
+        image: "images/bl_PA00000000520PAF.jpg"
+      },
+      {
+        id: "bl-073",
+        code: "PA00000000650PAF",
+        name: "\u957F\u88E4\u534E\u8FBE\u5462\u7F8A\u6BDB",
+        nameEn: "Pantalon \xE0 plis en gabardine de laine",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_PA00000000650PAF.jpg"
+      },
+      {
+        id: "bl-074",
+        code: "PA00000000640PAF",
+        name: "\u957F\u88E4\u9488\u7EC7",
+        nameEn: "Pantalon taille haute en jersey Milano",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 790,
+        priceCNY: 6557,
+        image: "images/bl_PA00000000640PAF.jpg"
+      },
+      {
+        id: "bl-075",
+        code: "PA00000000040PAF",
+        name: "\u957F\u88E4\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Pantalon biker en cuir d'agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2900,
+        priceCNY: 24070,
+        image: "images/bl_PA00000000040PAF.jpg"
+      },
+      {
+        id: "bl-076",
+        code: "PA0000000119B83F",
+        name: "\u957F\u88E4\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Pantalon en cuir d'agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_PA0000000119B83F.jpg"
+      },
+      {
+        id: "bl-077",
+        code: "PA00000000050PAF",
+        name: "\u957F\u88E4\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Pantalon fuseau en cuir d'agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_PA00000000050PAF.jpg"
+      },
+      {
+        id: "bl-078",
+        code: "PA00000001820PAF",
+        name: "\u77ED\u88E4\u7C97\u82B1\u5462",
+        nameEn: "Short en tweed lurex tricot\xE9",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 990,
+        priceCNY: 8217,
+        image: "images/bl_PA00000001820PAF.jpg"
+      },
+      {
+        id: "bl-079",
+        code: "95104813width400",
+        name: "\u957F\u88E4",
+        nameEn: "Pantalon en grain de poudre",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_95104813width400.jpg"
+      },
+      {
+        id: "bl-080",
+        code: "95105695width400",
+        name: "\u957F\u88E4\u76AE\u9769",
+        nameEn: "Pantalon taille haute en cuir",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2500,
+        priceCNY: 20750,
+        image: "images/bl_95105695width400.jpg"
+      },
+      {
+        id: "bl-081",
+        code: "95104759width400",
+        name: "\u957F\u88E4\u675F\u8170",
+        nameEn: "Pantalon fa\xE7on fuseau ceintur\xE9",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_95104759width400.jpg"
+      },
+      {
+        id: "bl-082",
+        code: "85517819width400",
+        name: "\u77ED\u88E4\u675F\u8170",
+        nameEn: "Short en grain de poudre ceintur\xE9",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_85517819width400.jpg"
+      },
+      {
+        id: "bl-083",
+        code: "5517778width1400",
+        name: "\u77ED\u88E4\u534E\u8FBE\u5462\u675F\u8170",
+        nameEn: "Short en gabardine de coton ceintur\xE9",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u534E\u8FBE\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_5517778width1400.jpg"
+      },
+      {
+        id: "bl-084",
+        code: "4884239width1400",
+        name: "\u77ED\u88E4\u5370\u82B1",
+        nameEn: "Short pyjama imprim\xE9 Foulard",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "mini",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 96, "length": 48, "opening": 50 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 890,
+        priceCNY: 7387,
+        image: "images/bl_4884239width1400.jpg"
+      },
+      {
+        id: "bl-085",
+        code: "4885118width1400",
+        name: "\u957F\u88E4",
+        nameEn: "Pantalon de plage Monogramme en mousseline",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 530,
+        priceCNY: 4399,
+        image: "images/bl_4885118width1400.jpg"
+      },
+      {
+        id: "bl-086",
+        code: "4908242width1400",
+        name: "\u675F\u8170",
+        nameEn: "Combinaison ceintur\xE9e en denim",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "straight",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u725B\u4ED4",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 98, "length": 100, "opening": 44 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_4908242width1400.jpg"
+      },
+      {
+        id: "bl-087",
+        code: "SK0000000139AAAF",
+        name: "\u534A\u8EAB\u88D9\u8377\u53F6\u8FB9\u7F0E\u9762\u771F\u4E1D\u5370\u82B1",
+        nameEn: "Jupe \xE0 volants en satin de soie imprim\xE9",
+        brand: "BL",
         category: "bottoms",
         silhouette: "aline",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Couture",
-        fabric: "\u76AE\u9769 / \u6D41\u82CF",
-        colors: [C2.black, C2.gold, C2.red],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { waist: 72, hip: 96, length: 40, opening: 110 },
-        ease: { waist: 2, hip: 0 }
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1490,
+        priceCNY: 12367,
+        image: "images/bl_SK0000000139AAAF.jpg"
       },
-      /* ================= 外套 Outerwear ================= */
       {
-        id: "bl-ot-001",
-        code: "BL-FW25-OT-001",
-        name: "\u53CC\u6392\u6263\u897F\u88C5\u5916\u5957",
-        nameEn: "Double-Breasted Blazer",
+        id: "bl-088",
+        code: "SK0000000144D81F",
+        name: "\u534A\u8EAB\u88D9\u8377\u53F6\u8FB9\u7F0E\u9762\u771F\u4E1D",
+        nameEn: "Jupe \xE0 volants en satin de soie",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u771F\u4E1D",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1590,
+        priceCNY: 13197,
+        image: "images/bl_SK0000000144D81F.jpg"
+      },
+      {
+        id: "bl-089",
+        code: "SK00000000050PAF",
+        name: "\u534A\u8EAB\u88D9\u957F\u5782\u5760\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Jupe mi-longue drap\xE9e en cuir d'agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_SK00000000050PAF.jpg"
+      },
+      {
+        id: "bl-090",
+        code: "SK00000000890PAF",
+        name: "\u534A\u8EAB\u88D9\u957F\u7C97\u82B1\u5462\u4EAE\u7247",
+        nameEn: "Jupe mi-longue en tweed \xE0 sequins",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1900,
+        priceCNY: 15770,
+        image: "images/bl_SK00000000890PAF.jpg"
+      },
+      {
+        id: "bl-091",
+        code: "SK0000000099C32F",
+        name: "\u534A\u8EAB\u88D9\u957F\u4EAE\u7247",
+        nameEn: "Jupe longue \xE0 sequins",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_SK0000000099C32F.jpg"
+      },
+      {
+        id: "bl-092",
+        code: "SK0000000049EADF",
+        name: "\u534A\u8EAB\u88D9\u7C97\u82B1\u5462",
+        nameEn: "Jupe courte \xE0 galon brod\xE9 en tweed",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2300,
+        priceCNY: 19090,
+        image: "images/bl_SK0000000049EADF.jpg"
+      },
+      {
+        id: "bl-093",
+        code: "SK0000000038A51F",
+        name: "\u534A\u8EAB\u88D9\u957F\u9488\u7EC7\u5782\u5760",
+        nameEn: "Jupe mi-longue fendue en jersey fluide",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u9488\u7EC7",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1290,
+        priceCNY: 10707,
+        image: "images/bl_SK0000000038A51F.jpg"
+      },
+      {
+        id: "bl-094",
+        code: "84896838width400",
+        name: "\u534A\u8EAB\u88D9\u957F\u8377\u53F6\u8FB9",
+        nameEn: "Jupe longue \xE0 volants",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 3600,
+        priceCNY: 29880,
+        image: "images/bl_84896838width400.jpg"
+      },
+      {
+        id: "bl-095",
+        code: "84890878width400",
+        name: "\u534A\u8EAB\u88D9\u957F",
+        nameEn: "Jupe longue \xE0 fronces",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_84890878width400.jpg"
+      },
+      {
+        id: "bl-096",
+        code: "5581324width1400",
+        name: "\u534A\u8EAB\u88D9\u675F\u8170\u76AE\u9769",
+        nameEn: "Jupe ceintur\xE9e en cuir d\u2019agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2590,
+        priceCNY: 21497,
+        image: "images/bl_5581324width1400.jpg"
+      },
+      {
+        id: "bl-097",
+        code: "4909363width1400",
+        name: "\u534A\u8EAB\u88D9\u76AE\u9769",
+        nameEn: "Jupe zipp\xE9e en cuir d\u2019agneau",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2490,
+        priceCNY: 20667,
+        image: "images/bl_4909363width1400.jpg"
+      },
+      {
+        id: "bl-098",
+        code: "5580771width1400",
+        name: "\u534A\u8EAB\u88D9\u675F\u8170",
+        nameEn: "Jupe ceintur\xE9e en grain de poudre",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1490,
+        priceCNY: 12367,
+        image: "images/bl_5580771width1400.jpg"
+      },
+      {
+        id: "bl-099",
+        code: "5517750width1400",
+        name: "\u534A\u8EAB\u88D9",
+        nameEn: "Jupe courte en denim avec ceinture",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u725B\u4ED4",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 980,
+        priceCNY: 8134,
+        image: "images/bl_5517750width1400.jpg"
+      },
+      {
+        id: "bl-100",
+        code: "4910074width1400",
+        name: "\u534A\u8EAB\u88D9\u675F\u8170\u7C97\u82B1\u5462",
+        nameEn: "Jupe ceintur\xE9e en tweed frang\xE9",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1590,
+        priceCNY: 13197,
+        image: "images/bl_4910074width1400.jpg"
+      },
+      {
+        id: "bl-101",
+        code: "4884915width1400",
+        name: "\u534A\u8EAB\u88D9\u7C97\u82B1\u5462",
+        nameEn: "Jupe zipp\xE9e en tweed bicolore",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1390,
+        priceCNY: 11537,
+        image: "images/bl_4884915width1400.jpg"
+      },
+      {
+        id: "bl-102",
+        code: "4909685width1400",
+        name: "\u534A\u8EAB\u88D9\u7C97\u82B1\u5462",
+        nameEn: "Jupe patineuse en tweed",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1590,
+        priceCNY: 13197,
+        image: "images/bl_4909685width1400.jpg"
+      },
+      {
+        id: "bl-103",
+        code: "4884241width1400",
+        name: "\u534A\u8EAB\u88D9\u7C97\u82B1\u5462",
+        nameEn: "Jupe patineuse en tweed",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1690,
+        priceCNY: 14027,
+        image: "images/bl_4884241width1400.jpg"
+      },
+      {
+        id: "bl-104",
+        code: "5516667width1400",
+        name: "\u534A\u8EAB\u88D9\u534E\u8FBE\u5462",
+        nameEn: "Jupe taille haute en gabardine",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u534E\u8FBE\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 1590,
+        priceCNY: 13197,
+        image: "images/bl_5516667width1400.jpg"
+      },
+      {
+        id: "bl-105",
+        code: "5517718width1400",
+        name: "\u534A\u8EAB\u88D9\u76AE\u9769",
+        nameEn: "Jupe courte en cuir avec ceinture",
+        brand: "BL",
+        category: "bottoms",
+        silhouette: "aline",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "waist": 74, "hip": 104, "length": 62, "opening": 76 },
+        ease: { "waist": 4, "hip": 2 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_5517718width1400.jpg"
+      },
+      {
+        id: "bl-106",
+        code: "OU00000000840PAF",
+        name: "\u98DE\u884C\u5458",
+        nameEn: "Bomber pilote en nylon",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_OU00000000840PAF.jpg"
+      },
+      {
+        id: "bl-107",
+        code: "OU0000000084D82F",
+        name: "\u98DE\u884C\u5458",
+        nameEn: "Bomber pilote en nylon",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_OU0000000084D82F.jpg"
+      },
+      {
+        id: "bl-108",
+        code: "JA00000001060PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Veste pilote en cuir d'agneau",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_JA00000001060PAF.jpg"
+      },
+      {
+        id: "bl-109",
+        code: "JA00000000630PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u76AE\u9769",
+        nameEn: "Veste pilote en cuir effet poulain",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 4900,
+        priceCNY: 40670,
+        image: "images/bl_JA00000000630PAF.jpg"
+      },
+      {
+        id: "bl-110",
+        code: "JA00000000010PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Veste pilote en cuir d'agneau",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_JA00000000010PAF.jpg"
+      },
+      {
+        id: "bl-111",
+        code: "JA00000000058DQF",
+        name: "\u5916\u5957\u98DE\u884C\u5458",
+        nameEn: "Veste pilote en peau lain\xE9e",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 4500,
+        priceCNY: 37350,
+        image: "images/bl_JA00000000058DQF.jpg"
+      },
+      {
+        id: "bl-112",
+        code: "OU0000000008A90F",
+        name: "\u98DE\u884C\u5458",
+        nameEn: "Bomber pilote en nylon",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 2200,
+        priceCNY: 18260,
+        image: "images/bl_OU0000000008A90F.jpg"
+      },
+      {
+        id: "bl-113",
+        code: "OU0000000024A86F",
+        name: "Manteau court en fausse fourrure",
+        nameEn: "Manteau court en fausse fourrure",
+        brand: "BL",
         category: "outer",
         silhouette: "blazer",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Tailoring",
-        fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-        colors: [C2.black, C2.ivory, C2.navy, C2.camel],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 98, waist: 90, shoulder: 46, sleeve: 61, length: 72 },
-        ease: { bust: 8, waist: 8 }
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2990,
+        priceCNY: 24817,
+        image: "images/bl_OU0000000024A86F.jpg"
       },
       {
-        id: "bl-ot-002",
-        code: "BL-FW25-OT-002",
-        name: "\u519B\u88C5\u98CE\u957F\u98CE\u8863",
-        nameEn: "Military Trench Coat",
-        category: "outer",
-        silhouette: "trench",
-        fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Military",
-        fabric: "\u9632\u96E8\u68C9\u534E\u8FBE\u5462",
-        colors: [C2.olive, C2.black, C2.camel, C2.navy],
-        sizes: ALL2,
-        measurements: { bust: 102, waist: 96, shoulder: 46, sleeve: 62, length: 116 },
-        ease: { bust: 12, waist: 10 }
-      },
-      {
-        id: "bl-ot-003",
-        code: "BL-FW25-OT-003",
-        name: "\u76AE\u9769\u673A\u8F66\u5939\u514B",
-        nameEn: "Leather Biker Jacket",
-        category: "outer",
-        silhouette: "biker",
-        fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Rock Chic",
-        fabric: "\u5C0F\u725B\u76AE",
-        colors: [C2.black, C2.chocolate, C2.red],
-        sizes: ALL2,
-        measurements: { bust: 92, waist: 84, shoulder: 43, sleeve: 60, length: 56 },
-        ease: { bust: 2, waist: 2 }
-      },
-      {
-        id: "bl-ot-004",
-        code: "BL-FW25-OT-004",
-        name: "\u5ED3\u5F62\u7F8A\u6BDB\u5927\u8863",
-        nameEn: "Oversize Wool Coat",
+        id: "bl-114",
+        code: "OU0000000047SFEF",
+        name: "\u5916\u5957\u98DE\u884C\u5458",
+        nameEn: "Veste pilote en denim col peau lain\xE9e",
+        brand: "BL",
         category: "outer",
         silhouette: "oversize",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Tailoring",
-        fabric: "\u7F8A\u6BDB\u53CC\u9762\u5462",
-        colors: [C2.camel, C2.black, C2.chocolate, C2.olive],
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u725B\u4ED4",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 116, waist: 112, shoulder: 50, sleeve: 62, length: 120 },
-        ease: { bust: 26, waist: 24 }
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_OU0000000047SFEF.jpg"
       },
       {
-        id: "bl-ot-005",
-        code: "BL-SS25-OT-005",
-        name: "\u77ED\u6B3E\u9488\u7EC7\u5F00\u886B",
-        nameEn: "Cropped Knit Cardigan",
-        category: "outer",
-        silhouette: "knit",
-        fit: "\u5408\u4F53",
-        season: "SS 2025",
-        collection: "Knitwear",
-        fabric: "\u68C9\u7EBF\u9488\u7EC7",
-        colors: [C2.ivory, C2.black, C2.powder, C2.sky],
-        sizes: ALL2,
-        measurements: { bust: 94, waist: 88, shoulder: 42, sleeve: 58, length: 50 },
-        ease: { bust: 4, waist: 2 }
-      },
-      {
-        id: "bl-ot-006",
-        code: "BL-FW25-OT-006",
-        name: "\u6597\u7BF7\u62AB\u80A9",
-        nameEn: "Cape Coat",
-        category: "outer",
-        silhouette: "cape",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Couture",
-        fabric: "\u7F8A\u6BDB\u7ED2",
-        colors: [C2.black, C2.red, C2.camel, C2.gold],
-        sizes: ALL2,
-        measurements: { bust: 112, waist: 108, shoulder: 46, sleeve: 0, length: 94 },
-        ease: { bust: 20, waist: 20 }
-      },
-      {
-        id: "bl-ot-007",
-        code: "BL-FW25-OT-007",
-        name: "\u91D1\u6263\u4E1D\u7ED2\u5939\u514B",
-        nameEn: "Gold-Button Velvet Jacket",
+        id: "bl-115",
+        code: "OU0000000033A94F",
+        name: "\u675F\u8170\u7F8A\u6BDB",
+        nameEn: "Manteau ceintur\xE9 en drap de laine",
+        brand: "BL",
         category: "outer",
         silhouette: "blazer",
-        fit: "\u4FEE\u8EAB",
-        season: "FW 2025",
-        collection: "Signature",
-        fabric: "\u5370\u82B1\u4E1D\u7ED2",
-        colors: [C2.wine, C2.black, C2.emerald, C2.navy],
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 92, waist: 84, shoulder: 45, sleeve: 60, length: 66 },
-        ease: { bust: 2, waist: 2 }
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_OU0000000033A94F.jpg"
       },
       {
-        id: "bl-ot-008",
-        code: "BL-FW25-OT-008",
-        name: "\u683C\u7EB9\u98CE\u8863",
-        nameEn: "Checked Trench Coat",
+        id: "bl-116",
+        code: "JA0000000082A51F",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Veste pilote en cuir d'agneau vintage",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_JA0000000082A51F.jpg"
+      },
+      {
+        id: "bl-117",
+        code: "OU00000000440PCF",
+        name: "\u5916\u5957\u98DE\u884C\u5458",
+        nameEn: "Veste pilote en denim",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u725B\u4ED4",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_OU00000000440PCF.jpg"
+      },
+      {
+        id: "bl-118",
+        code: "JA00000000500PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u7F8A\u6BDB",
+        nameEn: "Veste pilote en laine",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 2690,
+        priceCNY: 22327,
+        image: "images/bl_JA00000000500PAF.jpg"
+      },
+      {
+        id: "bl-119",
+        code: "84906346width400",
+        name: "\u675F\u8170\u7F8A\u6BDB",
+        nameEn: "Caban ceintur\xE9 en laine",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2600,
+        priceCNY: 21580,
+        image: "images/bl_84906346width400.jpg"
+      },
+      {
+        id: "bl-120",
+        code: "4906346width1400",
+        name: "\u7F8A\u6BDB",
+        nameEn: "Caban oversize \xE0 capuche en laine",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 3200,
+        priceCNY: 26560,
+        image: "images/bl_4906346width1400.jpg"
+      },
+      {
+        id: "bl-121",
+        code: "5517930width1400",
+        name: "\u534E\u8FBE\u5462",
+        nameEn: "Trench long en gabardine de coton",
+        brand: "BL",
         category: "outer",
         silhouette: "trench",
         fit: "\u5408\u4F53",
-        season: "FW 2025",
-        collection: "Heritage",
-        fabric: "\u683C\u7EB9\u7F8A\u6BDB",
-        colors: [C2.camel, C2.black, C2.olive, C2.wine],
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u534E\u8FBE\u5462",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 100, waist: 94, shoulder: 45, sleeve: 61, length: 110 },
-        ease: { bust: 10, waist: 10 }
+        measurements: { "bust": 112, "waist": 108, "shoulder": 44, "sleeve": 62, "length": 110 },
+        ease: { "bust": 14, "waist": 30 },
+        priceEUR: 2980,
+        priceCNY: 24734,
+        image: "images/bl_5517930width1400.jpg"
       },
       {
-        id: "bl-ot-009",
-        code: "BL-FW25-OT-009",
-        name: "\u76AE\u8349\u611F\u957F\u5916\u5957",
-        nameEn: "Faux Fur Long Coat",
+        id: "bl-122",
+        code: "4908482width1400",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Manteau long en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3990,
+        priceCNY: 33117,
+        image: "images/bl_4908482width1400.jpg"
+      },
+      {
+        id: "bl-123",
+        code: "4905244width1400",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Doudoune en tweed bicolore",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2990,
+        priceCNY: 24817,
+        image: "images/bl_4905244width1400.jpg"
+      },
+      {
+        id: "bl-124",
+        code: "4905243width1400",
+        name: "\u5916\u5957",
+        nameEn: "Veste biker en shearling",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3990,
+        priceCNY: 33117,
+        image: "images/bl_4905243width1400.jpg"
+      },
+      {
+        id: "bl-125",
+        code: "JA00000001510PAF",
+        name: "\u5916\u5957",
+        nameEn: "Veste 6 boutons en grain de poudre",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2390,
+        priceCNY: 19837,
+        image: "images/bl_JA00000001510PAF.jpg"
+      },
+      {
+        id: "bl-126",
+        code: "JA00000001550PAF",
+        name: "\u5916\u5957\u7C97\u82B1\u5462",
+        nameEn: "Veste 6 boutons en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 1900,
+        priceCNY: 15770,
+        image: "images/bl_JA00000001550PAF.jpg"
+      },
+      {
+        id: "bl-127",
+        code: "CA00000000260KAF",
+        name: "\u5916\u5957\u7C97\u82B1\u5462",
+        nameEn: "Veste en tweed bouclette",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2690,
+        priceCNY: 22327,
+        image: "images/bl_CA00000000260KAF.jpg"
+      },
+      {
+        id: "bl-128",
+        code: "JA0000000136B83F",
+        name: "\u5916\u5957\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Veste 1 bouton en cuir d'agneau",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3400,
+        priceCNY: 28220,
+        image: "images/bl_JA0000000136B83F.jpg"
+      },
+      {
+        id: "bl-129",
+        code: "JA00000001380PAF",
+        name: "\u5916\u5957\u534E\u8FBE\u5462\u7F8A\u6BDB",
+        nameEn: "Veste en gabardine de laine",
+        brand: "BL",
+        category: "outer",
+        silhouette: "trench",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 112, "waist": 108, "shoulder": 44, "sleeve": 62, "length": 110 },
+        ease: { "bust": 14, "waist": 30 },
+        priceEUR: 2390,
+        priceCNY: 19837,
+        image: "images/bl_JA00000001380PAF.jpg"
+      },
+      {
+        id: "bl-130",
+        code: "JA00000001580PAF",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Spencer en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 1800,
+        priceCNY: 14940,
+        image: "images/bl_JA00000001580PAF.jpg"
+      },
+      {
+        id: "bl-131",
+        code: "JA00000000380PAF",
+        name: "\u5916\u5957\u7CFB\u7ED3\u7F0E\u9762",
+        nameEn: "Veste nou\xE9e en cr\xEApe satin",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F0E\u9762",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3500,
+        priceCNY: 29050,
+        image: "images/bl_JA00000000380PAF.jpg"
+      },
+      {
+        id: "bl-132",
+        code: "JA0000000141F92F",
+        name: "\u5916\u5957\u63D0\u82B1",
+        nameEn: "Veste 1 bouton en jacquard cloqu\xE9",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u63D0\u82B1",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2990,
+        priceCNY: 24817,
+        image: "images/bl_JA0000000141F92F.jpg"
+      },
+      {
+        id: "bl-133",
+        code: "JA00000000630PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u76AE\u9769",
+        nameEn: "Veste pilote en cuir effet poulain",
+        brand: "BL",
         category: "outer",
         silhouette: "oversize",
-        fit: "\u5BBD\u677E",
-        season: "FW 2025",
-        collection: "Couture",
-        fabric: "\u73AF\u4FDD\u76AE\u8349",
-        colors: [C2.leopard, C2.chocolate, C2.ivory, C2.black],
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
         sizes: ALL2,
-        measurements: { bust: 118, waist: 114, shoulder: 50, sleeve: 61, length: 108 },
-        ease: { bust: 28, waist: 26 }
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 4900,
+        priceCNY: 40670,
+        image: "images/bl_JA00000000630PAF.jpg"
+      },
+      {
+        id: "bl-134",
+        code: "JA00000000500PAF",
+        name: "\u5916\u5957\u98DE\u884C\u5458\u7F8A\u6BDB",
+        nameEn: "Veste pilote en laine",
+        brand: "BL",
+        category: "outer",
+        silhouette: "oversize",
+        fit: "\u5ED3\u5F62",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7F8A\u6BDB",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 116, "waist": 112, "shoulder": 48, "sleeve": 62, "length": 84 },
+        ease: { "bust": 14, "waist": 26 },
+        priceEUR: 2690,
+        priceCNY: 22327,
+        image: "images/bl_JA00000000500PAF.jpg"
+      },
+      {
+        id: "bl-135",
+        code: "JA00000001570PAF",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Spencer en tweed et cha\xEEnes",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3500,
+        priceCNY: 29050,
+        image: "images/bl_JA00000001570PAF.jpg"
+      },
+      {
+        id: "bl-136",
+        code: "JA00000001230PAF",
+        name: "\u7C97\u82B1\u5462",
+        nameEn: "Spencer en tweed lurex tricot\xE9",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_JA00000001230PAF.jpg"
+      },
+      {
+        id: "bl-137",
+        code: "JA00000000570PAF",
+        name: "\u5916\u5957\u76AE\u9769\u7F8A\u76AE",
+        nameEn: "Veste \xE9paul\xE9e en cuir d'agneau",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u76AE\u9769",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3400,
+        priceCNY: 28220,
+        image: "images/bl_JA00000000570PAF.jpg"
+      },
+      {
+        id: "bl-138",
+        code: "JA00000000810PAF",
+        name: "\u5916\u5957\u7F0E\u9762\u4EAE\u7247",
+        nameEn: "Veste 1\xA0bouton en satin avec sequins",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3900,
+        priceCNY: 32370,
+        image: "images/bl_JA00000000810PAF.jpg"
+      },
+      {
+        id: "bl-139",
+        code: "JA0000000059A54F",
+        name: "\u5916\u5957\u7C97\u82B1\u5462",
+        nameEn: "Veste 6 boutons en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 1990,
+        priceCNY: 16517,
+        image: "images/bl_JA0000000059A54F.jpg"
+      },
+      {
+        id: "bl-140",
+        code: "JA00000000610PAF",
+        name: "\u5916\u5957\u7C97\u82B1\u5462",
+        nameEn: "Veste officier en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 2390,
+        priceCNY: 19837,
+        image: "images/bl_JA00000000610PAF.jpg"
+      },
+      {
+        id: "bl-141",
+        code: "JA00000000640PAF",
+        name: "\u5916\u5957\u7C97\u82B1\u5462\u4EAE\u7247",
+        nameEn: "Veste en tweed \xE0 sequins",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4EAE\u7247",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3990,
+        priceCNY: 33117,
+        image: "images/bl_JA00000000640PAF.jpg"
+      },
+      {
+        id: "bl-142",
+        code: "4909821width1400",
+        name: "\u5916\u5957\u523A\u7EE3",
+        nameEn: "Veste brod\xE9e Balmain Insect",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u6DF7\u7EBA\u9762\u6599",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 4900,
+        priceCNY: 40670,
+        image: "images/bl_4909821width1400.jpg"
+      },
+      {
+        id: "bl-143",
+        code: "JA0000000055EDBF",
+        name: "\u5916\u5957\u523A\u7EE3\u4E1D\u7ED2",
+        nameEn: "Veste brod\xE9e tigre en velours",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u4E1D\u7ED2",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 5900,
+        priceCNY: 48970,
+        image: "images/bl_JA0000000055EDBF.jpg"
+      },
+      {
+        id: "bl-144",
+        code: "JA0000000018EADF",
+        name: "\u5916\u5957\u523A\u7EE3\u7C97\u82B1\u5462",
+        nameEn: "Veste brod\xE9e en tweed",
+        brand: "BL",
+        category: "outer",
+        silhouette: "blazer",
+        fit: "\u5408\u4F53",
+        season: "FW 2026",
+        collection: "Official",
+        fabric: "\u7C97\u82B1\u5462",
+        colors: [C.black],
+        sizes: ALL2,
+        measurements: { "bust": 100, "waist": 96, "shoulder": 44, "sleeve": 62, "length": 72 },
+        ease: { "bust": 10, "waist": 26 },
+        priceEUR: 3990,
+        priceCNY: 33117,
+        image: "images/bl_JA0000000018EADF.jpg"
       }
     ];
   }
@@ -22812,794 +26084,12 @@
     knit: "\u9488\u7EC7",
     cape: "\u6597\u7BF7"
   };
-  var C = PALETTE;
   var ALL = SIZES;
-  var DG_DB = [
-    /* ================= 连衣裙 Dresses ================= */
-    {
-      id: "dg-dr-001",
-      code: "DG-SS25-DR-001",
-      name: "\u897F\u897F\u91CC\u5370\u82B1\u540A\u5E26\u957F\u88D9",
-      nameEn: "Sicilian Print Slip Dress",
-      category: "dresses",
-      silhouette: "slip",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Sicilia",
-      fabric: "\u771F\u4E1D\u7F0E\u9762",
-      colors: [C.black, C.red, C.nude, C.emerald],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 72, hip: 96, shoulder: 0, sleeve: 0, length: 112 },
-      ease: { bust: 0, waist: 2, hip: 0 }
-    },
-    {
-      id: "dg-dr-002",
-      code: "DG-SS25-DR-002",
-      name: "\u857E\u4E1D\u62FC\u63A5\u4FEE\u8EAB\u8FDE\u8863\u88D9",
-      nameEn: "Lace Panel Fitted Dress",
-      category: "dresses",
-      silhouette: "fitted",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Lace",
-      fabric: "\u5F39\u529B\u857E\u4E1D / \u771F\u4E1D\u91CC\u886C",
-      colors: [C.black, C.ivory, C.wine, C.navy],
-      sizes: ALL,
-      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 39, sleeve: 20, length: 100 },
-      ease: { bust: -2, waist: -2, hip: -2 }
-    },
-    {
-      id: "dg-dr-003",
-      code: "DG-SS25-DR-003",
-      name: "\u7ECF\u5178 A \u5B57\u8FDE\u8863\u88D9",
-      nameEn: "Classic A-Line Dress",
-      category: "dresses",
-      silhouette: "aline",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Tailoring",
-      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
-      colors: [C.black, C.red, C.camel, C.olive],
-      sizes: ALL,
-      measurements: { bust: 92, waist: 74, hip: 100, shoulder: 40, sleeve: 0, length: 96 },
-      ease: { bust: 2, waist: 4, hip: 4 }
-    },
-    {
-      id: "dg-dr-004",
-      code: "DG-FW25-DR-004",
-      name: "\u5927\u6446\u793C\u670D\u957F\u88D9",
-      nameEn: "Ball Gown Evening Dress",
-      category: "dresses",
-      silhouette: "flared",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u5854\u592B\u7EF8 / \u63D0\u82B1",
-      colors: [C.black, C.gold, C.wine, C.emerald],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 70, hip: 98, shoulder: 39, sleeve: 0, length: 140 },
-      ease: { bust: 0, waist: 0, hip: 2 }
-    },
-    {
-      id: "dg-dr-005",
-      code: "DG-SS25-DR-005",
-      name: "\u88F9\u8EAB\u5F0F\u4E2D\u957F\u88D9",
-      nameEn: "Wrap Midi Dress",
-      category: "dresses",
-      silhouette: "wrap",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Sicilia",
-      fabric: "\u771F\u4E1D\u4E54\u5176\u7EB1",
-      colors: [C.red, C.navy, C.leopard, C.powder],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 71, hip: 97, shoulder: 39, sleeve: 58, length: 108 },
-      ease: { bust: 0, waist: 1, hip: 1 }
-    },
-    {
-      id: "dg-dr-006",
-      code: "DG-SS25-DR-006",
-      name: "\u8377\u53F6\u8170\u77ED\u6B3E\u8FDE\u8863\u88D9",
-      nameEn: "Peplum Mini Dress",
-      category: "dresses",
-      silhouette: "peplum",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Tailoring",
-      fabric: "\u68C9\u8D28\u659C\u7EB9",
-      colors: [C.ivory, C.black, C.sky, C.nude],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 72, hip: 98, shoulder: 40, sleeve: 22, length: 88 },
-      ease: { bust: 0, waist: 2, hip: 2 }
-    },
-    {
-      id: "dg-dr-007",
-      code: "DG-FW25-DR-007",
-      name: "\u9AD8\u9886\u9488\u7EC7\u8FDE\u8863\u88D9",
-      nameEn: "Turtleneck Knit Dress",
-      category: "dresses",
-      silhouette: "fitted",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Knitwear",
-      fabric: "\u7F8A\u7ED2\u6DF7\u7EBA",
-      colors: [C.black, C.camel, C.olive, C.chocolate],
-      sizes: ALL,
-      measurements: { bust: 86, waist: 68, hip: 92, shoulder: 38, sleeve: 60, length: 104 },
-      ease: { bust: -4, waist: -2, hip: -4 }
-    },
-    {
-      id: "dg-dr-008",
-      code: "DG-SS25-DR-008",
-      name: "\u6CE2\u70B9\u886C\u886B\u5F0F\u8FDE\u8863\u88D9",
-      nameEn: "Polka Dot Shirt Dress",
-      category: "dresses",
-      silhouette: "blouse",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Retro",
-      fabric: "\u771F\u4E1D\u53CC\u7EC9",
-      colors: [C.ivory, C.black, C.red, C.sky],
-      sizes: ALL,
-      measurements: { bust: 94, waist: 76, hip: 102, shoulder: 41, sleeve: 56, length: 100 },
-      ease: { bust: 4, waist: 6, hip: 6 }
-    },
-    {
-      id: "dg-dr-009",
-      code: "DG-FW25-DR-009",
-      name: "\u5929\u9E45\u7ED2\u665A\u793C\u670D",
-      nameEn: "Velvet Evening Gown",
-      category: "dresses",
-      silhouette: "fitted",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u5F39\u529B\u5929\u9E45\u7ED2",
-      colors: [C.emerald, C.wine, C.black, C.navy],
-      sizes: ALL,
-      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 39, sleeve: 0, length: 132 },
-      ease: { bust: -2, waist: -2, hip: -2 }
-    },
-    {
-      id: "dg-dr-010",
-      code: "DG-SS25-DR-010",
-      name: "\u76AE\u9769\u4FEE\u8EAB\u77ED\u88D9",
-      nameEn: "Leather Mini Dress",
-      category: "dresses",
-      silhouette: "straight",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Biker",
-      fabric: "\u8F6F\u7F8A\u76AE",
-      colors: [C.black, C.chocolate, C.red],
-      sizes: ALL,
-      measurements: { bust: 88, waist: 70, hip: 94, shoulder: 39, sleeve: 0, length: 82 },
-      ease: { bust: -2, waist: 0, hip: -2 }
-    },
-    {
-      id: "dg-dr-011",
-      code: "DG-SS25-DR-011",
-      name: "\u788E\u82B1\u5EA6\u5047\u957F\u88D9",
-      nameEn: "Floral Beach Maxi Dress",
-      category: "dresses",
-      silhouette: "flared",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Sicilia",
-      fabric: "\u68C9\u9EBB\u5370\u82B1",
-      colors: [C.ivory, C.sky, C.powder, C.olive],
-      sizes: ALL,
-      measurements: { bust: 94, waist: 76, hip: 104, shoulder: 40, sleeve: 0, length: 130 },
-      ease: { bust: 4, waist: 6, hip: 8 }
-    },
-    {
-      id: "dg-dr-012",
-      code: "DG-FW25-DR-012",
-      name: "\u7F0E\u9762\u9732\u80A9\u793C\u670D",
-      nameEn: "Satin Off-Shoulder Gown",
-      category: "dresses",
-      silhouette: "fitted",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u91CD\u78C5\u771F\u4E1D\u7F0E",
-      colors: [C.gold, C.black, C.wine, C.emerald],
-      sizes: ALL,
-      measurements: { bust: 88, waist: 68, hip: 94, shoulder: 0, sleeve: 0, length: 136 },
-      ease: { bust: -2, waist: -2, hip: -2 }
-    },
-    {
-      id: "dg-dr-013",
-      code: "DG-SS25-DR-013",
-      name: "\u6761\u7EB9\u6C34\u624B\u8FDE\u8863\u88D9",
-      nameEn: "Breton Stripe Dress",
-      category: "dresses",
-      silhouette: "straight",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Retro",
-      fabric: "\u68C9\u8D28\u9488\u7EC7",
-      colors: [C.ivory, C.navy, C.red],
-      sizes: ALL,
-      measurements: { bust: 92, waist: 74, hip: 98, shoulder: 40, sleeve: 20, length: 94 },
-      ease: { bust: 2, waist: 4, hip: 2 }
-    },
-    {
-      id: "dg-dr-014",
-      code: "DG-FW25-DR-014",
-      name: "\u6597\u7BF7\u5F0F\u665A\u88C5\u88D9",
-      nameEn: "Cape Evening Dress",
-      category: "dresses",
-      silhouette: "cape",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u7F8A\u6BDB\u7ED2 / \u771F\u4E1D",
-      colors: [C.black, C.red, C.gold, C.navy],
-      sizes: ALL,
-      measurements: { bust: 92, waist: 72, hip: 98, shoulder: 40, sleeve: 0, length: 118 },
-      ease: { bust: 2, waist: 2, hip: 2 }
-    },
-    /* ================= 上装 Tops ================= */
-    {
-      id: "dg-tp-001",
-      code: "DG-SS25-TP-001",
-      name: "\u5706\u9886\u5370\u82B1 T \u6064",
-      nameEn: "Printed Crew Tee",
-      category: "tops",
-      silhouette: "fitted",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Casual",
-      fabric: "\u7EAF\u68C9\u5E73\u7EB9",
-      colors: [C.ivory, C.black, C.red, C.sky],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 86, shoulder: 40, sleeve: 18, length: 62 },
-      ease: { bust: 0, waist: 0 }
-    },
-    {
-      id: "dg-tp-002",
-      code: "DG-SS25-TP-002",
-      name: "\u771F\u4E1D\u4FEE\u8EAB\u886C\u886B",
-      nameEn: "Silk Fitted Shirt",
-      category: "tops",
-      silhouette: "blouse",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Tailoring",
-      fabric: "\u771F\u4E1D\u53CC\u7EC9",
-      colors: [C.ivory, C.black, C.wine, C.nude],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 80, shoulder: 40, sleeve: 59, length: 66 },
-      ease: { bust: 0, waist: -2 }
-    },
-    {
-      id: "dg-tp-003",
-      code: "DG-FW25-TP-003",
-      name: "\u9AD8\u9886\u7F8A\u7ED2\u886B",
-      nameEn: "Cashmere Turtleneck",
-      category: "tops",
-      silhouette: "knit",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Knitwear",
-      fabric: "\u7F8A\u7ED2",
-      colors: [C.black, C.camel, C.ivory, C.olive],
-      sizes: ALL,
-      measurements: { bust: 86, waist: 80, shoulder: 38, sleeve: 61, length: 60 },
-      ease: { bust: -4, waist: 0 }
-    },
-    {
-      id: "dg-tp-004",
-      code: "DG-SS25-TP-004",
-      name: "\u857E\u4E1D\u540A\u5E26\u4E0A\u8863",
-      nameEn: "Lace Camisole",
-      category: "tops",
-      silhouette: "slip",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Lace",
-      fabric: "\u5F39\u529B\u857E\u4E1D",
-      colors: [C.black, C.ivory, C.powder, C.red],
-      sizes: ALL,
-      measurements: { bust: 86, waist: 76, shoulder: 0, sleeve: 0, length: 50 },
-      ease: { bust: -4, waist: -2 }
-    },
-    {
-      id: "dg-tp-005",
-      code: "DG-SS25-TP-005",
-      name: "\u8377\u53F6\u8FB9\u7F69\u886B",
-      nameEn: "Ruffle Blouse",
-      category: "tops",
-      silhouette: "blouse",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Romantic",
-      fabric: "\u96EA\u7EBA",
-      colors: [C.ivory, C.powder, C.sky, C.lilac],
-      sizes: ALL,
-      measurements: { bust: 98, waist: 96, shoulder: 41, sleeve: 56, length: 64 },
-      ease: { bust: 8, waist: 8 }
-    },
-    {
-      id: "dg-tp-006",
-      code: "DG-FW25-TP-006",
-      name: "\u5ED3\u5F62\u9488\u7EC7\u5F00\u886B",
-      nameEn: "Oversize Knit Cardigan",
-      category: "tops",
-      silhouette: "oversize",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Knitwear",
-      fabric: "\u7C97\u7EBA\u7F8A\u6BDB",
-      colors: [C.camel, C.chocolate, C.black, C.ivory],
-      sizes: ALL,
-      measurements: { bust: 110, waist: 108, shoulder: 46, sleeve: 60, length: 70 },
-      ease: { bust: 20, waist: 20 }
-    },
-    {
-      id: "dg-tp-007",
-      code: "DG-SS25-TP-007",
-      name: "\u62B9\u80F8\u5F0F\u77ED\u4E0A\u8863",
-      nameEn: "Bandeau Top",
-      category: "tops",
-      silhouette: "slip",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Casual",
-      fabric: "\u5F39\u529B\u9488\u7EC7",
-      colors: [C.black, C.red, C.nude, C.leopard],
-      sizes: ALL,
-      measurements: { bust: 84, waist: 74, shoulder: 0, sleeve: 0, length: 34 },
-      ease: { bust: -6, waist: -4 }
-    },
-    {
-      id: "dg-tp-008",
-      code: "DG-SS25-TP-008",
-      name: "\u6761\u7EB9 Polo \u886B",
-      nameEn: "Striped Polo",
-      category: "tops",
-      silhouette: "fitted",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Retro",
-      fabric: "\u73E0\u5730\u68C9",
-      colors: [C.navy, C.ivory, C.red, C.olive],
-      sizes: ALL,
-      measurements: { bust: 92, waist: 88, shoulder: 41, sleeve: 20, length: 64 },
-      ease: { bust: 2, waist: 2 }
-    },
-    {
-      id: "dg-tp-009",
-      code: "DG-FW25-TP-009",
-      name: "\u7F0E\u9762\u886C\u886B",
-      nameEn: "Satin Blouse",
-      category: "tops",
-      silhouette: "blouse",
-      fit: "\u5408\u4F53",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u7F0E\u9762",
-      colors: [C.gold, C.black, C.wine, C.emerald],
-      sizes: ALL,
-      measurements: { bust: 94, waist: 88, shoulder: 41, sleeve: 59, length: 66 },
-      ease: { bust: 4, waist: 2 }
-    },
-    {
-      id: "dg-tp-010",
-      code: "DG-SS25-TP-010",
-      name: "\u9542\u7A7A\u9488\u7EC7\u4E0A\u8863",
-      nameEn: "Crochet Knit Top",
-      category: "tops",
-      silhouette: "knit",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Knitwear",
-      fabric: "\u68C9\u7EBF\u94A9\u7EC7",
-      colors: [C.ivory, C.nude, C.sky, C.powder],
-      sizes: ALL,
-      measurements: { bust: 88, waist: 82, shoulder: 39, sleeve: 24, length: 56 },
-      ease: { bust: -2, waist: 0 }
-    },
-    {
-      id: "dg-tp-011",
-      code: "DG-SS25-TP-011",
-      name: "\u5370\u82B1\u96EA\u7EBA\u886C\u886B",
-      nameEn: "Printed Chiffon Shirt",
-      category: "tops",
-      silhouette: "blouse",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Sicilia",
-      fabric: "\u771F\u4E1D\u96EA\u7EBA",
-      colors: [C.leopard, C.red, C.ivory, C.navy],
-      sizes: ALL,
-      measurements: { bust: 100, waist: 98, shoulder: 42, sleeve: 57, length: 68 },
-      ease: { bust: 10, waist: 10 }
-    },
-    {
-      id: "dg-tp-012",
-      code: "DG-FW25-TP-012",
-      name: "\u7F57\u7EB9\u4FEE\u8EAB\u80CC\u5FC3",
-      nameEn: "Ribbed Fitted Vest",
-      category: "tops",
-      silhouette: "fitted",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Knitwear",
-      fabric: "\u7F57\u7EB9\u5F39\u529B\u9488\u7EC7",
-      colors: [C.black, C.ivory, C.olive, C.wine],
-      sizes: ALL,
-      measurements: { bust: 82, waist: 76, shoulder: 0, sleeve: 0, length: 58 },
-      ease: { bust: -8, waist: -4 }
-    },
-    /* ================= 下装 Bottoms ================= */
-    {
-      id: "dg-bt-001",
-      code: "DG-SS25-BT-001",
-      name: "\u9AD8\u8170\u76F4\u7B52\u725B\u4ED4\u88E4",
-      nameEn: "High-Rise Straight Jeans",
-      category: "bottoms",
-      silhouette: "straight",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Denim",
-      fabric: "\u5F39\u529B\u4E39\u5B81",
-      colors: [C.navy, C.black, C.sky, C.ivory],
-      sizes: ALL,
-      measurements: { waist: 72, hip: 96, length: 104, opening: 40 },
-      ease: { waist: 2, hip: 0 }
-    },
-    {
-      id: "dg-bt-002",
-      code: "DG-SS25-BT-002",
-      name: "\u897F\u5F0F\u9614\u817F\u88E4",
-      nameEn: "Tailored Wide-Leg Trousers",
-      category: "bottoms",
-      silhouette: "wide",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Tailoring",
-      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
-      colors: [C.black, C.camel, C.navy, C.ivory],
-      sizes: ALL,
-      measurements: { waist: 74, hip: 100, length: 108, opening: 56 },
-      ease: { waist: 4, hip: 4 }
-    },
-    {
-      id: "dg-bt-003",
-      code: "DG-SS25-BT-003",
-      name: "A \u5B57\u76AE\u9769\u77ED\u88D9",
-      nameEn: "Leather A-Line Mini",
-      category: "bottoms",
-      silhouette: "aline",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Biker",
-      fabric: "\u8F6F\u7F8A\u76AE",
-      colors: [C.black, C.chocolate, C.red],
-      sizes: ALL,
-      measurements: { waist: 72, hip: 96, length: 42, opening: 108 },
-      ease: { waist: 2, hip: 0 }
-    },
-    {
-      id: "dg-bt-004",
-      code: "DG-FW25-BT-004",
-      name: "\u94C5\u7B14\u4E2D\u957F\u88D9",
-      nameEn: "Pencil Midi Skirt",
-      category: "bottoms",
-      silhouette: "pencil",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Tailoring",
-      fabric: "\u7F8A\u6BDB\u6DF7\u7EBA",
-      colors: [C.black, C.wine, C.navy, C.leopard],
-      sizes: ALL,
-      measurements: { waist: 70, hip: 94, length: 68, opening: 92 },
-      ease: { waist: 0, hip: -2 }
-    },
-    {
-      id: "dg-bt-005",
-      code: "DG-SS25-BT-005",
-      name: "\u7D27\u8EAB\u6253\u5E95\u88E4",
-      nameEn: "Skinny Leggings",
-      category: "bottoms",
-      silhouette: "skinny",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Casual",
-      fabric: "\u5F39\u529B\u68C9",
-      colors: [C.black, C.navy, C.olive, C.chocolate],
-      sizes: ALL,
-      measurements: { waist: 68, hip: 92, length: 100, opening: 26 },
-      ease: { waist: -2, hip: -4 }
-    },
-    {
-      id: "dg-bt-006",
-      code: "DG-SS25-BT-006",
-      name: "\u767E\u8936\u4E2D\u957F\u88D9",
-      nameEn: "Pleated Midi Skirt",
-      category: "bottoms",
-      silhouette: "flared",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Retro",
-      fabric: "\u538B\u8936\u96EA\u7EBA",
-      colors: [C.ivory, C.red, C.navy, C.lilac],
-      sizes: ALL,
-      measurements: { waist: 72, hip: 98, length: 76, opening: 160 },
-      ease: { waist: 2, hip: 2 }
-    },
-    {
-      id: "dg-bt-007",
-      code: "DG-SS25-BT-007",
-      name: "\u9AD8\u8170\u77ED\u88E4",
-      nameEn: "High-Rise Shorts",
-      category: "bottoms",
-      silhouette: "mini",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Casual",
-      fabric: "\u68C9\u8D28\u659C\u7EB9",
-      colors: [C.ivory, C.black, C.camel, C.sky],
-      sizes: ALL,
-      measurements: { waist: 72, hip: 96, length: 40, opening: 54 },
-      ease: { waist: 2, hip: 0 }
-    },
-    {
-      id: "dg-bt-008",
-      code: "DG-FW25-BT-008",
-      name: "\u5370\u82B1\u9614\u817F\u957F\u88E4",
-      nameEn: "Printed Palazzo Pants",
-      category: "bottoms",
-      silhouette: "wide",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Sicilia",
-      fabric: "\u771F\u4E1D",
-      colors: [C.leopard, C.black, C.wine, C.olive],
-      sizes: ALL,
-      measurements: { waist: 74, hip: 100, length: 110, opening: 62 },
-      ease: { waist: 4, hip: 4 }
-    },
-    {
-      id: "dg-bt-009",
-      code: "DG-SS25-BT-009",
-      name: "\u725B\u4ED4\u8FF7\u4F60\u88D9",
-      nameEn: "Denim Mini Skirt",
-      category: "bottoms",
-      silhouette: "aline",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Denim",
-      fabric: "\u4E39\u5B81\u5E03",
-      colors: [C.sky, C.navy, C.black, C.ivory],
-      sizes: ALL,
-      measurements: { waist: 72, hip: 96, length: 38, opening: 106 },
-      ease: { waist: 2, hip: 0 }
-    },
-    {
-      id: "dg-bt-010",
-      code: "DG-FW25-BT-010",
-      name: "\u7F8A\u6BDB\u9525\u5F62\u88E4",
-      nameEn: "Wool Tapered Trousers",
-      category: "bottoms",
-      silhouette: "straight",
-      fit: "\u5408\u4F53",
-      season: "FW 2025",
-      collection: "Tailoring",
-      fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-      colors: [C.camel, C.black, C.navy, C.chocolate],
-      sizes: ALL,
-      measurements: { waist: 74, hip: 98, length: 102, opening: 36 },
-      ease: { waist: 4, hip: 2 }
-    },
-    {
-      id: "dg-bt-011",
-      code: "DG-SS25-BT-011",
-      name: "\u857E\u4E1D\u94C5\u7B14\u88D9",
-      nameEn: "Lace Pencil Skirt",
-      category: "bottoms",
-      silhouette: "pencil",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Lace",
-      fabric: "\u5F39\u529B\u857E\u4E1D",
-      colors: [C.black, C.ivory, C.wine, C.nude],
-      sizes: ALL,
-      measurements: { waist: 70, hip: 94, length: 62, opening: 92 },
-      ease: { waist: 0, hip: -2 }
-    },
-    {
-      id: "dg-bt-012",
-      code: "DG-SS25-BT-012",
-      name: "\u7CFB\u5E26\u6C99\u6EE9\u77ED\u88E4",
-      nameEn: "Tie Beach Shorts",
-      category: "bottoms",
-      silhouette: "wide",
-      fit: "\u5BBD\u677E",
-      season: "SS 2025",
-      collection: "Sicilia",
-      fabric: "\u68C9\u9EBB",
-      colors: [C.ivory, C.sky, C.nude, C.olive],
-      sizes: ALL,
-      measurements: { waist: 74, hip: 100, length: 46, opening: 58 },
-      ease: { waist: 4, hip: 4 }
-    },
-    /* ================= 外套 Outerwear ================= */
-    {
-      id: "dg-ot-001",
-      code: "DG-FW25-OT-001",
-      name: "\u7ECF\u5178\u897F\u88C5\u5916\u5957",
-      nameEn: "Classic Blazer",
-      category: "outer",
-      silhouette: "blazer",
-      fit: "\u5408\u4F53",
-      season: "FW 2025",
-      collection: "Tailoring",
-      fabric: "\u7CBE\u7EBA\u7F8A\u6BDB",
-      colors: [C.black, C.navy, C.camel, C.ivory],
-      sizes: ALL,
-      measurements: { bust: 96, waist: 88, shoulder: 42, sleeve: 60, length: 70 },
-      ease: { bust: 6, waist: 6 }
-    },
-    {
-      id: "dg-ot-002",
-      code: "DG-FW25-OT-002",
-      name: "\u53CC\u6392\u6263\u98CE\u8863",
-      nameEn: "Double-Breasted Trench",
-      category: "outer",
-      silhouette: "trench",
-      fit: "\u5408\u4F53",
-      season: "FW 2025",
-      collection: "Tailoring",
-      fabric: "\u9632\u96E8\u68C9\u534E\u8FBE\u5462",
-      colors: [C.camel, C.black, C.olive, C.navy],
-      sizes: ALL,
-      measurements: { bust: 100, waist: 94, shoulder: 43, sleeve: 61, length: 112 },
-      ease: { bust: 10, waist: 10 }
-    },
-    {
-      id: "dg-ot-003",
-      code: "DG-FW25-OT-003",
-      name: "\u673A\u8F66\u76AE\u5939\u514B",
-      nameEn: "Biker Leather Jacket",
-      category: "outer",
-      silhouette: "biker",
-      fit: "\u4FEE\u8EAB",
-      season: "FW 2025",
-      collection: "Biker",
-      fabric: "\u5C0F\u725B\u76AE",
-      colors: [C.black, C.chocolate, C.red],
-      sizes: ALL,
-      measurements: { bust: 92, waist: 84, shoulder: 41, sleeve: 60, length: 56 },
-      ease: { bust: 2, waist: 2 }
-    },
-    {
-      id: "dg-ot-004",
-      code: "DG-FW25-OT-004",
-      name: "\u5ED3\u5F62\u7F8A\u6BDB\u5927\u8863",
-      nameEn: "Oversize Wool Coat",
-      category: "outer",
-      silhouette: "oversize",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Tailoring",
-      fabric: "\u7F8A\u6BDB\u53CC\u9762\u5462",
-      colors: [C.camel, C.black, C.chocolate, C.olive],
-      sizes: ALL,
-      measurements: { bust: 114, waist: 110, shoulder: 47, sleeve: 61, length: 118 },
-      ease: { bust: 24, waist: 22 }
-    },
-    {
-      id: "dg-ot-005",
-      code: "DG-SS25-OT-005",
-      name: "\u77ED\u6B3E\u9488\u7EC7\u5F00\u886B",
-      nameEn: "Cropped Knit Cardigan",
-      category: "outer",
-      silhouette: "knit",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Knitwear",
-      fabric: "\u68C9\u7EBF\u9488\u7EC7",
-      colors: [C.ivory, C.black, C.powder, C.sky],
-      sizes: ALL,
-      measurements: { bust: 94, waist: 88, shoulder: 40, sleeve: 58, length: 50 },
-      ease: { bust: 4, waist: 2 }
-    },
-    {
-      id: "dg-ot-006",
-      code: "DG-FW25-OT-006",
-      name: "\u6597\u7BF7\u5F0F\u62AB\u80A9",
-      nameEn: "Cape Coat",
-      category: "outer",
-      silhouette: "cape",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u7F8A\u6BDB\u7ED2",
-      colors: [C.black, C.red, C.camel, C.gold],
-      sizes: ALL,
-      measurements: { bust: 110, waist: 108, shoulder: 44, sleeve: 0, length: 92 },
-      ease: { bust: 20, waist: 20 }
-    },
-    {
-      id: "dg-ot-007",
-      code: "DG-SS25-OT-007",
-      name: "\u857E\u4E1D\u77ED\u5939\u514B",
-      nameEn: "Lace Bolero Jacket",
-      category: "outer",
-      silhouette: "blazer",
-      fit: "\u4FEE\u8EAB",
-      season: "SS 2025",
-      collection: "Lace",
-      fabric: "\u857E\u4E1D",
-      colors: [C.black, C.ivory, C.wine],
-      sizes: ALL,
-      measurements: { bust: 90, waist: 84, shoulder: 39, sleeve: 56, length: 48 },
-      ease: { bust: 0, waist: 0 }
-    },
-    {
-      id: "dg-ot-008",
-      code: "DG-FW25-OT-008",
-      name: "\u5370\u82B1\u4E1D\u7ED2\u5916\u5957",
-      nameEn: "Printed Velvet Jacket",
-      category: "outer",
-      silhouette: "blazer",
-      fit: "\u5408\u4F53",
-      season: "FW 2025",
-      collection: "Sicilia",
-      fabric: "\u5370\u82B1\u4E1D\u7ED2",
-      colors: [C.leopard, C.emerald, C.wine, C.black],
-      sizes: ALL,
-      measurements: { bust: 98, waist: 90, shoulder: 42, sleeve: 60, length: 68 },
-      ease: { bust: 8, waist: 6 }
-    },
-    {
-      id: "dg-ot-009",
-      code: "DG-SS25-OT-009",
-      name: "\u725B\u4ED4\u77ED\u5939\u514B",
-      nameEn: "Denim Jacket",
-      category: "outer",
-      silhouette: "biker",
-      fit: "\u5408\u4F53",
-      season: "SS 2025",
-      collection: "Denim",
-      fabric: "\u4E39\u5B81\u5E03",
-      colors: [C.sky, C.navy, C.black, C.ivory],
-      sizes: ALL,
-      measurements: { bust: 100, waist: 94, shoulder: 43, sleeve: 59, length: 58 },
-      ease: { bust: 10, waist: 8 }
-    },
-    {
-      id: "dg-ot-010",
-      code: "DG-FW25-OT-010",
-      name: "\u76AE\u8349\u611F\u957F\u5916\u5957",
-      nameEn: "Faux Fur Long Coat",
-      category: "outer",
-      silhouette: "oversize",
-      fit: "\u5BBD\u677E",
-      season: "FW 2025",
-      collection: "Glamour",
-      fabric: "\u73AF\u4FDD\u76AE\u8349",
-      colors: [C.leopard, C.chocolate, C.ivory, C.black],
-      sizes: ALL,
-      measurements: { bust: 116, waist: 112, shoulder: 48, sleeve: 61, length: 106 },
-      ease: { bust: 26, waist: 24 }
-    }
-  ];
   var BRANDS = [
     { id: "DG", name: "\u675C\u5609\u73ED\u7EB3", en: "Dolce & Gabbana", short: "DG" },
     { id: "BL", name: "\u5DF4\u5C14\u66FC", en: "BALMAIN", short: "BL" }
   ];
-  DG_DB.forEach((g) => {
-    g.brand = "DG";
-  });
-  var BALMAIN_DB = buildBalmainDB(PALETTE, ALL);
-  BALMAIN_DB.forEach((g) => {
-    g.brand = "BL";
-  });
-  var DB = [...DG_DB, ...BALMAIN_DB];
+  var DB = buildRealDB(PALETTE, ALL);
   var DB_BY_ID = {};
   DB.forEach((g) => {
     DB_BY_ID[g.id] = g;
@@ -23608,178 +26098,27 @@
     return item.category;
   }
 
-  // garmentArt.js
-  function clampByte(v) {
-    return Math.max(0, Math.min(255, Math.round(v)));
-  }
-  function shade(hex, k) {
-    const r = hex >> 16 & 255, g = hex >> 8 & 255, b = hex & 255;
-    return "#" + [clampByte(r * k), clampByte(g * k), clampByte(b * k)].map((v) => v.toString(16).padStart(2, "0")).join("");
-  }
-  function silhouette(points) {
-    if (!points.length) return "";
-    const top = points[0], last = points[points.length - 1];
-    let d = `M ${60 - top[1]} ${top[0]} L ${60 + top[1]} ${top[0]}`;
-    for (let i = 1; i < points.length; i++) d += ` L ${60 + points[i][1]} ${points[i][0]}`;
-    d += ` L ${60 - last[1]} ${last[0]}`;
-    for (let i = points.length - 2; i >= 0; i--) d += ` L ${60 - points[i][1]} ${points[i][0]}`;
-    return d + " Z";
-  }
-  function sleeves(y, hw, len, fill2) {
-    const x = 60 + hw;
-    const right = `M ${x - 3} ${y + 1} L ${x + 15} ${y + 8} L ${x + 11} ${y + len} L ${x - 5} ${y + len - 7} Z`;
-    const left = `M ${120 - x + 3} ${y + 1} L ${120 - x - 15} ${y + 8} L ${120 - x - 11} ${y + len} L ${120 - x + 5} ${y + len - 7} Z`;
-    return `<path d="${right}" fill="${fill2}"/><path d="${left}" fill="${fill2}"/>`;
-  }
-  function straps(y, hw, fill2) {
-    const x = 60 + hw * 0.55;
-    return `<path d="M ${x - 3} ${y} L ${x + 1} ${y} L ${x + 4} ${y + 20} L ${x} ${y + 20} Z" fill="${fill2}"/>
-          <path d="M ${120 - x + 3} ${y} L ${120 - x - 1} ${y} L ${120 - x - 4} ${y + 20} L ${120 - x} ${y + 20} Z" fill="${fill2}"/>`;
-  }
-  function design(item) {
-    const sil = item.silhouette;
-    const cat = item.category;
-    const long = 58, short = 18;
-    if (cat === "dresses") {
-      const base2 = {
-        slip: { pts: [[24, 15], [40, 26], [62, 19], [78, 25], [132, 30]], strap: true, detail: "seam" },
-        fitted: { pts: [[22, 20], [38, 28], [58, 20], [76, 25], [122, 23]], sleeve: short, detail: "seam" },
-        aline: { pts: [[22, 20], [38, 28], [58, 21], [76, 27], [126, 44]], sleeve: short, detail: "waist" },
-        flared: { pts: [[22, 20], [38, 28], [58, 20], [76, 25], [134, 54]], strap: true, detail: "waist" },
-        wrap: { pts: [[22, 21], [38, 28], [58, 20], [76, 26], [126, 32]], sleeve: long, detail: "wrap" },
-        peplum: { pts: [[22, 20], [38, 27], [56, 19], [66, 34], [74, 24], [116, 27]], sleeve: short, detail: "peplum" },
-        blouse: { pts: [[22, 21], [38, 28], [58, 22], [78, 28], [120, 33]], sleeve: long, detail: "shirt" },
-        straight: { pts: [[22, 20], [38, 27], [58, 21], [76, 25], [116, 29]], sleeve: short, detail: "seam" },
-        cape: { pts: [[22, 20], [38, 30], [58, 22], [78, 30], [124, 42]], detail: "cape" },
-        knit: { pts: [[22, 20], [36, 27], [56, 20], [74, 24], [118, 24]], sleeve: long, detail: "knit" }
-      };
-      return base2[sil] || base2.fitted;
-    }
-    if (cat === "tops") {
-      const base2 = {
-        fitted: { pts: [[24, 20], [38, 28], [58, 21], [88, 23]], sleeve: short, detail: "seam" },
-        blouse: { pts: [[24, 21], [38, 28], [58, 23], [90, 28]], sleeve: long, detail: "shirt" },
-        knit: { pts: [[24, 20], [38, 27], [58, 21], [86, 22]], sleeve: long, detail: "knit" },
-        slip: { pts: [[26, 16], [40, 26], [58, 20], [86, 22]], strap: true, detail: "seam" },
-        oversize: { pts: [[24, 26], [38, 32], [58, 30], [92, 34]], sleeve: long, detail: "knit" }
-      };
-      return base2[sil] || base2.fitted;
-    }
-    if (cat === "bottoms") {
-      const shortLen = 74;
-      const base2 = {
-        straight: { pts: [[24, 22], [42, 27], [76, 23], [126, 21]], detail: "waistband" },
-        wide: { pts: [[24, 22], [42, 28], [76, 31], [126, 36]], detail: "waistband" },
-        skinny: { pts: [[24, 21], [42, 26], [76, 18], [124, 13]], detail: "waistband" },
-        pencil: { pts: [[24, 21], [42, 26], [76, 24], [118, 23]], detail: "waistband" },
-        aline: { pts: [[24, 21], [42, 27], [62, 31], [shortLen, 40]], detail: "waistband" },
-        mini: { pts: [[24, 21], [42, 26], [58, 28], [shortLen, 32]], detail: "waistband" },
-        flared: { pts: [[24, 21], [42, 27], [76, 29], [114, 46]], detail: "waistband" }
-      };
-      return base2[sil] || base2.straight;
-    }
-    const base = {
-      blazer: { pts: [[22, 24], [38, 31], [62, 27], [104, 30]], sleeve: long, detail: "lapel" },
-      trench: { pts: [[22, 25], [38, 32], [62, 29], [128, 38]], sleeve: long, detail: "trench" },
-      biker: { pts: [[22, 24], [38, 30], [58, 26], [92, 27]], sleeve: long, detail: "zip" },
-      oversize: { pts: [[22, 28], [38, 35], [62, 33], [124, 44]], sleeve: long, detail: "lapel" },
-      knit: { pts: [[22, 24], [38, 30], [58, 27], [94, 29]], sleeve: long, detail: "knit" },
-      cape: { pts: [[22, 23], [38, 34], [62, 34], [116, 46]], detail: "cape" }
-    };
-    return base[sil] || base.blazer;
-  }
-  function detailSVG(kind, fill2, dark) {
-    const stroke = dark;
-    switch (kind) {
-      case "seam":
-        return `<path d="M 60 26 L 60 118" stroke="${stroke}" stroke-width="0.6" opacity="0.35" fill="none"/>
-              <path d="M 46 40 Q 60 46 74 40" stroke="${stroke}" stroke-width="0.7" opacity="0.4" fill="none"/>`;
-      case "waist":
-        return `<path d="M 40 58 Q 60 63 80 58" stroke="${stroke}" stroke-width="1" opacity="0.5" fill="none"/>`;
-      case "wrap":
-        return `<path d="M 42 24 L 74 62 M 78 24 L 46 62" stroke="${stroke}" stroke-width="0.9" opacity="0.45" fill="none"/>
-              <circle cx="60" cy="62" r="1.8" fill="${stroke}" opacity="0.6"/>`;
-      case "peplum":
-        return `<path d="M 42 54 Q 60 72 78 54" stroke="${stroke}" stroke-width="1" opacity="0.5" fill="none"/>`;
-      case "shirt":
-        return `<path d="M 60 24 L 60 88" stroke="${stroke}" stroke-width="0.7" opacity="0.4" fill="none"/>
-              ${[36, 50, 64, 78].map((y) => `<circle cx="60" cy="${y}" r="1.1" fill="${stroke}" opacity="0.55"/>`).join("")}
-              <path d="M 52 24 L 60 32 L 68 24" stroke="${stroke}" stroke-width="0.9" opacity="0.5" fill="none"/>`;
-      case "knit":
-        return `<path d="M 44 34 H 76 M 43 44 H 77 M 43 54 H 77 M 43 64 H 77" stroke="${stroke}" stroke-width="0.5" opacity="0.22" fill="none"/>`;
-      case "waistband":
-        return `<path d="M 38 30 H 82 M 38 34 H 82" stroke="${stroke}" stroke-width="0.8" opacity="0.45" fill="none"/>
-              <circle cx="60" cy="32" r="1.4" fill="${stroke}" opacity="0.6"/>`;
-      case "lapel":
-        return `<path d="M 46 22 L 60 40 L 74 22 M 60 40 L 60 102" stroke="${stroke}" stroke-width="0.9" opacity="0.55" fill="none"/>
-              <circle cx="60" cy="54" r="1.2" fill="${stroke}" opacity="0.6"/><circle cx="60" cy="70" r="1.2" fill="${stroke}" opacity="0.6"/>`;
-      case "trench":
-        return `<path d="M 60 24 L 60 126 M 42 58 H 78" stroke="${stroke}" stroke-width="0.8" opacity="0.45" fill="none"/>
-              <path d="M 46 22 L 60 36 L 74 22" stroke="${stroke}" stroke-width="0.9" opacity="0.5" fill="none"/>
-              ${[46, 62, 78].map((y) => `<circle cx="66" cy="${y}" r="1.3" fill="${stroke}" opacity="0.6"/>`).join("")}`;
-      case "zip":
-        return `<path d="M 60 24 L 60 92" stroke="${stroke}" stroke-width="1.2" opacity="0.6" fill="none"/>
-              <path d="M 46 22 L 60 32 L 74 22" stroke="${stroke}" stroke-width="0.9" opacity="0.5" fill="none"/>`;
-      case "cape":
-        return `<path d="M 44 30 Q 30 60 34 96 M 76 30 Q 90 60 86 96" stroke="${stroke}" stroke-width="0.8" opacity="0.4" fill="none"/>`;
-      default:
-        return "";
-    }
-  }
-  function garmentArt(item) {
-    const hex = item.colors?.[0]?.hex ?? 8947848;
-    const fill2 = "#" + (hex >>> 0).toString(16).padStart(6, "0");
-    const light = shade(hex, 1.16);
-    const dark = shade(hex, 0.62);
-    const d = design(item);
-    const body = silhouette(d.pts);
-    const sleevePart = d.sleeve ? sleeves(d.pts[0][0] + 2, d.pts[0][1], d.sleeve, fill2) : "";
-    const strapPart = d.strap ? straps(d.pts[0][0], d.pts[0][1], fill2) : "";
-    return `<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${item.name}">
-    <defs>
-      <linearGradient id="bg-${item.id}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#f2ece1"/><stop offset="1" stop-color="#d9d0c1"/>
-      </linearGradient>
-      <linearGradient id="cl-${item.id}" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="${dark}"/><stop offset="0.32" stop-color="${light}"/>
-        <stop offset="0.7" stop-color="${fill2}"/><stop offset="1" stop-color="${dark}"/>
-      </linearGradient>
-    </defs>
-    <rect x="1" y="1" width="118" height="138" rx="8" fill="url(#bg-${item.id})" stroke="#b8ad99" stroke-width="0.8"/>
-    <ellipse cx="60" cy="130" rx="30" ry="3.5" fill="#000" opacity="0.14"/>
-    ${strapPart}${sleevePart}
-    <path d="${body}" fill="url(#cl-${item.id})" stroke="${dark}" stroke-width="0.8"/>
-    ${detailSVG(d.detail, fill2, dark)}
-    <text x="8" y="16" fill="#6c6355" font-size="6" font-family="monospace" letter-spacing="0.7">${item.brand === "BL" ? "BALMAIN" : "D&amp;G"}</text>
-  </svg>`;
-  }
-
   // body.js
   var FOOT_Y = -1.73;
   var U = 1 / 50;
   var BASE_HEIGHT = 170;
   var DEFAULT_MODEL = {
-    height: 170,
-    weight: 56,
-    bust: 90,
-    waist: 70,
-    hip: 96,
+    height: 165,
+    weight: 62.5,
+    bust: 94.5,
+    // 胸围 94–95cm，取中值
+    waist: 85,
+    // 腰围（贴身）
+    hip: 99,
     shoulder: 40,
-    arm: 58,
+    arm: 51.5,
+    // 臂长 50–53cm，取中值
     inseam: 78,
-    neck: 36
+    // 内缝长：用户给的腿长94cm为腰至脚整体口径，内缝取合理值78cm
+    neck: 34,
+    skin: "asian-fair"
+    // 亚洲人偏白肤色
   };
-  var FIELD_META = [
-    { key: "height", label: "\u8EAB\u9AD8", unit: "cm", min: 140, max: 200, step: 1, hint: "\u51C0\u8EAB\u9AD8" },
-    { key: "weight", label: "\u4F53\u91CD", unit: "kg", min: 35, max: 110, step: 0.5, hint: "\u7528\u4E8E\u56F4\u5EA6\u539A\u5EA6\u4FEE\u6B63" },
-    { key: "bust", label: "\u80F8\u56F4", unit: "cm", min: 70, max: 125, step: 1, hint: "\u80F8\u90E8\u6700\u4E30\u6EE1\u5904\u6C34\u5E73\u56F4\u5EA6" },
-    { key: "waist", label: "\u8170\u56F4", unit: "cm", min: 50, max: 110, step: 1, hint: "\u8170\u90E8\u6700\u7EC6\u5904\u6C34\u5E73\u56F4\u5EA6" },
-    { key: "hip", label: "\u81C0\u56F4", unit: "cm", min: 75, max: 135, step: 1, hint: "\u81C0\u90E8\u6700\u4E30\u6EE1\u5904\u6C34\u5E73\u56F4\u5EA6" },
-    { key: "shoulder", label: "\u80A9\u5BBD", unit: "cm", min: 32, max: 52, step: 0.5, hint: "\u5DE6\u53F3\u80A9\u5CF0\u70B9\u95F4\u8DDD" },
-    { key: "arm", label: "\u81C2\u957F", unit: "cm", min: 48, max: 72, step: 1, hint: "\u80A9\u5CF0\u81F3\u624B\u8155" },
-    { key: "inseam", label: "\u817F\u957F", unit: "cm", min: 68, max: 96, step: 1, hint: "\u5185\u7F1D\u957F\uFF08\u88C6\u81F3\u811A\u8E1D\uFF09" },
-    { key: "neck", label: "\u9886\u56F4", unit: "cm", min: 28, max: 45, step: 0.5, hint: "\u9888\u90E8\u6839\u90E8\u56F4\u5EA6" }
-  ];
   function bodyMetrics(model) {
     const m = { ...DEFAULT_MODEL, ...model };
     const hs = m.height / BASE_HEIGHT;
@@ -24259,2645 +26598,185 @@
     return parts.join(" / ") + " cm";
   }
 
-  // vendor/addons/utils/BufferGeometryUtils.js
-  function toTrianglesDrawMode(geometry, drawMode) {
-    if (drawMode === TrianglesDrawMode) {
-      console.warn("THREE.BufferGeometryUtils.toTrianglesDrawMode(): Geometry already defined as triangles.");
-      return geometry;
-    }
-    if (drawMode === TriangleFanDrawMode || drawMode === TriangleStripDrawMode) {
-      let index = geometry.getIndex();
-      if (index === null) {
-        const indices = [];
-        const position = geometry.getAttribute("position");
-        if (position !== void 0) {
-          for (let i = 0; i < position.count; i++) {
-            indices.push(i);
-          }
-          geometry.setIndex(indices);
-          index = geometry.getIndex();
-        } else {
-          console.error("THREE.BufferGeometryUtils.toTrianglesDrawMode(): Undefined position attribute. Processing not possible.");
-          return geometry;
-        }
-      }
-      const numberOfTriangles = index.count - 2;
-      const newIndices = [];
-      if (drawMode === TriangleFanDrawMode) {
-        for (let i = 1; i <= numberOfTriangles; i++) {
-          newIndices.push(index.getX(0));
-          newIndices.push(index.getX(i));
-          newIndices.push(index.getX(i + 1));
-        }
-      } else {
-        for (let i = 0; i < numberOfTriangles; i++) {
-          if (i % 2 === 0) {
-            newIndices.push(index.getX(i));
-            newIndices.push(index.getX(i + 1));
-            newIndices.push(index.getX(i + 2));
-          } else {
-            newIndices.push(index.getX(i + 2));
-            newIndices.push(index.getX(i + 1));
-            newIndices.push(index.getX(i));
-          }
-        }
-      }
-      if (newIndices.length / 3 !== numberOfTriangles) {
-        console.error("THREE.BufferGeometryUtils.toTrianglesDrawMode(): Unable to generate correct amount of triangles.");
-      }
-      const newGeometry = geometry.clone();
-      newGeometry.setIndex(newIndices);
-      newGeometry.clearGroups();
-      return newGeometry;
-    } else {
-      console.error("THREE.BufferGeometryUtils.toTrianglesDrawMode(): Unknown draw mode:", drawMode);
-      return geometry;
-    }
-  }
-
   // vendor/addons/loaders/GLTFLoader.js
-  var GLTFLoader = class extends Loader {
-    constructor(manager) {
-      super(manager);
-      this.dracoLoader = null;
-      this.ktx2Loader = null;
-      this.meshoptDecoder = null;
-      this.pluginCallbacks = [];
-      this.register(function(parser) {
-        return new GLTFMaterialsClearcoatExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFTextureBasisUExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFTextureWebPExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFTextureAVIFExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsSheenExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsTransmissionExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsVolumeExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsIorExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsEmissiveStrengthExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsSpecularExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsIridescenceExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsAnisotropyExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMaterialsBumpExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFLightsExtension(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMeshoptCompression(parser);
-      });
-      this.register(function(parser) {
-        return new GLTFMeshGpuInstancing(parser);
-      });
-    }
-    load(url, onLoad, onProgress, onError) {
-      const scope = this;
-      let resourcePath;
-      if (this.resourcePath !== "") {
-        resourcePath = this.resourcePath;
-      } else if (this.path !== "") {
-        const relativeUrl = LoaderUtils.extractUrlBase(url);
-        resourcePath = LoaderUtils.resolveURL(relativeUrl, this.path);
-      } else {
-        resourcePath = LoaderUtils.extractUrlBase(url);
-      }
-      this.manager.itemStart(url);
-      const _onError = function(e) {
-        if (onError) {
-          onError(e);
-        } else {
-          console.error(e);
-        }
-        scope.manager.itemError(url);
-        scope.manager.itemEnd(url);
-      };
-      const loader = new FileLoader(this.manager);
-      loader.setPath(this.path);
-      loader.setResponseType("arraybuffer");
-      loader.setRequestHeader(this.requestHeader);
-      loader.setWithCredentials(this.withCredentials);
-      loader.load(url, function(data) {
-        try {
-          scope.parse(data, resourcePath, function(gltf) {
-            onLoad(gltf);
-            scope.manager.itemEnd(url);
-          }, _onError);
-        } catch (e) {
-          _onError(e);
-        }
-      }, onProgress, _onError);
-    }
-    setDRACOLoader(dracoLoader) {
-      this.dracoLoader = dracoLoader;
-      return this;
-    }
-    setDDSLoader() {
-      throw new Error(
-        'THREE.GLTFLoader: "MSFT_texture_dds" no longer supported. Please update to "KHR_texture_basisu".'
-      );
-    }
-    setKTX2Loader(ktx2Loader) {
-      this.ktx2Loader = ktx2Loader;
-      return this;
-    }
-    setMeshoptDecoder(meshoptDecoder) {
-      this.meshoptDecoder = meshoptDecoder;
-      return this;
-    }
-    register(callback) {
-      if (this.pluginCallbacks.indexOf(callback) === -1) {
-        this.pluginCallbacks.push(callback);
-      }
-      return this;
-    }
-    unregister(callback) {
-      if (this.pluginCallbacks.indexOf(callback) !== -1) {
-        this.pluginCallbacks.splice(this.pluginCallbacks.indexOf(callback), 1);
-      }
-      return this;
-    }
-    parse(data, path, onLoad, onError) {
-      let json;
-      const extensions = {};
-      const plugins = {};
-      const textDecoder = new TextDecoder();
-      if (typeof data === "string") {
-        json = JSON.parse(data);
-      } else if (data instanceof ArrayBuffer) {
-        const magic = textDecoder.decode(new Uint8Array(data, 0, 4));
-        if (magic === BINARY_EXTENSION_HEADER_MAGIC) {
-          try {
-            extensions[EXTENSIONS.KHR_BINARY_GLTF] = new GLTFBinaryExtension(data);
-          } catch (error) {
-            if (onError) onError(error);
-            return;
-          }
-          json = JSON.parse(extensions[EXTENSIONS.KHR_BINARY_GLTF].content);
-        } else {
-          json = JSON.parse(textDecoder.decode(data));
-        }
-      } else {
-        json = data;
-      }
-      if (json.asset === void 0 || json.asset.version[0] < 2) {
-        if (onError) onError(new Error("THREE.GLTFLoader: Unsupported asset. glTF versions >=2.0 are supported."));
-        return;
-      }
-      const parser = new GLTFParser(json, {
-        path: path || this.resourcePath || "",
-        crossOrigin: this.crossOrigin,
-        requestHeader: this.requestHeader,
-        manager: this.manager,
-        ktx2Loader: this.ktx2Loader,
-        meshoptDecoder: this.meshoptDecoder
-      });
-      parser.fileLoader.setRequestHeader(this.requestHeader);
-      for (let i = 0; i < this.pluginCallbacks.length; i++) {
-        const plugin = this.pluginCallbacks[i](parser);
-        if (!plugin.name) console.error("THREE.GLTFLoader: Invalid plugin found: missing name");
-        plugins[plugin.name] = plugin;
-        extensions[plugin.name] = true;
-      }
-      if (json.extensionsUsed) {
-        for (let i = 0; i < json.extensionsUsed.length; ++i) {
-          const extensionName = json.extensionsUsed[i];
-          const extensionsRequired = json.extensionsRequired || [];
-          switch (extensionName) {
-            case EXTENSIONS.KHR_MATERIALS_UNLIT:
-              extensions[extensionName] = new GLTFMaterialsUnlitExtension();
-              break;
-            case EXTENSIONS.KHR_DRACO_MESH_COMPRESSION:
-              extensions[extensionName] = new GLTFDracoMeshCompressionExtension(json, this.dracoLoader);
-              break;
-            case EXTENSIONS.KHR_TEXTURE_TRANSFORM:
-              extensions[extensionName] = new GLTFTextureTransformExtension();
-              break;
-            case EXTENSIONS.KHR_MESH_QUANTIZATION:
-              extensions[extensionName] = new GLTFMeshQuantizationExtension();
-              break;
-            default:
-              if (extensionsRequired.indexOf(extensionName) >= 0 && plugins[extensionName] === void 0) {
-                console.warn('THREE.GLTFLoader: Unknown extension "' + extensionName + '".');
-              }
-          }
-        }
-      }
-      parser.setExtensions(extensions);
-      parser.setPlugins(plugins);
-      parser.parse(onLoad, onError);
-    }
-    parseAsync(data, path) {
-      const scope = this;
-      return new Promise(function(resolve, reject) {
-        scope.parse(data, path, resolve, reject);
-      });
-    }
-  };
-  function GLTFRegistry() {
-    let objects = {};
-    return {
-      get: function(key2) {
-        return objects[key2];
-      },
-      add: function(key2, object) {
-        objects[key2] = object;
-      },
-      remove: function(key2) {
-        delete objects[key2];
-      },
-      removeAll: function() {
-        objects = {};
-      }
-    };
-  }
-  var EXTENSIONS = {
-    KHR_BINARY_GLTF: "KHR_binary_glTF",
-    KHR_DRACO_MESH_COMPRESSION: "KHR_draco_mesh_compression",
-    KHR_LIGHTS_PUNCTUAL: "KHR_lights_punctual",
-    KHR_MATERIALS_CLEARCOAT: "KHR_materials_clearcoat",
-    KHR_MATERIALS_IOR: "KHR_materials_ior",
-    KHR_MATERIALS_SHEEN: "KHR_materials_sheen",
-    KHR_MATERIALS_SPECULAR: "KHR_materials_specular",
-    KHR_MATERIALS_TRANSMISSION: "KHR_materials_transmission",
-    KHR_MATERIALS_IRIDESCENCE: "KHR_materials_iridescence",
-    KHR_MATERIALS_ANISOTROPY: "KHR_materials_anisotropy",
-    KHR_MATERIALS_UNLIT: "KHR_materials_unlit",
-    KHR_MATERIALS_VOLUME: "KHR_materials_volume",
-    KHR_TEXTURE_BASISU: "KHR_texture_basisu",
-    KHR_TEXTURE_TRANSFORM: "KHR_texture_transform",
-    KHR_MESH_QUANTIZATION: "KHR_mesh_quantization",
-    KHR_MATERIALS_EMISSIVE_STRENGTH: "KHR_materials_emissive_strength",
-    EXT_MATERIALS_BUMP: "EXT_materials_bump",
-    EXT_TEXTURE_WEBP: "EXT_texture_webp",
-    EXT_TEXTURE_AVIF: "EXT_texture_avif",
-    EXT_MESHOPT_COMPRESSION: "EXT_meshopt_compression",
-    EXT_MESH_GPU_INSTANCING: "EXT_mesh_gpu_instancing"
-  };
-  var GLTFLightsExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_LIGHTS_PUNCTUAL;
-      this.cache = { refs: {}, uses: {} };
-    }
-    _markDefs() {
-      const parser = this.parser;
-      const nodeDefs = this.parser.json.nodes || [];
-      for (let nodeIndex = 0, nodeLength = nodeDefs.length; nodeIndex < nodeLength; nodeIndex++) {
-        const nodeDef = nodeDefs[nodeIndex];
-        if (nodeDef.extensions && nodeDef.extensions[this.name] && nodeDef.extensions[this.name].light !== void 0) {
-          parser._addNodeRef(this.cache, nodeDef.extensions[this.name].light);
-        }
-      }
-    }
-    _loadLight(lightIndex) {
-      const parser = this.parser;
-      const cacheKey = "light:" + lightIndex;
-      let dependency = parser.cache.get(cacheKey);
-      if (dependency) return dependency;
-      const json = parser.json;
-      const extensions = json.extensions && json.extensions[this.name] || {};
-      const lightDefs = extensions.lights || [];
-      const lightDef = lightDefs[lightIndex];
-      let lightNode;
-      const color = new Color(16777215);
-      if (lightDef.color !== void 0) color.setRGB(lightDef.color[0], lightDef.color[1], lightDef.color[2], LinearSRGBColorSpace);
-      const range = lightDef.range !== void 0 ? lightDef.range : 0;
-      switch (lightDef.type) {
-        case "directional":
-          lightNode = new DirectionalLight(color);
-          lightNode.target.position.set(0, 0, -1);
-          lightNode.add(lightNode.target);
-          break;
-        case "point":
-          lightNode = new PointLight(color);
-          lightNode.distance = range;
-          break;
-        case "spot":
-          lightNode = new SpotLight(color);
-          lightNode.distance = range;
-          lightDef.spot = lightDef.spot || {};
-          lightDef.spot.innerConeAngle = lightDef.spot.innerConeAngle !== void 0 ? lightDef.spot.innerConeAngle : 0;
-          lightDef.spot.outerConeAngle = lightDef.spot.outerConeAngle !== void 0 ? lightDef.spot.outerConeAngle : Math.PI / 4;
-          lightNode.angle = lightDef.spot.outerConeAngle;
-          lightNode.penumbra = 1 - lightDef.spot.innerConeAngle / lightDef.spot.outerConeAngle;
-          lightNode.target.position.set(0, 0, -1);
-          lightNode.add(lightNode.target);
-          break;
-        default:
-          throw new Error("THREE.GLTFLoader: Unexpected light type: " + lightDef.type);
-      }
-      lightNode.position.set(0, 0, 0);
-      lightNode.decay = 2;
-      assignExtrasToUserData(lightNode, lightDef);
-      if (lightDef.intensity !== void 0) lightNode.intensity = lightDef.intensity;
-      lightNode.name = parser.createUniqueName(lightDef.name || "light_" + lightIndex);
-      dependency = Promise.resolve(lightNode);
-      parser.cache.add(cacheKey, dependency);
-      return dependency;
-    }
-    getDependency(type, index) {
-      if (type !== "light") return;
-      return this._loadLight(index);
-    }
-    createNodeAttachment(nodeIndex) {
-      const self2 = this;
-      const parser = this.parser;
-      const json = parser.json;
-      const nodeDef = json.nodes[nodeIndex];
-      const lightDef = nodeDef.extensions && nodeDef.extensions[this.name] || {};
-      const lightIndex = lightDef.light;
-      if (lightIndex === void 0) return null;
-      return this._loadLight(lightIndex).then(function(light) {
-        return parser._getNodeRef(self2.cache, lightIndex, light);
-      });
-    }
-  };
-  var GLTFMaterialsUnlitExtension = class {
-    constructor() {
-      this.name = EXTENSIONS.KHR_MATERIALS_UNLIT;
-    }
-    getMaterialType() {
-      return MeshBasicMaterial;
-    }
-    extendParams(materialParams, materialDef, parser) {
-      const pending = [];
-      materialParams.color = new Color(1, 1, 1);
-      materialParams.opacity = 1;
-      const metallicRoughness = materialDef.pbrMetallicRoughness;
-      if (metallicRoughness) {
-        if (Array.isArray(metallicRoughness.baseColorFactor)) {
-          const array = metallicRoughness.baseColorFactor;
-          materialParams.color.setRGB(array[0], array[1], array[2], LinearSRGBColorSpace);
-          materialParams.opacity = array[3];
-        }
-        if (metallicRoughness.baseColorTexture !== void 0) {
-          pending.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
-        }
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsEmissiveStrengthExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_EMISSIVE_STRENGTH;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const emissiveStrength = materialDef.extensions[this.name].emissiveStrength;
-      if (emissiveStrength !== void 0) {
-        materialParams.emissiveIntensity = emissiveStrength;
-      }
-      return Promise.resolve();
-    }
-  };
-  var GLTFMaterialsClearcoatExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_CLEARCOAT;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      if (extension.clearcoatFactor !== void 0) {
-        materialParams.clearcoat = extension.clearcoatFactor;
-      }
-      if (extension.clearcoatTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "clearcoatMap", extension.clearcoatTexture));
-      }
-      if (extension.clearcoatRoughnessFactor !== void 0) {
-        materialParams.clearcoatRoughness = extension.clearcoatRoughnessFactor;
-      }
-      if (extension.clearcoatRoughnessTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "clearcoatRoughnessMap", extension.clearcoatRoughnessTexture));
-      }
-      if (extension.clearcoatNormalTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "clearcoatNormalMap", extension.clearcoatNormalTexture));
-        if (extension.clearcoatNormalTexture.scale !== void 0) {
-          const scale = extension.clearcoatNormalTexture.scale;
-          materialParams.clearcoatNormalScale = new Vector2(scale, scale);
-        }
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsIridescenceExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_IRIDESCENCE;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      if (extension.iridescenceFactor !== void 0) {
-        materialParams.iridescence = extension.iridescenceFactor;
-      }
-      if (extension.iridescenceTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "iridescenceMap", extension.iridescenceTexture));
-      }
-      if (extension.iridescenceIor !== void 0) {
-        materialParams.iridescenceIOR = extension.iridescenceIor;
-      }
-      if (materialParams.iridescenceThicknessRange === void 0) {
-        materialParams.iridescenceThicknessRange = [100, 400];
-      }
-      if (extension.iridescenceThicknessMinimum !== void 0) {
-        materialParams.iridescenceThicknessRange[0] = extension.iridescenceThicknessMinimum;
-      }
-      if (extension.iridescenceThicknessMaximum !== void 0) {
-        materialParams.iridescenceThicknessRange[1] = extension.iridescenceThicknessMaximum;
-      }
-      if (extension.iridescenceThicknessTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "iridescenceThicknessMap", extension.iridescenceThicknessTexture));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsSheenExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_SHEEN;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      materialParams.sheenColor = new Color(0, 0, 0);
-      materialParams.sheenRoughness = 0;
-      materialParams.sheen = 1;
-      const extension = materialDef.extensions[this.name];
-      if (extension.sheenColorFactor !== void 0) {
-        const colorFactor = extension.sheenColorFactor;
-        materialParams.sheenColor.setRGB(colorFactor[0], colorFactor[1], colorFactor[2], LinearSRGBColorSpace);
-      }
-      if (extension.sheenRoughnessFactor !== void 0) {
-        materialParams.sheenRoughness = extension.sheenRoughnessFactor;
-      }
-      if (extension.sheenColorTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "sheenColorMap", extension.sheenColorTexture, SRGBColorSpace));
-      }
-      if (extension.sheenRoughnessTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "sheenRoughnessMap", extension.sheenRoughnessTexture));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsTransmissionExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_TRANSMISSION;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      if (extension.transmissionFactor !== void 0) {
-        materialParams.transmission = extension.transmissionFactor;
-      }
-      if (extension.transmissionTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "transmissionMap", extension.transmissionTexture));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsVolumeExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_VOLUME;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      materialParams.thickness = extension.thicknessFactor !== void 0 ? extension.thicknessFactor : 0;
-      if (extension.thicknessTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "thicknessMap", extension.thicknessTexture));
-      }
-      materialParams.attenuationDistance = extension.attenuationDistance || Infinity;
-      const colorArray = extension.attenuationColor || [1, 1, 1];
-      materialParams.attenuationColor = new Color().setRGB(colorArray[0], colorArray[1], colorArray[2], LinearSRGBColorSpace);
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsIorExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_IOR;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const extension = materialDef.extensions[this.name];
-      materialParams.ior = extension.ior !== void 0 ? extension.ior : 1.5;
-      return Promise.resolve();
-    }
-  };
-  var GLTFMaterialsSpecularExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_SPECULAR;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      materialParams.specularIntensity = extension.specularFactor !== void 0 ? extension.specularFactor : 1;
-      if (extension.specularTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "specularIntensityMap", extension.specularTexture));
-      }
-      const colorArray = extension.specularColorFactor || [1, 1, 1];
-      materialParams.specularColor = new Color().setRGB(colorArray[0], colorArray[1], colorArray[2], LinearSRGBColorSpace);
-      if (extension.specularColorTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "specularColorMap", extension.specularColorTexture, SRGBColorSpace));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsBumpExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.EXT_MATERIALS_BUMP;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      materialParams.bumpScale = extension.bumpFactor !== void 0 ? extension.bumpFactor : 1;
-      if (extension.bumpTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "bumpMap", extension.bumpTexture));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFMaterialsAnisotropyExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_MATERIALS_ANISOTROPY;
-    }
-    getMaterialType(materialIndex) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) return null;
-      return MeshPhysicalMaterial;
-    }
-    extendMaterialParams(materialIndex, materialParams) {
-      const parser = this.parser;
-      const materialDef = parser.json.materials[materialIndex];
-      if (!materialDef.extensions || !materialDef.extensions[this.name]) {
-        return Promise.resolve();
-      }
-      const pending = [];
-      const extension = materialDef.extensions[this.name];
-      if (extension.anisotropyStrength !== void 0) {
-        materialParams.anisotropy = extension.anisotropyStrength;
-      }
-      if (extension.anisotropyRotation !== void 0) {
-        materialParams.anisotropyRotation = extension.anisotropyRotation;
-      }
-      if (extension.anisotropyTexture !== void 0) {
-        pending.push(parser.assignTexture(materialParams, "anisotropyMap", extension.anisotropyTexture));
-      }
-      return Promise.all(pending);
-    }
-  };
-  var GLTFTextureBasisUExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.KHR_TEXTURE_BASISU;
-    }
-    loadTexture(textureIndex) {
-      const parser = this.parser;
-      const json = parser.json;
-      const textureDef = json.textures[textureIndex];
-      if (!textureDef.extensions || !textureDef.extensions[this.name]) {
-        return null;
-      }
-      const extension = textureDef.extensions[this.name];
-      const loader = parser.options.ktx2Loader;
-      if (!loader) {
-        if (json.extensionsRequired && json.extensionsRequired.indexOf(this.name) >= 0) {
-          throw new Error("THREE.GLTFLoader: setKTX2Loader must be called before loading KTX2 textures");
-        } else {
-          return null;
-        }
-      }
-      return parser.loadTextureImage(textureIndex, extension.source, loader);
-    }
-  };
-  var GLTFTextureWebPExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.EXT_TEXTURE_WEBP;
-      this.isSupported = null;
-    }
-    loadTexture(textureIndex) {
-      const name = this.name;
-      const parser = this.parser;
-      const json = parser.json;
-      const textureDef = json.textures[textureIndex];
-      if (!textureDef.extensions || !textureDef.extensions[name]) {
-        return null;
-      }
-      const extension = textureDef.extensions[name];
-      const source = json.images[extension.source];
-      let loader = parser.textureLoader;
-      if (source.uri) {
-        const handler = parser.options.manager.getHandler(source.uri);
-        if (handler !== null) loader = handler;
-      }
-      return this.detectSupport().then(function(isSupported) {
-        if (isSupported) return parser.loadTextureImage(textureIndex, extension.source, loader);
-        if (json.extensionsRequired && json.extensionsRequired.indexOf(name) >= 0) {
-          throw new Error("THREE.GLTFLoader: WebP required by asset but unsupported.");
-        }
-        return parser.loadTexture(textureIndex);
-      });
-    }
-    detectSupport() {
-      if (!this.isSupported) {
-        this.isSupported = new Promise(function(resolve) {
-          const image = new Image();
-          image.src = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA";
-          image.onload = image.onerror = function() {
-            resolve(image.height === 1);
-          };
-        });
-      }
-      return this.isSupported;
-    }
-  };
-  var GLTFTextureAVIFExtension = class {
-    constructor(parser) {
-      this.parser = parser;
-      this.name = EXTENSIONS.EXT_TEXTURE_AVIF;
-      this.isSupported = null;
-    }
-    loadTexture(textureIndex) {
-      const name = this.name;
-      const parser = this.parser;
-      const json = parser.json;
-      const textureDef = json.textures[textureIndex];
-      if (!textureDef.extensions || !textureDef.extensions[name]) {
-        return null;
-      }
-      const extension = textureDef.extensions[name];
-      const source = json.images[extension.source];
-      let loader = parser.textureLoader;
-      if (source.uri) {
-        const handler = parser.options.manager.getHandler(source.uri);
-        if (handler !== null) loader = handler;
-      }
-      return this.detectSupport().then(function(isSupported) {
-        if (isSupported) return parser.loadTextureImage(textureIndex, extension.source, loader);
-        if (json.extensionsRequired && json.extensionsRequired.indexOf(name) >= 0) {
-          throw new Error("THREE.GLTFLoader: AVIF required by asset but unsupported.");
-        }
-        return parser.loadTexture(textureIndex);
-      });
-    }
-    detectSupport() {
-      if (!this.isSupported) {
-        this.isSupported = new Promise(function(resolve) {
-          const image = new Image();
-          image.src = "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAABcAAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQAMAAAAABNjb2xybmNseAACAAIABoAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAAB9tZGF0EgAKCBgABogQEDQgMgkQAAAAB8dSLfI=";
-          image.onload = image.onerror = function() {
-            resolve(image.height === 1);
-          };
-        });
-      }
-      return this.isSupported;
-    }
-  };
-  var GLTFMeshoptCompression = class {
-    constructor(parser) {
-      this.name = EXTENSIONS.EXT_MESHOPT_COMPRESSION;
-      this.parser = parser;
-    }
-    loadBufferView(index) {
-      const json = this.parser.json;
-      const bufferView = json.bufferViews[index];
-      if (bufferView.extensions && bufferView.extensions[this.name]) {
-        const extensionDef = bufferView.extensions[this.name];
-        const buffer = this.parser.getDependency("buffer", extensionDef.buffer);
-        const decoder = this.parser.options.meshoptDecoder;
-        if (!decoder || !decoder.supported) {
-          if (json.extensionsRequired && json.extensionsRequired.indexOf(this.name) >= 0) {
-            throw new Error("THREE.GLTFLoader: setMeshoptDecoder must be called before loading compressed files");
-          } else {
-            return null;
-          }
-        }
-        return buffer.then(function(res) {
-          const byteOffset = extensionDef.byteOffset || 0;
-          const byteLength = extensionDef.byteLength || 0;
-          const count = extensionDef.count;
-          const stride = extensionDef.byteStride;
-          const source = new Uint8Array(res, byteOffset, byteLength);
-          if (decoder.decodeGltfBufferAsync) {
-            return decoder.decodeGltfBufferAsync(count, stride, source, extensionDef.mode, extensionDef.filter).then(function(res2) {
-              return res2.buffer;
-            });
-          } else {
-            return decoder.ready.then(function() {
-              const result = new ArrayBuffer(count * stride);
-              decoder.decodeGltfBuffer(new Uint8Array(result), count, stride, source, extensionDef.mode, extensionDef.filter);
-              return result;
-            });
-          }
-        });
-      } else {
-        return null;
-      }
-    }
-  };
-  var GLTFMeshGpuInstancing = class {
-    constructor(parser) {
-      this.name = EXTENSIONS.EXT_MESH_GPU_INSTANCING;
-      this.parser = parser;
-    }
-    createNodeMesh(nodeIndex) {
-      const json = this.parser.json;
-      const nodeDef = json.nodes[nodeIndex];
-      if (!nodeDef.extensions || !nodeDef.extensions[this.name] || nodeDef.mesh === void 0) {
-        return null;
-      }
-      const meshDef = json.meshes[nodeDef.mesh];
-      for (const primitive of meshDef.primitives) {
-        if (primitive.mode !== WEBGL_CONSTANTS.TRIANGLES && primitive.mode !== WEBGL_CONSTANTS.TRIANGLE_STRIP && primitive.mode !== WEBGL_CONSTANTS.TRIANGLE_FAN && primitive.mode !== void 0) {
-          return null;
-        }
-      }
-      const extensionDef = nodeDef.extensions[this.name];
-      const attributesDef = extensionDef.attributes;
-      const pending = [];
-      const attributes = {};
-      for (const key2 in attributesDef) {
-        pending.push(this.parser.getDependency("accessor", attributesDef[key2]).then((accessor) => {
-          attributes[key2] = accessor;
-          return attributes[key2];
-        }));
-      }
-      if (pending.length < 1) {
-        return null;
-      }
-      pending.push(this.parser.createNodeMesh(nodeIndex));
-      return Promise.all(pending).then((results) => {
-        const nodeObject = results.pop();
-        const meshes = nodeObject.isGroup ? nodeObject.children : [nodeObject];
-        const count = results[0].count;
-        const instancedMeshes = [];
-        for (const mesh of meshes) {
-          const m = new Matrix4();
-          const p = new Vector3();
-          const q = new Quaternion();
-          const s = new Vector3(1, 1, 1);
-          const instancedMesh = new InstancedMesh(mesh.geometry, mesh.material, count);
-          for (let i = 0; i < count; i++) {
-            if (attributes.TRANSLATION) {
-              p.fromBufferAttribute(attributes.TRANSLATION, i);
-            }
-            if (attributes.ROTATION) {
-              q.fromBufferAttribute(attributes.ROTATION, i);
-            }
-            if (attributes.SCALE) {
-              s.fromBufferAttribute(attributes.SCALE, i);
-            }
-            instancedMesh.setMatrixAt(i, m.compose(p, q, s));
-          }
-          for (const attributeName in attributes) {
-            if (attributeName === "_COLOR_0") {
-              const attr = attributes[attributeName];
-              instancedMesh.instanceColor = new InstancedBufferAttribute(attr.array, attr.itemSize, attr.normalized);
-            } else if (attributeName !== "TRANSLATION" && attributeName !== "ROTATION" && attributeName !== "SCALE") {
-              mesh.geometry.setAttribute(attributeName, attributes[attributeName]);
-            }
-          }
-          Object3D.prototype.copy.call(instancedMesh, mesh);
-          this.parser.assignFinalMaterial(instancedMesh);
-          instancedMeshes.push(instancedMesh);
-        }
-        if (nodeObject.isGroup) {
-          nodeObject.clear();
-          nodeObject.add(...instancedMeshes);
-          return nodeObject;
-        }
-        return instancedMeshes[0];
-      });
-    }
-  };
-  var BINARY_EXTENSION_HEADER_MAGIC = "glTF";
-  var BINARY_EXTENSION_HEADER_LENGTH = 12;
-  var BINARY_EXTENSION_CHUNK_TYPES = { JSON: 1313821514, BIN: 5130562 };
-  var GLTFBinaryExtension = class {
-    constructor(data) {
-      this.name = EXTENSIONS.KHR_BINARY_GLTF;
-      this.content = null;
-      this.body = null;
-      const headerView = new DataView(data, 0, BINARY_EXTENSION_HEADER_LENGTH);
-      const textDecoder = new TextDecoder();
-      this.header = {
-        magic: textDecoder.decode(new Uint8Array(data.slice(0, 4))),
-        version: headerView.getUint32(4, true),
-        length: headerView.getUint32(8, true)
-      };
-      if (this.header.magic !== BINARY_EXTENSION_HEADER_MAGIC) {
-        throw new Error("THREE.GLTFLoader: Unsupported glTF-Binary header.");
-      } else if (this.header.version < 2) {
-        throw new Error("THREE.GLTFLoader: Legacy binary file detected.");
-      }
-      const chunkContentsLength = this.header.length - BINARY_EXTENSION_HEADER_LENGTH;
-      const chunkView = new DataView(data, BINARY_EXTENSION_HEADER_LENGTH);
-      let chunkIndex = 0;
-      while (chunkIndex < chunkContentsLength) {
-        const chunkLength = chunkView.getUint32(chunkIndex, true);
-        chunkIndex += 4;
-        const chunkType = chunkView.getUint32(chunkIndex, true);
-        chunkIndex += 4;
-        if (chunkType === BINARY_EXTENSION_CHUNK_TYPES.JSON) {
-          const contentArray = new Uint8Array(data, BINARY_EXTENSION_HEADER_LENGTH + chunkIndex, chunkLength);
-          this.content = textDecoder.decode(contentArray);
-        } else if (chunkType === BINARY_EXTENSION_CHUNK_TYPES.BIN) {
-          const byteOffset = BINARY_EXTENSION_HEADER_LENGTH + chunkIndex;
-          this.body = data.slice(byteOffset, byteOffset + chunkLength);
-        }
-        chunkIndex += chunkLength;
-      }
-      if (this.content === null) {
-        throw new Error("THREE.GLTFLoader: JSON content not found.");
-      }
-    }
-  };
-  var GLTFDracoMeshCompressionExtension = class {
-    constructor(json, dracoLoader) {
-      if (!dracoLoader) {
-        throw new Error("THREE.GLTFLoader: No DRACOLoader instance provided.");
-      }
-      this.name = EXTENSIONS.KHR_DRACO_MESH_COMPRESSION;
-      this.json = json;
-      this.dracoLoader = dracoLoader;
-      this.dracoLoader.preload();
-    }
-    decodePrimitive(primitive, parser) {
-      const json = this.json;
-      const dracoLoader = this.dracoLoader;
-      const bufferViewIndex = primitive.extensions[this.name].bufferView;
-      const gltfAttributeMap = primitive.extensions[this.name].attributes;
-      const threeAttributeMap = {};
-      const attributeNormalizedMap = {};
-      const attributeTypeMap = {};
-      for (const attributeName in gltfAttributeMap) {
-        const threeAttributeName = ATTRIBUTES[attributeName] || attributeName.toLowerCase();
-        threeAttributeMap[threeAttributeName] = gltfAttributeMap[attributeName];
-      }
-      for (const attributeName in primitive.attributes) {
-        const threeAttributeName = ATTRIBUTES[attributeName] || attributeName.toLowerCase();
-        if (gltfAttributeMap[attributeName] !== void 0) {
-          const accessorDef = json.accessors[primitive.attributes[attributeName]];
-          const componentType = WEBGL_COMPONENT_TYPES[accessorDef.componentType];
-          attributeTypeMap[threeAttributeName] = componentType.name;
-          attributeNormalizedMap[threeAttributeName] = accessorDef.normalized === true;
-        }
-      }
-      return parser.getDependency("bufferView", bufferViewIndex).then(function(bufferView) {
-        return new Promise(function(resolve, reject) {
-          dracoLoader.decodeDracoFile(bufferView, function(geometry) {
-            for (const attributeName in geometry.attributes) {
-              const attribute = geometry.attributes[attributeName];
-              const normalized = attributeNormalizedMap[attributeName];
-              if (normalized !== void 0) attribute.normalized = normalized;
-            }
-            resolve(geometry);
-          }, threeAttributeMap, attributeTypeMap, LinearSRGBColorSpace, reject);
-        });
-      });
-    }
-  };
-  var GLTFTextureTransformExtension = class {
-    constructor() {
-      this.name = EXTENSIONS.KHR_TEXTURE_TRANSFORM;
-    }
-    extendTexture(texture, transform) {
-      if ((transform.texCoord === void 0 || transform.texCoord === texture.channel) && transform.offset === void 0 && transform.rotation === void 0 && transform.scale === void 0) {
-        return texture;
-      }
-      texture = texture.clone();
-      if (transform.texCoord !== void 0) {
-        texture.channel = transform.texCoord;
-      }
-      if (transform.offset !== void 0) {
-        texture.offset.fromArray(transform.offset);
-      }
-      if (transform.rotation !== void 0) {
-        texture.rotation = transform.rotation;
-      }
-      if (transform.scale !== void 0) {
-        texture.repeat.fromArray(transform.scale);
-      }
-      texture.needsUpdate = true;
-      return texture;
-    }
-  };
-  var GLTFMeshQuantizationExtension = class {
-    constructor() {
-      this.name = EXTENSIONS.KHR_MESH_QUANTIZATION;
-    }
-  };
-  var GLTFCubicSplineInterpolant = class extends Interpolant {
-    constructor(parameterPositions, sampleValues, sampleSize, resultBuffer) {
-      super(parameterPositions, sampleValues, sampleSize, resultBuffer);
-    }
-    copySampleValue_(index) {
-      const result = this.resultBuffer, values = this.sampleValues, valueSize = this.valueSize, offset = index * valueSize * 3 + valueSize;
-      for (let i = 0; i !== valueSize; i++) {
-        result[i] = values[offset + i];
-      }
-      return result;
-    }
-    interpolate_(i1, t0, t, t1) {
-      const result = this.resultBuffer;
-      const values = this.sampleValues;
-      const stride = this.valueSize;
-      const stride2 = stride * 2;
-      const stride3 = stride * 3;
-      const td = t1 - t0;
-      const p = (t - t0) / td;
-      const pp = p * p;
-      const ppp = pp * p;
-      const offset1 = i1 * stride3;
-      const offset0 = offset1 - stride3;
-      const s2 = -2 * ppp + 3 * pp;
-      const s3 = ppp - pp;
-      const s0 = 1 - s2;
-      const s1 = s3 - pp + p;
-      for (let i = 0; i !== stride; i++) {
-        const p0 = values[offset0 + i + stride];
-        const m0 = values[offset0 + i + stride2] * td;
-        const p1 = values[offset1 + i + stride];
-        const m1 = values[offset1 + i] * td;
-        result[i] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
-      }
-      return result;
-    }
-  };
   var _q = new Quaternion();
-  var GLTFCubicSplineQuaternionInterpolant = class extends GLTFCubicSplineInterpolant {
-    interpolate_(i1, t0, t, t1) {
-      const result = super.interpolate_(i1, t0, t, t1);
-      _q.fromArray(result).normalize().toArray(result);
-      return result;
-    }
-  };
-  var WEBGL_CONSTANTS = {
-    FLOAT: 5126,
-    //FLOAT_MAT2: 35674,
-    FLOAT_MAT3: 35675,
-    FLOAT_MAT4: 35676,
-    FLOAT_VEC2: 35664,
-    FLOAT_VEC3: 35665,
-    FLOAT_VEC4: 35666,
-    LINEAR: 9729,
-    REPEAT: 10497,
-    SAMPLER_2D: 35678,
-    POINTS: 0,
-    LINES: 1,
-    LINE_LOOP: 2,
-    LINE_STRIP: 3,
-    TRIANGLES: 4,
-    TRIANGLE_STRIP: 5,
-    TRIANGLE_FAN: 6,
-    UNSIGNED_BYTE: 5121,
-    UNSIGNED_SHORT: 5123
-  };
-  var WEBGL_COMPONENT_TYPES = {
-    5120: Int8Array,
-    5121: Uint8Array,
-    5122: Int16Array,
-    5123: Uint16Array,
-    5125: Uint32Array,
-    5126: Float32Array
-  };
-  var WEBGL_FILTERS = {
-    9728: NearestFilter,
-    9729: LinearFilter,
-    9984: NearestMipmapNearestFilter,
-    9985: LinearMipmapNearestFilter,
-    9986: NearestMipmapLinearFilter,
-    9987: LinearMipmapLinearFilter
-  };
-  var WEBGL_WRAPPINGS = {
-    33071: ClampToEdgeWrapping,
-    33648: MirroredRepeatWrapping,
-    10497: RepeatWrapping
-  };
-  var WEBGL_TYPE_SIZES = {
-    "SCALAR": 1,
-    "VEC2": 2,
-    "VEC3": 3,
-    "VEC4": 4,
-    "MAT2": 4,
-    "MAT3": 9,
-    "MAT4": 16
-  };
-  var ATTRIBUTES = {
-    POSITION: "position",
-    NORMAL: "normal",
-    TANGENT: "tangent",
-    TEXCOORD_0: "uv",
-    TEXCOORD_1: "uv1",
-    TEXCOORD_2: "uv2",
-    TEXCOORD_3: "uv3",
-    COLOR_0: "color",
-    WEIGHTS_0: "skinWeight",
-    JOINTS_0: "skinIndex"
-  };
-  var PATH_PROPERTIES = {
-    scale: "scale",
-    translation: "position",
-    rotation: "quaternion",
-    weights: "morphTargetInfluences"
-  };
-  var INTERPOLATION = {
-    CUBICSPLINE: void 0,
-    // We use a custom interpolant (GLTFCubicSplineInterpolation) for CUBICSPLINE tracks. Each
-    // keyframe track will be initialized with a default interpolation type, then modified.
-    LINEAR: InterpolateLinear,
-    STEP: InterpolateDiscrete
-  };
-  var ALPHA_MODES = {
-    OPAQUE: "OPAQUE",
-    MASK: "MASK",
-    BLEND: "BLEND"
-  };
-  function createDefaultMaterial(cache) {
-    if (cache["DefaultMaterial"] === void 0) {
-      cache["DefaultMaterial"] = new MeshStandardMaterial({
-        color: 16777215,
-        emissive: 0,
-        metalness: 1,
-        roughness: 1,
-        transparent: false,
-        depthTest: true,
-        side: FrontSide
-      });
-    }
-    return cache["DefaultMaterial"];
-  }
-  function addUnknownExtensionsToUserData(knownExtensions, object, objectDef) {
-    for (const name in objectDef.extensions) {
-      if (knownExtensions[name] === void 0) {
-        object.userData.gltfExtensions = object.userData.gltfExtensions || {};
-        object.userData.gltfExtensions[name] = objectDef.extensions[name];
-      }
-    }
-  }
-  function assignExtrasToUserData(object, gltfDef) {
-    if (gltfDef.extras !== void 0) {
-      if (typeof gltfDef.extras === "object") {
-        Object.assign(object.userData, gltfDef.extras);
-      } else {
-        console.warn("THREE.GLTFLoader: Ignoring primitive type .extras, " + gltfDef.extras);
-      }
-    }
-  }
-  function addMorphTargets(geometry, targets, parser) {
-    let hasMorphPosition = false;
-    let hasMorphNormal = false;
-    let hasMorphColor = false;
-    for (let i = 0, il = targets.length; i < il; i++) {
-      const target = targets[i];
-      if (target.POSITION !== void 0) hasMorphPosition = true;
-      if (target.NORMAL !== void 0) hasMorphNormal = true;
-      if (target.COLOR_0 !== void 0) hasMorphColor = true;
-      if (hasMorphPosition && hasMorphNormal && hasMorphColor) break;
-    }
-    if (!hasMorphPosition && !hasMorphNormal && !hasMorphColor) return Promise.resolve(geometry);
-    const pendingPositionAccessors = [];
-    const pendingNormalAccessors = [];
-    const pendingColorAccessors = [];
-    for (let i = 0, il = targets.length; i < il; i++) {
-      const target = targets[i];
-      if (hasMorphPosition) {
-        const pendingAccessor = target.POSITION !== void 0 ? parser.getDependency("accessor", target.POSITION) : geometry.attributes.position;
-        pendingPositionAccessors.push(pendingAccessor);
-      }
-      if (hasMorphNormal) {
-        const pendingAccessor = target.NORMAL !== void 0 ? parser.getDependency("accessor", target.NORMAL) : geometry.attributes.normal;
-        pendingNormalAccessors.push(pendingAccessor);
-      }
-      if (hasMorphColor) {
-        const pendingAccessor = target.COLOR_0 !== void 0 ? parser.getDependency("accessor", target.COLOR_0) : geometry.attributes.color;
-        pendingColorAccessors.push(pendingAccessor);
-      }
-    }
-    return Promise.all([
-      Promise.all(pendingPositionAccessors),
-      Promise.all(pendingNormalAccessors),
-      Promise.all(pendingColorAccessors)
-    ]).then(function(accessors) {
-      const morphPositions = accessors[0];
-      const morphNormals = accessors[1];
-      const morphColors = accessors[2];
-      if (hasMorphPosition) geometry.morphAttributes.position = morphPositions;
-      if (hasMorphNormal) geometry.morphAttributes.normal = morphNormals;
-      if (hasMorphColor) geometry.morphAttributes.color = morphColors;
-      geometry.morphTargetsRelative = true;
-      return geometry;
-    });
-  }
-  function updateMorphTargets(mesh, meshDef) {
-    mesh.updateMorphTargets();
-    if (meshDef.weights !== void 0) {
-      for (let i = 0, il = meshDef.weights.length; i < il; i++) {
-        mesh.morphTargetInfluences[i] = meshDef.weights[i];
-      }
-    }
-    if (meshDef.extras && Array.isArray(meshDef.extras.targetNames)) {
-      const targetNames = meshDef.extras.targetNames;
-      if (mesh.morphTargetInfluences.length === targetNames.length) {
-        mesh.morphTargetDictionary = {};
-        for (let i = 0, il = targetNames.length; i < il; i++) {
-          mesh.morphTargetDictionary[targetNames[i]] = i;
-        }
-      } else {
-        console.warn("THREE.GLTFLoader: Invalid extras.targetNames length. Ignoring names.");
-      }
-    }
-  }
-  function createPrimitiveKey(primitiveDef) {
-    let geometryKey;
-    const dracoExtension = primitiveDef.extensions && primitiveDef.extensions[EXTENSIONS.KHR_DRACO_MESH_COMPRESSION];
-    if (dracoExtension) {
-      geometryKey = "draco:" + dracoExtension.bufferView + ":" + dracoExtension.indices + ":" + createAttributesKey(dracoExtension.attributes);
-    } else {
-      geometryKey = primitiveDef.indices + ":" + createAttributesKey(primitiveDef.attributes) + ":" + primitiveDef.mode;
-    }
-    if (primitiveDef.targets !== void 0) {
-      for (let i = 0, il = primitiveDef.targets.length; i < il; i++) {
-        geometryKey += ":" + createAttributesKey(primitiveDef.targets[i]);
-      }
-    }
-    return geometryKey;
-  }
-  function createAttributesKey(attributes) {
-    let attributesKey = "";
-    const keys = Object.keys(attributes).sort();
-    for (let i = 0, il = keys.length; i < il; i++) {
-      attributesKey += keys[i] + ":" + attributes[keys[i]] + ";";
-    }
-    return attributesKey;
-  }
-  function getNormalizedComponentScale(constructor) {
-    switch (constructor) {
-      case Int8Array:
-        return 1 / 127;
-      case Uint8Array:
-        return 1 / 255;
-      case Int16Array:
-        return 1 / 32767;
-      case Uint16Array:
-        return 1 / 65535;
-      default:
-        throw new Error("THREE.GLTFLoader: Unsupported normalized accessor component type.");
-    }
-  }
-  function getImageURIMimeType(uri) {
-    if (uri.search(/\.jpe?g($|\?)/i) > 0 || uri.search(/^data\:image\/jpeg/) === 0) return "image/jpeg";
-    if (uri.search(/\.webp($|\?)/i) > 0 || uri.search(/^data\:image\/webp/) === 0) return "image/webp";
-    return "image/png";
-  }
   var _identityMatrix = new Matrix4();
-  var GLTFParser = class {
-    constructor(json = {}, options = {}) {
-      this.json = json;
-      this.extensions = {};
-      this.plugins = {};
-      this.options = options;
-      this.cache = new GLTFRegistry();
-      this.associations = /* @__PURE__ */ new Map();
-      this.primitiveCache = {};
-      this.nodeCache = {};
-      this.meshCache = { refs: {}, uses: {} };
-      this.cameraCache = { refs: {}, uses: {} };
-      this.lightCache = { refs: {}, uses: {} };
-      this.sourceCache = {};
-      this.textureCache = {};
-      this.nodeNamesUsed = {};
-      let isSafari = false;
-      let isFirefox = false;
-      let firefoxVersion = -1;
-      if (typeof navigator !== "undefined") {
-        isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) === true;
-        isFirefox = navigator.userAgent.indexOf("Firefox") > -1;
-        firefoxVersion = isFirefox ? navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1] : -1;
-      }
-      if (typeof createImageBitmap === "undefined" || isSafari || isFirefox && firefoxVersion < 98) {
-        this.textureLoader = new TextureLoader(this.options.manager);
-      } else {
-        this.textureLoader = new ImageBitmapLoader(this.options.manager);
-      }
-      this.textureLoader.setCrossOrigin(this.options.crossOrigin);
-      this.textureLoader.setRequestHeader(this.options.requestHeader);
-      this.fileLoader = new FileLoader(this.options.manager);
-      this.fileLoader.setResponseType("arraybuffer");
-      if (this.options.crossOrigin === "use-credentials") {
-        this.fileLoader.setWithCredentials(true);
-      }
-    }
-    setExtensions(extensions) {
-      this.extensions = extensions;
-    }
-    setPlugins(plugins) {
-      this.plugins = plugins;
-    }
-    parse(onLoad, onError) {
-      const parser = this;
-      const json = this.json;
-      const extensions = this.extensions;
-      this.cache.removeAll();
-      this.nodeCache = {};
-      this._invokeAll(function(ext) {
-        return ext._markDefs && ext._markDefs();
-      });
-      Promise.all(this._invokeAll(function(ext) {
-        return ext.beforeRoot && ext.beforeRoot();
-      })).then(function() {
-        return Promise.all([
-          parser.getDependencies("scene"),
-          parser.getDependencies("animation"),
-          parser.getDependencies("camera")
-        ]);
-      }).then(function(dependencies) {
-        const result = {
-          scene: dependencies[0][json.scene || 0],
-          scenes: dependencies[0],
-          animations: dependencies[1],
-          cameras: dependencies[2],
-          asset: json.asset,
-          parser,
-          userData: {}
-        };
-        addUnknownExtensionsToUserData(extensions, result, json);
-        assignExtrasToUserData(result, json);
-        return Promise.all(parser._invokeAll(function(ext) {
-          return ext.afterRoot && ext.afterRoot(result);
-        })).then(function() {
-          onLoad(result);
-        });
-      }).catch(onError);
-    }
-    /**
-     * Marks the special nodes/meshes in json for efficient parse.
-     */
-    _markDefs() {
-      const nodeDefs = this.json.nodes || [];
-      const skinDefs = this.json.skins || [];
-      const meshDefs = this.json.meshes || [];
-      for (let skinIndex = 0, skinLength = skinDefs.length; skinIndex < skinLength; skinIndex++) {
-        const joints = skinDefs[skinIndex].joints;
-        for (let i = 0, il = joints.length; i < il; i++) {
-          nodeDefs[joints[i]].isBone = true;
-        }
-      }
-      for (let nodeIndex = 0, nodeLength = nodeDefs.length; nodeIndex < nodeLength; nodeIndex++) {
-        const nodeDef = nodeDefs[nodeIndex];
-        if (nodeDef.mesh !== void 0) {
-          this._addNodeRef(this.meshCache, nodeDef.mesh);
-          if (nodeDef.skin !== void 0) {
-            meshDefs[nodeDef.mesh].isSkinnedMesh = true;
-          }
-        }
-        if (nodeDef.camera !== void 0) {
-          this._addNodeRef(this.cameraCache, nodeDef.camera);
-        }
-      }
-    }
-    /**
-     * Counts references to shared node / Object3D resources. These resources
-     * can be reused, or "instantiated", at multiple nodes in the scene
-     * hierarchy. Mesh, Camera, and Light instances are instantiated and must
-     * be marked. Non-scenegraph resources (like Materials, Geometries, and
-     * Textures) can be reused directly and are not marked here.
-     *
-     * Example: CesiumMilkTruck sample model reuses "Wheel" meshes.
-     */
-    _addNodeRef(cache, index) {
-      if (index === void 0) return;
-      if (cache.refs[index] === void 0) {
-        cache.refs[index] = cache.uses[index] = 0;
-      }
-      cache.refs[index]++;
-    }
-    /** Returns a reference to a shared resource, cloning it if necessary. */
-    _getNodeRef(cache, index, object) {
-      if (cache.refs[index] <= 1) return object;
-      const ref = object.clone();
-      const updateMappings = (original, clone2) => {
-        const mappings = this.associations.get(original);
-        if (mappings != null) {
-          this.associations.set(clone2, mappings);
-        }
-        for (const [i, child] of original.children.entries()) {
-          updateMappings(child, clone2.children[i]);
-        }
-      };
-      updateMappings(object, ref);
-      ref.name += "_instance_" + cache.uses[index]++;
-      return ref;
-    }
-    _invokeOne(func) {
-      const extensions = Object.values(this.plugins);
-      extensions.push(this);
-      for (let i = 0; i < extensions.length; i++) {
-        const result = func(extensions[i]);
-        if (result) return result;
-      }
-      return null;
-    }
-    _invokeAll(func) {
-      const extensions = Object.values(this.plugins);
-      extensions.unshift(this);
-      const pending = [];
-      for (let i = 0; i < extensions.length; i++) {
-        const result = func(extensions[i]);
-        if (result) pending.push(result);
-      }
-      return pending;
-    }
-    /**
-     * Requests the specified dependency asynchronously, with caching.
-     * @param {string} type
-     * @param {number} index
-     * @return {Promise<Object3D|Material|THREE.Texture|AnimationClip|ArrayBuffer|Object>}
-     */
-    getDependency(type, index) {
-      const cacheKey = type + ":" + index;
-      let dependency = this.cache.get(cacheKey);
-      if (!dependency) {
-        switch (type) {
-          case "scene":
-            dependency = this.loadScene(index);
-            break;
-          case "node":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadNode && ext.loadNode(index);
-            });
-            break;
-          case "mesh":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadMesh && ext.loadMesh(index);
-            });
-            break;
-          case "accessor":
-            dependency = this.loadAccessor(index);
-            break;
-          case "bufferView":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadBufferView && ext.loadBufferView(index);
-            });
-            break;
-          case "buffer":
-            dependency = this.loadBuffer(index);
-            break;
-          case "material":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadMaterial && ext.loadMaterial(index);
-            });
-            break;
-          case "texture":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadTexture && ext.loadTexture(index);
-            });
-            break;
-          case "skin":
-            dependency = this.loadSkin(index);
-            break;
-          case "animation":
-            dependency = this._invokeOne(function(ext) {
-              return ext.loadAnimation && ext.loadAnimation(index);
-            });
-            break;
-          case "camera":
-            dependency = this.loadCamera(index);
-            break;
-          default:
-            dependency = this._invokeOne(function(ext) {
-              return ext != this && ext.getDependency && ext.getDependency(type, index);
-            });
-            if (!dependency) {
-              throw new Error("Unknown type: " + type);
-            }
-            break;
-        }
-        this.cache.add(cacheKey, dependency);
-      }
-      return dependency;
-    }
-    /**
-     * Requests all dependencies of the specified type asynchronously, with caching.
-     * @param {string} type
-     * @return {Promise<Array<Object>>}
-     */
-    getDependencies(type) {
-      let dependencies = this.cache.get(type);
-      if (!dependencies) {
-        const parser = this;
-        const defs = this.json[type + (type === "mesh" ? "es" : "s")] || [];
-        dependencies = Promise.all(defs.map(function(def, index) {
-          return parser.getDependency(type, index);
-        }));
-        this.cache.add(type, dependencies);
-      }
-      return dependencies;
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#buffers-and-buffer-views
-     * @param {number} bufferIndex
-     * @return {Promise<ArrayBuffer>}
-     */
-    loadBuffer(bufferIndex) {
-      const bufferDef = this.json.buffers[bufferIndex];
-      const loader = this.fileLoader;
-      if (bufferDef.type && bufferDef.type !== "arraybuffer") {
-        throw new Error("THREE.GLTFLoader: " + bufferDef.type + " buffer type is not supported.");
-      }
-      if (bufferDef.uri === void 0 && bufferIndex === 0) {
-        return Promise.resolve(this.extensions[EXTENSIONS.KHR_BINARY_GLTF].body);
-      }
-      const options = this.options;
-      return new Promise(function(resolve, reject) {
-        loader.load(LoaderUtils.resolveURL(bufferDef.uri, options.path), resolve, void 0, function() {
-          reject(new Error('THREE.GLTFLoader: Failed to load buffer "' + bufferDef.uri + '".'));
-        });
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#buffers-and-buffer-views
-     * @param {number} bufferViewIndex
-     * @return {Promise<ArrayBuffer>}
-     */
-    loadBufferView(bufferViewIndex) {
-      const bufferViewDef = this.json.bufferViews[bufferViewIndex];
-      return this.getDependency("buffer", bufferViewDef.buffer).then(function(buffer) {
-        const byteLength = bufferViewDef.byteLength || 0;
-        const byteOffset = bufferViewDef.byteOffset || 0;
-        return buffer.slice(byteOffset, byteOffset + byteLength);
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#accessors
-     * @param {number} accessorIndex
-     * @return {Promise<BufferAttribute|InterleavedBufferAttribute>}
-     */
-    loadAccessor(accessorIndex) {
-      const parser = this;
-      const json = this.json;
-      const accessorDef = this.json.accessors[accessorIndex];
-      if (accessorDef.bufferView === void 0 && accessorDef.sparse === void 0) {
-        const itemSize = WEBGL_TYPE_SIZES[accessorDef.type];
-        const TypedArray = WEBGL_COMPONENT_TYPES[accessorDef.componentType];
-        const normalized = accessorDef.normalized === true;
-        const array = new TypedArray(accessorDef.count * itemSize);
-        return Promise.resolve(new BufferAttribute(array, itemSize, normalized));
-      }
-      const pendingBufferViews = [];
-      if (accessorDef.bufferView !== void 0) {
-        pendingBufferViews.push(this.getDependency("bufferView", accessorDef.bufferView));
-      } else {
-        pendingBufferViews.push(null);
-      }
-      if (accessorDef.sparse !== void 0) {
-        pendingBufferViews.push(this.getDependency("bufferView", accessorDef.sparse.indices.bufferView));
-        pendingBufferViews.push(this.getDependency("bufferView", accessorDef.sparse.values.bufferView));
-      }
-      return Promise.all(pendingBufferViews).then(function(bufferViews) {
-        const bufferView = bufferViews[0];
-        const itemSize = WEBGL_TYPE_SIZES[accessorDef.type];
-        const TypedArray = WEBGL_COMPONENT_TYPES[accessorDef.componentType];
-        const elementBytes = TypedArray.BYTES_PER_ELEMENT;
-        const itemBytes = elementBytes * itemSize;
-        const byteOffset = accessorDef.byteOffset || 0;
-        const byteStride = accessorDef.bufferView !== void 0 ? json.bufferViews[accessorDef.bufferView].byteStride : void 0;
-        const normalized = accessorDef.normalized === true;
-        let array, bufferAttribute;
-        if (byteStride && byteStride !== itemBytes) {
-          const ibSlice = Math.floor(byteOffset / byteStride);
-          const ibCacheKey = "InterleavedBuffer:" + accessorDef.bufferView + ":" + accessorDef.componentType + ":" + ibSlice + ":" + accessorDef.count;
-          let ib = parser.cache.get(ibCacheKey);
-          if (!ib) {
-            array = new TypedArray(bufferView, ibSlice * byteStride, accessorDef.count * byteStride / elementBytes);
-            ib = new InterleavedBuffer(array, byteStride / elementBytes);
-            parser.cache.add(ibCacheKey, ib);
-          }
-          bufferAttribute = new InterleavedBufferAttribute(ib, itemSize, byteOffset % byteStride / elementBytes, normalized);
-        } else {
-          if (bufferView === null) {
-            array = new TypedArray(accessorDef.count * itemSize);
-          } else {
-            array = new TypedArray(bufferView, byteOffset, accessorDef.count * itemSize);
-          }
-          bufferAttribute = new BufferAttribute(array, itemSize, normalized);
-        }
-        if (accessorDef.sparse !== void 0) {
-          const itemSizeIndices = WEBGL_TYPE_SIZES.SCALAR;
-          const TypedArrayIndices = WEBGL_COMPONENT_TYPES[accessorDef.sparse.indices.componentType];
-          const byteOffsetIndices = accessorDef.sparse.indices.byteOffset || 0;
-          const byteOffsetValues = accessorDef.sparse.values.byteOffset || 0;
-          const sparseIndices = new TypedArrayIndices(bufferViews[1], byteOffsetIndices, accessorDef.sparse.count * itemSizeIndices);
-          const sparseValues = new TypedArray(bufferViews[2], byteOffsetValues, accessorDef.sparse.count * itemSize);
-          if (bufferView !== null) {
-            bufferAttribute = new BufferAttribute(bufferAttribute.array.slice(), bufferAttribute.itemSize, bufferAttribute.normalized);
-          }
-          for (let i = 0, il = sparseIndices.length; i < il; i++) {
-            const index = sparseIndices[i];
-            bufferAttribute.setX(index, sparseValues[i * itemSize]);
-            if (itemSize >= 2) bufferAttribute.setY(index, sparseValues[i * itemSize + 1]);
-            if (itemSize >= 3) bufferAttribute.setZ(index, sparseValues[i * itemSize + 2]);
-            if (itemSize >= 4) bufferAttribute.setW(index, sparseValues[i * itemSize + 3]);
-            if (itemSize >= 5) throw new Error("THREE.GLTFLoader: Unsupported itemSize in sparse BufferAttribute.");
-          }
-        }
-        return bufferAttribute;
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#textures
-     * @param {number} textureIndex
-     * @return {Promise<THREE.Texture|null>}
-     */
-    loadTexture(textureIndex) {
-      const json = this.json;
-      const options = this.options;
-      const textureDef = json.textures[textureIndex];
-      const sourceIndex = textureDef.source;
-      const sourceDef = json.images[sourceIndex];
-      let loader = this.textureLoader;
-      if (sourceDef.uri) {
-        const handler = options.manager.getHandler(sourceDef.uri);
-        if (handler !== null) loader = handler;
-      }
-      return this.loadTextureImage(textureIndex, sourceIndex, loader);
-    }
-    loadTextureImage(textureIndex, sourceIndex, loader) {
-      const parser = this;
-      const json = this.json;
-      const textureDef = json.textures[textureIndex];
-      const sourceDef = json.images[sourceIndex];
-      const cacheKey = (sourceDef.uri || sourceDef.bufferView) + ":" + textureDef.sampler;
-      if (this.textureCache[cacheKey]) {
-        return this.textureCache[cacheKey];
-      }
-      const promise = this.loadImageSource(sourceIndex, loader).then(function(texture) {
-        texture.flipY = false;
-        texture.name = textureDef.name || sourceDef.name || "";
-        if (texture.name === "" && typeof sourceDef.uri === "string" && sourceDef.uri.startsWith("data:image/") === false) {
-          texture.name = sourceDef.uri;
-        }
-        const samplers = json.samplers || {};
-        const sampler = samplers[textureDef.sampler] || {};
-        texture.magFilter = WEBGL_FILTERS[sampler.magFilter] || LinearFilter;
-        texture.minFilter = WEBGL_FILTERS[sampler.minFilter] || LinearMipmapLinearFilter;
-        texture.wrapS = WEBGL_WRAPPINGS[sampler.wrapS] || RepeatWrapping;
-        texture.wrapT = WEBGL_WRAPPINGS[sampler.wrapT] || RepeatWrapping;
-        parser.associations.set(texture, { textures: textureIndex });
-        return texture;
-      }).catch(function() {
-        return null;
-      });
-      this.textureCache[cacheKey] = promise;
-      return promise;
-    }
-    loadImageSource(sourceIndex, loader) {
-      const parser = this;
-      const json = this.json;
-      const options = this.options;
-      if (this.sourceCache[sourceIndex] !== void 0) {
-        return this.sourceCache[sourceIndex].then((texture) => texture.clone());
-      }
-      const sourceDef = json.images[sourceIndex];
-      const URL2 = self.URL || self.webkitURL;
-      let sourceURI = sourceDef.uri || "";
-      let isObjectURL = false;
-      if (sourceDef.bufferView !== void 0) {
-        sourceURI = parser.getDependency("bufferView", sourceDef.bufferView).then(function(bufferView) {
-          isObjectURL = true;
-          const blob = new Blob([bufferView], { type: sourceDef.mimeType });
-          sourceURI = URL2.createObjectURL(blob);
-          return sourceURI;
-        });
-      } else if (sourceDef.uri === void 0) {
-        throw new Error("THREE.GLTFLoader: Image " + sourceIndex + " is missing URI and bufferView");
-      }
-      const promise = Promise.resolve(sourceURI).then(function(sourceURI2) {
-        return new Promise(function(resolve, reject) {
-          let onLoad = resolve;
-          if (loader.isImageBitmapLoader === true) {
-            onLoad = function(imageBitmap) {
-              const texture = new Texture(imageBitmap);
-              texture.needsUpdate = true;
-              resolve(texture);
-            };
-          }
-          loader.load(LoaderUtils.resolveURL(sourceURI2, options.path), onLoad, void 0, reject);
-        });
-      }).then(function(texture) {
-        if (isObjectURL === true) {
-          URL2.revokeObjectURL(sourceURI);
-        }
-        texture.userData.mimeType = sourceDef.mimeType || getImageURIMimeType(sourceDef.uri);
-        return texture;
-      }).catch(function(error) {
-        console.error("THREE.GLTFLoader: Couldn't load texture", sourceURI);
-        throw error;
-      });
-      this.sourceCache[sourceIndex] = promise;
-      return promise;
-    }
-    /**
-     * Asynchronously assigns a texture to the given material parameters.
-     * @param {Object} materialParams
-     * @param {string} mapName
-     * @param {Object} mapDef
-     * @return {Promise<Texture>}
-     */
-    assignTexture(materialParams, mapName, mapDef, colorSpace) {
-      const parser = this;
-      return this.getDependency("texture", mapDef.index).then(function(texture) {
-        if (!texture) return null;
-        if (mapDef.texCoord !== void 0 && mapDef.texCoord > 0) {
-          texture = texture.clone();
-          texture.channel = mapDef.texCoord;
-        }
-        if (parser.extensions[EXTENSIONS.KHR_TEXTURE_TRANSFORM]) {
-          const transform = mapDef.extensions !== void 0 ? mapDef.extensions[EXTENSIONS.KHR_TEXTURE_TRANSFORM] : void 0;
-          if (transform) {
-            const gltfReference = parser.associations.get(texture);
-            texture = parser.extensions[EXTENSIONS.KHR_TEXTURE_TRANSFORM].extendTexture(texture, transform);
-            parser.associations.set(texture, gltfReference);
-          }
-        }
-        if (colorSpace !== void 0) {
-          texture.colorSpace = colorSpace;
-        }
-        materialParams[mapName] = texture;
-        return texture;
-      });
-    }
-    /**
-     * Assigns final material to a Mesh, Line, or Points instance. The instance
-     * already has a material (generated from the glTF material options alone)
-     * but reuse of the same glTF material may require multiple threejs materials
-     * to accommodate different primitive types, defines, etc. New materials will
-     * be created if necessary, and reused from a cache.
-     * @param  {Object3D} mesh Mesh, Line, or Points instance.
-     */
-    assignFinalMaterial(mesh) {
-      const geometry = mesh.geometry;
-      let material = mesh.material;
-      const useDerivativeTangents = geometry.attributes.tangent === void 0;
-      const useVertexColors = geometry.attributes.color !== void 0;
-      const useFlatShading = geometry.attributes.normal === void 0;
-      if (mesh.isPoints) {
-        const cacheKey = "PointsMaterial:" + material.uuid;
-        let pointsMaterial = this.cache.get(cacheKey);
-        if (!pointsMaterial) {
-          pointsMaterial = new PointsMaterial();
-          Material.prototype.copy.call(pointsMaterial, material);
-          pointsMaterial.color.copy(material.color);
-          pointsMaterial.map = material.map;
-          pointsMaterial.sizeAttenuation = false;
-          this.cache.add(cacheKey, pointsMaterial);
-        }
-        material = pointsMaterial;
-      } else if (mesh.isLine) {
-        const cacheKey = "LineBasicMaterial:" + material.uuid;
-        let lineMaterial = this.cache.get(cacheKey);
-        if (!lineMaterial) {
-          lineMaterial = new LineBasicMaterial();
-          Material.prototype.copy.call(lineMaterial, material);
-          lineMaterial.color.copy(material.color);
-          lineMaterial.map = material.map;
-          this.cache.add(cacheKey, lineMaterial);
-        }
-        material = lineMaterial;
-      }
-      if (useDerivativeTangents || useVertexColors || useFlatShading) {
-        let cacheKey = "ClonedMaterial:" + material.uuid + ":";
-        if (useDerivativeTangents) cacheKey += "derivative-tangents:";
-        if (useVertexColors) cacheKey += "vertex-colors:";
-        if (useFlatShading) cacheKey += "flat-shading:";
-        let cachedMaterial = this.cache.get(cacheKey);
-        if (!cachedMaterial) {
-          cachedMaterial = material.clone();
-          if (useVertexColors) cachedMaterial.vertexColors = true;
-          if (useFlatShading) cachedMaterial.flatShading = true;
-          if (useDerivativeTangents) {
-            if (cachedMaterial.normalScale) cachedMaterial.normalScale.y *= -1;
-            if (cachedMaterial.clearcoatNormalScale) cachedMaterial.clearcoatNormalScale.y *= -1;
-          }
-          this.cache.add(cacheKey, cachedMaterial);
-          this.associations.set(cachedMaterial, this.associations.get(material));
-        }
-        material = cachedMaterial;
-      }
-      mesh.material = material;
-    }
-    getMaterialType() {
-      return MeshStandardMaterial;
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#materials
-     * @param {number} materialIndex
-     * @return {Promise<Material>}
-     */
-    loadMaterial(materialIndex) {
-      const parser = this;
-      const json = this.json;
-      const extensions = this.extensions;
-      const materialDef = json.materials[materialIndex];
-      let materialType;
-      const materialParams = {};
-      const materialExtensions = materialDef.extensions || {};
-      const pending = [];
-      if (materialExtensions[EXTENSIONS.KHR_MATERIALS_UNLIT]) {
-        const kmuExtension = extensions[EXTENSIONS.KHR_MATERIALS_UNLIT];
-        materialType = kmuExtension.getMaterialType();
-        pending.push(kmuExtension.extendParams(materialParams, materialDef, parser));
-      } else {
-        const metallicRoughness = materialDef.pbrMetallicRoughness || {};
-        materialParams.color = new Color(1, 1, 1);
-        materialParams.opacity = 1;
-        if (Array.isArray(metallicRoughness.baseColorFactor)) {
-          const array = metallicRoughness.baseColorFactor;
-          materialParams.color.setRGB(array[0], array[1], array[2], LinearSRGBColorSpace);
-          materialParams.opacity = array[3];
-        }
-        if (metallicRoughness.baseColorTexture !== void 0) {
-          pending.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
-        }
-        materialParams.metalness = metallicRoughness.metallicFactor !== void 0 ? metallicRoughness.metallicFactor : 1;
-        materialParams.roughness = metallicRoughness.roughnessFactor !== void 0 ? metallicRoughness.roughnessFactor : 1;
-        if (metallicRoughness.metallicRoughnessTexture !== void 0) {
-          pending.push(parser.assignTexture(materialParams, "metalnessMap", metallicRoughness.metallicRoughnessTexture));
-          pending.push(parser.assignTexture(materialParams, "roughnessMap", metallicRoughness.metallicRoughnessTexture));
-        }
-        materialType = this._invokeOne(function(ext) {
-          return ext.getMaterialType && ext.getMaterialType(materialIndex);
-        });
-        pending.push(Promise.all(this._invokeAll(function(ext) {
-          return ext.extendMaterialParams && ext.extendMaterialParams(materialIndex, materialParams);
-        })));
-      }
-      if (materialDef.doubleSided === true) {
-        materialParams.side = DoubleSide;
-      }
-      const alphaMode = materialDef.alphaMode || ALPHA_MODES.OPAQUE;
-      if (alphaMode === ALPHA_MODES.BLEND) {
-        materialParams.transparent = true;
-        materialParams.depthWrite = false;
-      } else {
-        materialParams.transparent = false;
-        if (alphaMode === ALPHA_MODES.MASK) {
-          materialParams.alphaTest = materialDef.alphaCutoff !== void 0 ? materialDef.alphaCutoff : 0.5;
-        }
-      }
-      if (materialDef.normalTexture !== void 0 && materialType !== MeshBasicMaterial) {
-        pending.push(parser.assignTexture(materialParams, "normalMap", materialDef.normalTexture));
-        materialParams.normalScale = new Vector2(1, 1);
-        if (materialDef.normalTexture.scale !== void 0) {
-          const scale = materialDef.normalTexture.scale;
-          materialParams.normalScale.set(scale, scale);
-        }
-      }
-      if (materialDef.occlusionTexture !== void 0 && materialType !== MeshBasicMaterial) {
-        pending.push(parser.assignTexture(materialParams, "aoMap", materialDef.occlusionTexture));
-        if (materialDef.occlusionTexture.strength !== void 0) {
-          materialParams.aoMapIntensity = materialDef.occlusionTexture.strength;
-        }
-      }
-      if (materialDef.emissiveFactor !== void 0 && materialType !== MeshBasicMaterial) {
-        const emissiveFactor = materialDef.emissiveFactor;
-        materialParams.emissive = new Color().setRGB(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2], LinearSRGBColorSpace);
-      }
-      if (materialDef.emissiveTexture !== void 0 && materialType !== MeshBasicMaterial) {
-        pending.push(parser.assignTexture(materialParams, "emissiveMap", materialDef.emissiveTexture, SRGBColorSpace));
-      }
-      return Promise.all(pending).then(function() {
-        const material = new materialType(materialParams);
-        if (materialDef.name) material.name = materialDef.name;
-        assignExtrasToUserData(material, materialDef);
-        parser.associations.set(material, { materials: materialIndex });
-        if (materialDef.extensions) addUnknownExtensionsToUserData(extensions, material, materialDef);
-        return material;
-      });
-    }
-    /** When Object3D instances are targeted by animation, they need unique names. */
-    createUniqueName(originalName) {
-      const sanitizedName = PropertyBinding.sanitizeNodeName(originalName || "");
-      if (sanitizedName in this.nodeNamesUsed) {
-        return sanitizedName + "_" + ++this.nodeNamesUsed[sanitizedName];
-      } else {
-        this.nodeNamesUsed[sanitizedName] = 0;
-        return sanitizedName;
-      }
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#geometry
-     *
-     * Creates BufferGeometries from primitives.
-     *
-     * @param {Array<GLTF.Primitive>} primitives
-     * @return {Promise<Array<BufferGeometry>>}
-     */
-    loadGeometries(primitives) {
-      const parser = this;
-      const extensions = this.extensions;
-      const cache = this.primitiveCache;
-      function createDracoPrimitive(primitive) {
-        return extensions[EXTENSIONS.KHR_DRACO_MESH_COMPRESSION].decodePrimitive(primitive, parser).then(function(geometry) {
-          return addPrimitiveAttributes(geometry, primitive, parser);
-        });
-      }
-      const pending = [];
-      for (let i = 0, il = primitives.length; i < il; i++) {
-        const primitive = primitives[i];
-        const cacheKey = createPrimitiveKey(primitive);
-        const cached = cache[cacheKey];
-        if (cached) {
-          pending.push(cached.promise);
-        } else {
-          let geometryPromise;
-          if (primitive.extensions && primitive.extensions[EXTENSIONS.KHR_DRACO_MESH_COMPRESSION]) {
-            geometryPromise = createDracoPrimitive(primitive);
-          } else {
-            geometryPromise = addPrimitiveAttributes(new BufferGeometry(), primitive, parser);
-          }
-          cache[cacheKey] = { primitive, promise: geometryPromise };
-          pending.push(geometryPromise);
-        }
-      }
-      return Promise.all(pending);
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
-     * @param {number} meshIndex
-     * @return {Promise<Group|Mesh|SkinnedMesh>}
-     */
-    loadMesh(meshIndex) {
-      const parser = this;
-      const json = this.json;
-      const extensions = this.extensions;
-      const meshDef = json.meshes[meshIndex];
-      const primitives = meshDef.primitives;
-      const pending = [];
-      for (let i = 0, il = primitives.length; i < il; i++) {
-        const material = primitives[i].material === void 0 ? createDefaultMaterial(this.cache) : this.getDependency("material", primitives[i].material);
-        pending.push(material);
-      }
-      pending.push(parser.loadGeometries(primitives));
-      return Promise.all(pending).then(function(results) {
-        const materials = results.slice(0, results.length - 1);
-        const geometries = results[results.length - 1];
-        const meshes = [];
-        for (let i = 0, il = geometries.length; i < il; i++) {
-          const geometry = geometries[i];
-          const primitive = primitives[i];
-          let mesh;
-          const material = materials[i];
-          if (primitive.mode === WEBGL_CONSTANTS.TRIANGLES || primitive.mode === WEBGL_CONSTANTS.TRIANGLE_STRIP || primitive.mode === WEBGL_CONSTANTS.TRIANGLE_FAN || primitive.mode === void 0) {
-            mesh = meshDef.isSkinnedMesh === true ? new SkinnedMesh(geometry, material) : new Mesh(geometry, material);
-            if (mesh.isSkinnedMesh === true) {
-              mesh.normalizeSkinWeights();
-            }
-            if (primitive.mode === WEBGL_CONSTANTS.TRIANGLE_STRIP) {
-              mesh.geometry = toTrianglesDrawMode(mesh.geometry, TriangleStripDrawMode);
-            } else if (primitive.mode === WEBGL_CONSTANTS.TRIANGLE_FAN) {
-              mesh.geometry = toTrianglesDrawMode(mesh.geometry, TriangleFanDrawMode);
-            }
-          } else if (primitive.mode === WEBGL_CONSTANTS.LINES) {
-            mesh = new LineSegments(geometry, material);
-          } else if (primitive.mode === WEBGL_CONSTANTS.LINE_STRIP) {
-            mesh = new Line(geometry, material);
-          } else if (primitive.mode === WEBGL_CONSTANTS.LINE_LOOP) {
-            mesh = new LineLoop(geometry, material);
-          } else if (primitive.mode === WEBGL_CONSTANTS.POINTS) {
-            mesh = new Points(geometry, material);
-          } else {
-            throw new Error("THREE.GLTFLoader: Primitive mode unsupported: " + primitive.mode);
-          }
-          if (Object.keys(mesh.geometry.morphAttributes).length > 0) {
-            updateMorphTargets(mesh, meshDef);
-          }
-          mesh.name = parser.createUniqueName(meshDef.name || "mesh_" + meshIndex);
-          assignExtrasToUserData(mesh, meshDef);
-          if (primitive.extensions) addUnknownExtensionsToUserData(extensions, mesh, primitive);
-          parser.assignFinalMaterial(mesh);
-          meshes.push(mesh);
-        }
-        for (let i = 0, il = meshes.length; i < il; i++) {
-          parser.associations.set(meshes[i], {
-            meshes: meshIndex,
-            primitives: i
-          });
-        }
-        if (meshes.length === 1) {
-          if (meshDef.extensions) addUnknownExtensionsToUserData(extensions, meshes[0], meshDef);
-          return meshes[0];
-        }
-        const group = new Group();
-        if (meshDef.extensions) addUnknownExtensionsToUserData(extensions, group, meshDef);
-        parser.associations.set(group, { meshes: meshIndex });
-        for (let i = 0, il = meshes.length; i < il; i++) {
-          group.add(meshes[i]);
-        }
-        return group;
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#cameras
-     * @param {number} cameraIndex
-     * @return {Promise<THREE.Camera>}
-     */
-    loadCamera(cameraIndex) {
-      let camera2;
-      const cameraDef = this.json.cameras[cameraIndex];
-      const params = cameraDef[cameraDef.type];
-      if (!params) {
-        console.warn("THREE.GLTFLoader: Missing camera parameters.");
-        return;
-      }
-      if (cameraDef.type === "perspective") {
-        camera2 = new PerspectiveCamera(MathUtils.radToDeg(params.yfov), params.aspectRatio || 1, params.znear || 1, params.zfar || 2e6);
-      } else if (cameraDef.type === "orthographic") {
-        camera2 = new OrthographicCamera(-params.xmag, params.xmag, params.ymag, -params.ymag, params.znear, params.zfar);
-      }
-      if (cameraDef.name) camera2.name = this.createUniqueName(cameraDef.name);
-      assignExtrasToUserData(camera2, cameraDef);
-      return Promise.resolve(camera2);
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#skins
-     * @param {number} skinIndex
-     * @return {Promise<Skeleton>}
-     */
-    loadSkin(skinIndex) {
-      const skinDef = this.json.skins[skinIndex];
-      const pending = [];
-      for (let i = 0, il = skinDef.joints.length; i < il; i++) {
-        pending.push(this._loadNodeShallow(skinDef.joints[i]));
-      }
-      if (skinDef.inverseBindMatrices !== void 0) {
-        pending.push(this.getDependency("accessor", skinDef.inverseBindMatrices));
-      } else {
-        pending.push(null);
-      }
-      return Promise.all(pending).then(function(results) {
-        const inverseBindMatrices = results.pop();
-        const jointNodes = results;
-        const bones = [];
-        const boneInverses = [];
-        for (let i = 0, il = jointNodes.length; i < il; i++) {
-          const jointNode = jointNodes[i];
-          if (jointNode) {
-            bones.push(jointNode);
-            const mat2 = new Matrix4();
-            if (inverseBindMatrices !== null) {
-              mat2.fromArray(inverseBindMatrices.array, i * 16);
-            }
-            boneInverses.push(mat2);
-          } else {
-            console.warn('THREE.GLTFLoader: Joint "%s" could not be found.', skinDef.joints[i]);
-          }
-        }
-        return new Skeleton(bones, boneInverses);
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#animations
-     * @param {number} animationIndex
-     * @return {Promise<AnimationClip>}
-     */
-    loadAnimation(animationIndex) {
-      const json = this.json;
-      const parser = this;
-      const animationDef = json.animations[animationIndex];
-      const animationName = animationDef.name ? animationDef.name : "animation_" + animationIndex;
-      const pendingNodes = [];
-      const pendingInputAccessors = [];
-      const pendingOutputAccessors = [];
-      const pendingSamplers = [];
-      const pendingTargets = [];
-      for (let i = 0, il = animationDef.channels.length; i < il; i++) {
-        const channel = animationDef.channels[i];
-        const sampler = animationDef.samplers[channel.sampler];
-        const target = channel.target;
-        const name = target.node;
-        const input = animationDef.parameters !== void 0 ? animationDef.parameters[sampler.input] : sampler.input;
-        const output = animationDef.parameters !== void 0 ? animationDef.parameters[sampler.output] : sampler.output;
-        if (target.node === void 0) continue;
-        pendingNodes.push(this.getDependency("node", name));
-        pendingInputAccessors.push(this.getDependency("accessor", input));
-        pendingOutputAccessors.push(this.getDependency("accessor", output));
-        pendingSamplers.push(sampler);
-        pendingTargets.push(target);
-      }
-      return Promise.all([
-        Promise.all(pendingNodes),
-        Promise.all(pendingInputAccessors),
-        Promise.all(pendingOutputAccessors),
-        Promise.all(pendingSamplers),
-        Promise.all(pendingTargets)
-      ]).then(function(dependencies) {
-        const nodes = dependencies[0];
-        const inputAccessors = dependencies[1];
-        const outputAccessors = dependencies[2];
-        const samplers = dependencies[3];
-        const targets = dependencies[4];
-        const tracks = [];
-        for (let i = 0, il = nodes.length; i < il; i++) {
-          const node = nodes[i];
-          const inputAccessor = inputAccessors[i];
-          const outputAccessor = outputAccessors[i];
-          const sampler = samplers[i];
-          const target = targets[i];
-          if (node === void 0) continue;
-          if (node.updateMatrix) {
-            node.updateMatrix();
-          }
-          const createdTracks = parser._createAnimationTracks(node, inputAccessor, outputAccessor, sampler, target);
-          if (createdTracks) {
-            for (let k = 0; k < createdTracks.length; k++) {
-              tracks.push(createdTracks[k]);
-            }
-          }
-        }
-        return new AnimationClip(animationName, void 0, tracks);
-      });
-    }
-    createNodeMesh(nodeIndex) {
-      const json = this.json;
-      const parser = this;
-      const nodeDef = json.nodes[nodeIndex];
-      if (nodeDef.mesh === void 0) return null;
-      return parser.getDependency("mesh", nodeDef.mesh).then(function(mesh) {
-        const node = parser._getNodeRef(parser.meshCache, nodeDef.mesh, mesh);
-        if (nodeDef.weights !== void 0) {
-          node.traverse(function(o) {
-            if (!o.isMesh) return;
-            for (let i = 0, il = nodeDef.weights.length; i < il; i++) {
-              o.morphTargetInfluences[i] = nodeDef.weights[i];
-            }
-          });
-        }
-        return node;
-      });
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#nodes-and-hierarchy
-     * @param {number} nodeIndex
-     * @return {Promise<Object3D>}
-     */
-    loadNode(nodeIndex) {
-      const json = this.json;
-      const parser = this;
-      const nodeDef = json.nodes[nodeIndex];
-      const nodePending = parser._loadNodeShallow(nodeIndex);
-      const childPending = [];
-      const childrenDef = nodeDef.children || [];
-      for (let i = 0, il = childrenDef.length; i < il; i++) {
-        childPending.push(parser.getDependency("node", childrenDef[i]));
-      }
-      const skeletonPending = nodeDef.skin === void 0 ? Promise.resolve(null) : parser.getDependency("skin", nodeDef.skin);
-      return Promise.all([
-        nodePending,
-        Promise.all(childPending),
-        skeletonPending
-      ]).then(function(results) {
-        const node = results[0];
-        const children = results[1];
-        const skeleton = results[2];
-        if (skeleton !== null) {
-          node.traverse(function(mesh) {
-            if (!mesh.isSkinnedMesh) return;
-            mesh.bind(skeleton, _identityMatrix);
-          });
-        }
-        for (let i = 0, il = children.length; i < il; i++) {
-          node.add(children[i]);
-        }
-        return node;
-      });
-    }
-    // ._loadNodeShallow() parses a single node.
-    // skin and child nodes are created and added in .loadNode() (no '_' prefix).
-    _loadNodeShallow(nodeIndex) {
-      const json = this.json;
-      const extensions = this.extensions;
-      const parser = this;
-      if (this.nodeCache[nodeIndex] !== void 0) {
-        return this.nodeCache[nodeIndex];
-      }
-      const nodeDef = json.nodes[nodeIndex];
-      const nodeName = nodeDef.name ? parser.createUniqueName(nodeDef.name) : "";
-      const pending = [];
-      const meshPromise = parser._invokeOne(function(ext) {
-        return ext.createNodeMesh && ext.createNodeMesh(nodeIndex);
-      });
-      if (meshPromise) {
-        pending.push(meshPromise);
-      }
-      if (nodeDef.camera !== void 0) {
-        pending.push(parser.getDependency("camera", nodeDef.camera).then(function(camera2) {
-          return parser._getNodeRef(parser.cameraCache, nodeDef.camera, camera2);
-        }));
-      }
-      parser._invokeAll(function(ext) {
-        return ext.createNodeAttachment && ext.createNodeAttachment(nodeIndex);
-      }).forEach(function(promise) {
-        pending.push(promise);
-      });
-      this.nodeCache[nodeIndex] = Promise.all(pending).then(function(objects) {
-        let node;
-        if (nodeDef.isBone === true) {
-          node = new Bone();
-        } else if (objects.length > 1) {
-          node = new Group();
-        } else if (objects.length === 1) {
-          node = objects[0];
-        } else {
-          node = new Object3D();
-        }
-        if (node !== objects[0]) {
-          for (let i = 0, il = objects.length; i < il; i++) {
-            node.add(objects[i]);
-          }
-        }
-        if (nodeDef.name) {
-          node.userData.name = nodeDef.name;
-          node.name = nodeName;
-        }
-        assignExtrasToUserData(node, nodeDef);
-        if (nodeDef.extensions) addUnknownExtensionsToUserData(extensions, node, nodeDef);
-        if (nodeDef.matrix !== void 0) {
-          const matrix = new Matrix4();
-          matrix.fromArray(nodeDef.matrix);
-          node.applyMatrix4(matrix);
-        } else {
-          if (nodeDef.translation !== void 0) {
-            node.position.fromArray(nodeDef.translation);
-          }
-          if (nodeDef.rotation !== void 0) {
-            node.quaternion.fromArray(nodeDef.rotation);
-          }
-          if (nodeDef.scale !== void 0) {
-            node.scale.fromArray(nodeDef.scale);
-          }
-        }
-        if (!parser.associations.has(node)) {
-          parser.associations.set(node, {});
-        }
-        parser.associations.get(node).nodes = nodeIndex;
-        return node;
-      });
-      return this.nodeCache[nodeIndex];
-    }
-    /**
-     * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#scenes
-     * @param {number} sceneIndex
-     * @return {Promise<Group>}
-     */
-    loadScene(sceneIndex) {
-      const extensions = this.extensions;
-      const sceneDef = this.json.scenes[sceneIndex];
-      const parser = this;
-      const scene2 = new Group();
-      if (sceneDef.name) scene2.name = parser.createUniqueName(sceneDef.name);
-      assignExtrasToUserData(scene2, sceneDef);
-      if (sceneDef.extensions) addUnknownExtensionsToUserData(extensions, scene2, sceneDef);
-      const nodeIds = sceneDef.nodes || [];
-      const pending = [];
-      for (let i = 0, il = nodeIds.length; i < il; i++) {
-        pending.push(parser.getDependency("node", nodeIds[i]));
-      }
-      return Promise.all(pending).then(function(nodes) {
-        for (let i = 0, il = nodes.length; i < il; i++) {
-          scene2.add(nodes[i]);
-        }
-        const reduceAssociations = (node) => {
-          const reducedAssociations = /* @__PURE__ */ new Map();
-          for (const [key2, value] of parser.associations) {
-            if (key2 instanceof Material || key2 instanceof Texture) {
-              reducedAssociations.set(key2, value);
-            }
-          }
-          node.traverse((node2) => {
-            const mappings = parser.associations.get(node2);
-            if (mappings != null) {
-              reducedAssociations.set(node2, mappings);
-            }
-          });
-          return reducedAssociations;
-        };
-        parser.associations = reduceAssociations(scene2);
-        return scene2;
-      });
-    }
-    _createAnimationTracks(node, inputAccessor, outputAccessor, sampler, target) {
-      const tracks = [];
-      const targetName = node.name ? node.name : node.uuid;
-      const targetNames = [];
-      if (PATH_PROPERTIES[target.path] === PATH_PROPERTIES.weights) {
-        node.traverse(function(object) {
-          if (object.morphTargetInfluences) {
-            targetNames.push(object.name ? object.name : object.uuid);
-          }
-        });
-      } else {
-        targetNames.push(targetName);
-      }
-      let TypedKeyframeTrack;
-      switch (PATH_PROPERTIES[target.path]) {
-        case PATH_PROPERTIES.weights:
-          TypedKeyframeTrack = NumberKeyframeTrack;
-          break;
-        case PATH_PROPERTIES.rotation:
-          TypedKeyframeTrack = QuaternionKeyframeTrack;
-          break;
-        case PATH_PROPERTIES.position:
-        case PATH_PROPERTIES.scale:
-          TypedKeyframeTrack = VectorKeyframeTrack;
-          break;
-        default:
-          switch (outputAccessor.itemSize) {
-            case 1:
-              TypedKeyframeTrack = NumberKeyframeTrack;
-              break;
-            case 2:
-            case 3:
-            default:
-              TypedKeyframeTrack = VectorKeyframeTrack;
-              break;
-          }
-          break;
-      }
-      const interpolation = sampler.interpolation !== void 0 ? INTERPOLATION[sampler.interpolation] : InterpolateLinear;
-      const outputArray = this._getArrayFromAccessor(outputAccessor);
-      for (let j = 0, jl = targetNames.length; j < jl; j++) {
-        const track = new TypedKeyframeTrack(
-          targetNames[j] + "." + PATH_PROPERTIES[target.path],
-          inputAccessor.array,
-          outputArray,
-          interpolation
-        );
-        if (sampler.interpolation === "CUBICSPLINE") {
-          this._createCubicSplineTrackInterpolant(track);
-        }
-        tracks.push(track);
-      }
-      return tracks;
-    }
-    _getArrayFromAccessor(accessor) {
-      let outputArray = accessor.array;
-      if (accessor.normalized) {
-        const scale = getNormalizedComponentScale(outputArray.constructor);
-        const scaled = new Float32Array(outputArray.length);
-        for (let j = 0, jl = outputArray.length; j < jl; j++) {
-          scaled[j] = outputArray[j] * scale;
-        }
-        outputArray = scaled;
-      }
-      return outputArray;
-    }
-    _createCubicSplineTrackInterpolant(track) {
-      track.createInterpolant = function InterpolantFactoryMethodGLTFCubicSpline(result) {
-        const interpolantType = this instanceof QuaternionKeyframeTrack ? GLTFCubicSplineQuaternionInterpolant : GLTFCubicSplineInterpolant;
-        return new interpolantType(this.times, this.values, this.getValueSize() / 3, result);
-      };
-      track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline = true;
-    }
-  };
-  function computeBounds(geometry, primitiveDef, parser) {
-    const attributes = primitiveDef.attributes;
-    const box = new Box3();
-    if (attributes.POSITION !== void 0) {
-      const accessor = parser.json.accessors[attributes.POSITION];
-      const min = accessor.min;
-      const max = accessor.max;
-      if (min !== void 0 && max !== void 0) {
-        box.set(
-          new Vector3(min[0], min[1], min[2]),
-          new Vector3(max[0], max[1], max[2])
-        );
-        if (accessor.normalized) {
-          const boxScale = getNormalizedComponentScale(WEBGL_COMPONENT_TYPES[accessor.componentType]);
-          box.min.multiplyScalar(boxScale);
-          box.max.multiplyScalar(boxScale);
-        }
-      } else {
-        console.warn("THREE.GLTFLoader: Missing min/max properties for accessor POSITION.");
-        return;
-      }
-    } else {
-      return;
-    }
-    const targets = primitiveDef.targets;
-    if (targets !== void 0) {
-      const maxDisplacement = new Vector3();
-      const vector = new Vector3();
-      for (let i = 0, il = targets.length; i < il; i++) {
-        const target = targets[i];
-        if (target.POSITION !== void 0) {
-          const accessor = parser.json.accessors[target.POSITION];
-          const min = accessor.min;
-          const max = accessor.max;
-          if (min !== void 0 && max !== void 0) {
-            vector.setX(Math.max(Math.abs(min[0]), Math.abs(max[0])));
-            vector.setY(Math.max(Math.abs(min[1]), Math.abs(max[1])));
-            vector.setZ(Math.max(Math.abs(min[2]), Math.abs(max[2])));
-            if (accessor.normalized) {
-              const boxScale = getNormalizedComponentScale(WEBGL_COMPONENT_TYPES[accessor.componentType]);
-              vector.multiplyScalar(boxScale);
-            }
-            maxDisplacement.max(vector);
-          } else {
-            console.warn("THREE.GLTFLoader: Missing min/max properties for accessor POSITION.");
-          }
-        }
-      }
-      box.expandByVector(maxDisplacement);
-    }
-    geometry.boundingBox = box;
-    const sphere = new Sphere();
-    box.getCenter(sphere.center);
-    sphere.radius = box.min.distanceTo(box.max) / 2;
-    geometry.boundingSphere = sphere;
-  }
-  function addPrimitiveAttributes(geometry, primitiveDef, parser) {
-    const attributes = primitiveDef.attributes;
-    const pending = [];
-    function assignAttributeAccessor(accessorIndex, attributeName) {
-      return parser.getDependency("accessor", accessorIndex).then(function(accessor) {
-        geometry.setAttribute(attributeName, accessor);
-      });
-    }
-    for (const gltfAttributeName in attributes) {
-      const threeAttributeName = ATTRIBUTES[gltfAttributeName] || gltfAttributeName.toLowerCase();
-      if (threeAttributeName in geometry.attributes) continue;
-      pending.push(assignAttributeAccessor(attributes[gltfAttributeName], threeAttributeName));
-    }
-    if (primitiveDef.indices !== void 0 && !geometry.index) {
-      const accessor = parser.getDependency("accessor", primitiveDef.indices).then(function(accessor2) {
-        geometry.setIndex(accessor2);
-      });
-      pending.push(accessor);
-    }
-    if (ColorManagement.workingColorSpace !== LinearSRGBColorSpace && "COLOR_0" in attributes) {
-      console.warn(`THREE.GLTFLoader: Converting vertex colors from "srgb-linear" to "${ColorManagement.workingColorSpace}" not supported.`);
-    }
-    assignExtrasToUserData(geometry, primitiveDef);
-    computeBounds(geometry, primitiveDef, parser);
-    return Promise.all(pending).then(function() {
-      return primitiveDef.targets !== void 0 ? addMorphTargets(geometry, primitiveDef.targets, parser) : geometry;
-    });
-  }
-
-  // vendor/addons/utils/SkeletonUtils.js
-  function clone(source) {
-    const sourceLookup = /* @__PURE__ */ new Map();
-    const cloneLookup = /* @__PURE__ */ new Map();
-    const clone2 = source.clone();
-    parallelTraverse(source, clone2, function(sourceNode, clonedNode) {
-      sourceLookup.set(clonedNode, sourceNode);
-      cloneLookup.set(sourceNode, clonedNode);
-    });
-    clone2.traverse(function(node) {
-      if (!node.isSkinnedMesh) return;
-      const clonedMesh = node;
-      const sourceMesh = sourceLookup.get(node);
-      const sourceBones = sourceMesh.skeleton.bones;
-      clonedMesh.skeleton = sourceMesh.skeleton.clone();
-      clonedMesh.bindMatrix.copy(sourceMesh.bindMatrix);
-      clonedMesh.skeleton.bones = sourceBones.map(function(bone) {
-        return cloneLookup.get(bone);
-      });
-      clonedMesh.bind(clonedMesh.skeleton, clonedMesh.bindMatrix);
-    });
-    return clone2;
-  }
-  function parallelTraverse(a, b, callback) {
-    callback(a, b);
-    for (let i = 0; i < a.children.length; i++) {
-      parallelTraverse(a.children[i], b.children[i], callback);
-    }
-  }
 
   // realBody.js
   var U3 = 1 / 50;
-  var MODEL_URL = "models/female_real.glb";
-  var cachedScene = null;
-  var cachedNativeHeight = null;
-  var cachedNativeMinY = null;
-  function cloneSkeleton(src) {
-    const clone2 = clone(src);
-    clone2.updateMatrixWorld(true);
-    clone2.traverse((o) => {
-      if (o.isMesh && o.skeleton) {
-        o.skeleton.update();
-      }
-    });
-    clone2.traverse((o) => {
-      if (o.isMesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-        o.frustumCulled = false;
-        if (o.material) {
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
-          mats.forEach((m) => {
-            if ("roughness" in m) m.roughness = 0.85;
-            if ("metalness" in m) m.metalness = 0;
-            m.side = DoubleSide;
-          });
-        }
-      }
-    });
-    return clone2;
+
+  // smoothBody.js
+  var U4 = 1 / 50;
+  function skinMat(color) {
+    return new MeshStandardMaterial({ color, roughness: 0.84, metalness: 0, side: DoubleSide });
   }
-  function loadModel() {
-    if (cachedScene) return Promise.resolve(cachedScene);
-    return new Promise((resolve, reject) => {
-      const loader = new GLTFLoader();
-      loader.load(MODEL_URL, (gltf) => {
-        cachedScene = gltf.scene;
-        resolve(gltf.scene);
-      }, void 0, reject);
-    });
+  function smoothLathe(controls2, zScale, material, segments = 48, samples = 48) {
+    const dense = [];
+    const spans = controls2.length - 1;
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples * spans;
+      const k = Math.min(Math.floor(t), spans - 1);
+      const f = t - k;
+      const a = controls2[k], b = controls2[k + 1];
+      dense.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    }
+    for (let pass = 0; pass < 2; pass++) {
+      const src = dense.map((p) => p[0]);
+      for (let i = 1; i < dense.length - 1; i++) {
+        dense[i][0] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
+      }
+    }
+    const pts2 = dense.map(([r, y]) => new Vector2(Math.max(r, 5e-3), y));
+    const mesh = new Mesh(new LatheGeometry(pts2, segments), material);
+    if (zScale !== 1) mesh.scale.z = zScale;
+    return mesh;
   }
-  async function buildRealBody(model) {
-    const src = await loadModel();
+  function ellipsoid(pos, scale, material, seg = 24) {
+    const m = new Mesh(new SphereGeometry(1, seg, 18), material);
+    m.position.set(pos[0], pos[1], pos[2]);
+    m.scale.set(scale[0], scale[1], scale[2]);
+    return m;
+  }
+  function buildSmoothBody(model) {
     const group = new Group();
-    const figure = cloneSkeleton(src);
+    const figure = new Group();
     group.add(figure);
-    const bones = {};
-    figure.traverse((o) => {
-      if (o.isBone) {
-        const short = o.name.replace(/^mixamorig:?/, "");
-        bones[short] = o;
-        bones[o.name] = o;
-      }
-    });
-    const baseScale = {};
-    Object.keys(bones).forEach((k) => {
-      baseScale[k] = bones[k].scale.clone();
-    });
-    function setBone(name, sx, sy, sz) {
-      const b = bones[name];
-      if (!b) return;
-      const base = baseScale[name] || new Vector3(1, 1, 1);
-      b.scale.set(base.x * sx, base.y * sy, base.z * sz);
-    }
-    if (cachedNativeHeight == null || cachedNativeMinY == null) {
-      const box = new Box3().setFromObject(figure);
-      cachedNativeHeight = box.max.y - box.min.y;
-      cachedNativeMinY = box.min.y;
-      figure.userData.nativeMinY = cachedNativeMinY;
-    }
-    const nativeMinY = cachedNativeMinY ?? figure.userData.nativeMinY ?? 0;
-    function applyProfile(m) {
+    const skin = skinMat(15781298);
+    const skinSoft = skinMat(15516842);
+    const hair = skinMat(1841431);
+    const metal = new MeshStandardMaterial({ color: 9077106, roughness: 0.35, metalness: 0.75 });
+    const lens = new MeshStandardMaterial({ color: 15398138, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.1, side: DoubleSide });
+    function build(m) {
+      while (figure.children.length) figure.remove(figure.children[0]);
       const p = { ...DEFAULT_MODEL, ...m || {} };
-      Object.keys(bones).forEach((k) => {
-        bones[k].scale.copy(baseScale[k] || new Vector3(1, 1, 1));
+      const H = p.height * U4;
+      const base = FOOT_Y;
+      const topY = base + H * 0.798;
+      const bustY = base + H * 0.739;
+      const waistY = base + H * 0.633;
+      const hipY = base + H * 0.576;
+      const shoulderTop = topY + 0.08;
+      const headY = shoulderTop + 0.185;
+      const hr = 0.115 * (p.height / 165);
+      const rBust = p.bust * U4 / (2 * Math.PI) * 1.03;
+      const rWaist = p.waist * U4 / (2 * Math.PI) * 1.02;
+      const rHip = p.hip * U4 / (2 * Math.PI) * 1.05;
+      const rShoulder = p.shoulder * U4 * 0.5;
+      const depth = 0.72;
+      figure.add(smoothLathe([
+        [rHip * 0.8, hipY - 0.14],
+        [rHip * 0.95, hipY - 0.05],
+        [rHip, hipY + 0.01],
+        [rHip * 0.94, hipY + 0.1],
+        [rWaist * 1.08, (hipY + waistY) * 0.5],
+        [rWaist, waistY],
+        [rWaist * 0.98, waistY + 0.06],
+        [(rWaist + rBust) * 0.5, (waistY + bustY) * 0.5],
+        [rBust * 0.94, bustY - 0.06],
+        [rBust, bustY],
+        [rBust * 0.96, bustY + 0.08],
+        [rShoulder * 0.88, topY - 0.02],
+        [rShoulder * 0.66, shoulderTop - 0.01],
+        [rShoulder * 0.4, shoulderTop + 0.02]
+      ], depth, skin));
+      const neckR = p.neck * U4 / (2 * Math.PI);
+      figure.add(smoothLathe([
+        [neckR * 1.35, shoulderTop - 0.01],
+        [neckR * 1.08, shoulderTop + 0.05],
+        [neckR, headY - hr * 0.85]
+      ], 0.92, skin));
+      figure.add(ellipsoid([0, headY, 0], [hr * 0.9, hr * 1.12, hr * 0.96], skin));
+      figure.add(ellipsoid([0, headY - hr * 0.78, hr * 0.16], [hr * 0.56, hr * 0.42, hr * 0.66], skinSoft));
+      figure.add(ellipsoid([0, headY - hr * 0.05, hr * 0.92], [hr * 0.1, hr * 0.2, hr * 0.13], skinSoft));
+      const eyeDark = skinMat(3812906);
+      const lipMat = skinMat(12222326);
+      [-1, 1].forEach((s) => {
+        figure.add(ellipsoid([s * hr * 0.44, headY + hr * 0.02, hr * 0.9], [hr * 0.15, hr * 0.07, hr * 0.05], eyeDark));
+        figure.add(ellipsoid([s * hr * 0.44, headY + hr * 0.22, hr * 0.88], [hr * 0.18, hr * 0.035, hr * 0.04], hair));
       });
-      const targetHeight = p.height * U3;
-      const hs = cachedNativeHeight && isFinite(cachedNativeHeight) ? targetHeight / cachedNativeHeight : 1;
-      figure.scale.set(hs, hs, hs);
-      const bmi = p.weight / Math.pow(p.height / 100, 2);
-      const girthK = MathUtils.clamp(0.82 + bmi / 22 * 0.2, 0.82, 1.3);
-      const bustK = MathUtils.clamp(p.bust / 90, 0.75, 1.4) * (0.55 + girthK * 0.45);
-      const waistK = MathUtils.clamp(p.waist / 70, 0.7, 1.5) * (0.5 + girthK * 0.5);
-      const hipK = MathUtils.clamp(p.hip / 96, 0.75, 1.4) * (0.55 + girthK * 0.45);
-      const widthK = MathUtils.clamp(
-        (hipK + waistK + bustK) / 3,
-        0.78,
-        1.35
-      );
-      figure.scale.set(hs * widthK, hs, hs * widthK);
-      figure.position.y = FOOT_Y - nativeMinY * hs;
-      if (!isFinite(figure.position.y) || !isFinite(figure.scale.x)) {
-        figure.position.set(0, FOOT_Y, 0);
-        figure.scale.set(1, 1, 1);
-      }
+      figure.add(ellipsoid([0, headY - hr * 0.55, hr * 0.8], [hr * 0.18, hr * 0.045, hr * 0.05], lipMat));
+      const armLen = p.arm * U4;
+      const sx = rShoulder * 0.86;
+      const palmY = topY - armLen * 0.94;
+      [-1, 1].forEach((s) => {
+        const arm = smoothLathe([
+          [0.07, topY - 0.01],
+          [0.072, topY - armLen * 0.14],
+          [0.064, topY - armLen * 0.3],
+          [0.054, topY - armLen * 0.48],
+          // 肘部自然收窄
+          [0.056, topY - armLen * 0.56],
+          // 前臂略粗
+          [0.048, topY - armLen * 0.74],
+          [0.032, palmY]
+        ], 0.94, skin);
+        arm.position.x = s * sx;
+        arm.rotation.z = s * 0.08;
+        figure.add(arm);
+        figure.add(ellipsoid([s * (sx + 0.018), palmY - 0.06, 8e-3], [0.034, 0.072, 0.026], skin));
+      });
+      const legTop = hipY - 0.05;
+      const ankleY = base + 0.09;
+      const legHalf = rHip * 0.5;
+      const kneeY = (legTop + ankleY) * 0.52;
+      [-1, 1].forEach((s) => {
+        const leg = smoothLathe([
+          [rHip * 0.54, legTop + 0.1],
+          [rHip * 0.52, legTop],
+          [rHip * 0.46, (legTop + kneeY) * 0.5],
+          [0.086, kneeY],
+          // 膝
+          [0.098, (kneeY + ankleY) * 0.42],
+          // 小腿肚
+          [0.07, (kneeY + ankleY) * 0.78],
+          [0.05, ankleY]
+        ], 0.92, skin);
+        leg.position.x = s * legHalf;
+        figure.add(leg);
+        const foot = ellipsoid([s * legHalf, base + 0.045, 0.06], [0.07, 0.045, 0.145], skin);
+        figure.add(foot);
+      });
+      const cap = new Mesh(new SphereGeometry(hr * 1.07, 30, 22, 0, Math.PI * 2, 0, Math.PI * 0.62), hair);
+      cap.position.set(0, headY + hr * 0.06, -6e-3);
+      cap.scale.set(1, 1, 1.03);
+      figure.add(cap);
+      [-1, 1].forEach((s) => {
+        figure.add(ellipsoid([s * hr * 0.84, headY - hr * 0.12, -0.012], [hr * 0.4, hr * 1.45, hr * 0.9], hair));
+        figure.add(ellipsoid([s * hr * 0.88, headY - hr * 1.02, -4e-3], [hr * 0.36, hr * 0.85, hr * 0.78], hair));
+      });
+      figure.add(ellipsoid([0, headY - hr * 0.1, -hr * 0.4], [hr * 0.95, hr * 1.3, hr * 0.6], hair));
+      const fringe = new Mesh(new SphereGeometry(hr, 20, 16, 0, Math.PI * 1.2), hair);
+      fringe.position.set(-hr * 0.1, headY + hr * 0.42, hr * 0.52);
+      fringe.scale.set(1, 0.34, 0.6);
+      fringe.rotation.z = 0.14;
+      figure.add(fringe);
+      const eyeY = headY + hr * 0.02, eyeX = hr * 0.44, lensR = hr * 0.33, lensZ = hr * 0.94;
+      [-1, 1].forEach((s) => {
+        const ring2 = new Mesh(new TorusGeometry(lensR, 24e-4, 8, 28), metal);
+        ring2.position.set(s * eyeX, eyeY, lensZ);
+        figure.add(ring2);
+        const l = new Mesh(new CircleGeometry(lensR * 0.97, 24), lens);
+        l.position.set(s * eyeX, eyeY, lensZ);
+        figure.add(l);
+        const arm = new Mesh(new CylinderGeometry(2e-3, 2e-3, hr * 1.2, 6), metal);
+        arm.rotation.x = Math.PI / 2;
+        arm.position.set(s * (eyeX + lensR), eyeY + 3e-3, lensZ - hr * 0.55);
+        figure.add(arm);
+      });
+      const bridge = new Mesh(new CylinderGeometry(2e-3, 2e-3, eyeX * 2 - lensR * 2 + 0.01, 6), metal);
+      bridge.rotation.z = Math.PI / 2;
+      bridge.position.set(0, eyeY + 8e-3, lensZ);
+      figure.add(bridge);
+      figure.traverse((o) => {
+        if (o.isMesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+          o.frustumCulled = false;
+        }
+      });
     }
-    applyProfile(model);
-    function footY() {
-      const box = new Box3().setFromObject(group);
-      return box.min.y;
-    }
-    return { group, figure, bones, applyProfile, footY };
+    build(model);
+    return { group, figure, applyProfile: build, footY: () => FOOT_Y };
   }
 
   // fitEngine.js
@@ -26947,9 +26826,9 @@
       const bodyVal = model[part];
       if (garmentVal == null || bodyVal == null) return;
       const actualEase = garmentVal - bodyVal;
-      const design2 = designEase[part] || 0;
+      const design = designEase[part] || 0;
       const tol = TOLERANCE[part] || { low: 3, high: 4 };
-      const delta = actualEase - design2;
+      const delta = actualEase - design;
       let status, statusLabel, partScore;
       if (delta < -tol.low - 4) {
         status = "tooTight";
@@ -26978,7 +26857,7 @@
         garment: Math.round(garmentVal * 10) / 10,
         body: Math.round(bodyVal * 10) / 10,
         ease: Math.round(actualEase * 10) / 10,
-        designEase: design2,
+        designEase: design,
         delta: Math.round(delta * 10) / 10,
         status,
         statusLabel,
@@ -27383,16 +27262,6 @@
     color: PALETTE.black.hex,
     colorName: PALETTE.black.name
   };
-  function loadProfile() {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return null;
-      const p = JSON.parse(raw);
-      return p && typeof p.height === "number" ? p : null;
-    } catch {
-      return null;
-    }
-  }
   function saveProfile(p) {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(p));
@@ -27411,32 +27280,21 @@
     if (pendingAvatarLoad) return;
     const seq = ++avatarLoadSeq;
     avatarGroup.remove(garmentGroup);
-    const placeholder = new Group();
-    avatarGroup.add(placeholder);
-    avatarGroup.add(garmentGroup);
-    pendingAvatarLoad = buildRealBody(state.model);
-    pendingAvatarLoad.then((real) => {
-      pendingAvatarLoad = null;
-      if (seq !== avatarLoadSeq) {
-        avatarGroup.remove(placeholder);
-        return;
-      }
-      avatarGroup.remove(placeholder);
-      currentRealBody = real;
-      currentAvatarMesh = real.group;
-      avatarGroup.add(real.group);
-      avatarGroup.add(garmentGroup);
-      real.applyProfile(state.model);
-    }).catch((err) => {
-      pendingAvatarLoad = null;
-      console.error("\u5199\u5B9E\u6A21\u7279\u52A0\u8F7D\u5931\u8D25\uFF0C\u56DE\u9000\u53C2\u6570\u5316\u4EBA\u4F53", err);
+    if (currentAvatarMesh) avatarGroup.remove(currentAvatarMesh);
+    try {
+      const body = buildSmoothBody(state.model);
       if (seq !== avatarLoadSeq) return;
-      avatarGroup.remove(placeholder);
+      currentRealBody = body;
+      currentAvatarMesh = body.group;
+      avatarGroup.add(body.group);
+      avatarGroup.add(garmentGroup);
+    } catch (err) {
+      console.error("\u5E73\u6ED1\u4EBA\u4F53\u6784\u5EFA\u5931\u8D25\uFF0C\u56DE\u9000\u53C2\u6570\u5316\u4EBA\u4F53", err);
       currentAvatarMesh = buildBody(state.model);
       avatarGroup.add(currentAvatarMesh);
       avatarGroup.add(garmentGroup);
       applyBodyScale();
-    });
+    }
   }
   function applyBodyScale() {
     if (currentRealBody) return;
@@ -27568,17 +27426,17 @@
     const items = currentBrandItems().filter((g) => g.category === state.category);
     els2.list.innerHTML = items.map((item) => {
       const chosen = Object.values(state.outfit).some((o) => o && o.id === item.id);
-      const sw = item.colors.slice(0, 4).map((c) => `<i style="background:#${c.hex.toString(16).padStart(6, "0")}"></i>`).join("");
       return `<div class="garment-card db-card ${chosen ? "selected" : ""}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div class="db-thumb">${garmentArt(item)}</div>
+      <div class="db-thumb"><img src="${item.image}" alt="${item.nameEn}" loading="lazy" onerror="this.style.display='none'"/></div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${SILHOUETTE_NAMES[item.silhouette] || item.silhouette} \xB7 ${item.fabric}</div>
-      <div class="db-foot"><span class="db-swatches">${sw}</span><span class="db-spec">${specText(item, state.size)}</span></div>
+      <div class="db-meta">${item.fabric}</div>
+      <div class="db-price"><span class="price-eur">\u20AC${item.priceEUR.toLocaleString()}</span><span class="price-cny">\u7EA6 \xA5${item.priceCNY.toLocaleString()}</span></div>
+      <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
     }).join("");
     els2.list.querySelectorAll(".garment-card").forEach((card) => {
@@ -27673,7 +27531,7 @@
     els2.status.classList.toggle("has-outfit", n > 0);
   }
   function renderModelChip() {
-    els2.modelChip.textContent = state.model ? modelSummary(state.model) : "\u672A\u5EFA\u6863";
+    els2.modelChip.textContent = modelSummary(state.model) + " \xB7 \u5DF2\u9501\u5B9A";
   }
   var toastTimer = null;
   function toast(msg) {
@@ -27688,86 +27546,13 @@
   var profileTitle = document.getElementById("profile-title");
   var profileSubtitle = document.getElementById("profile-subtitle");
   var profileDraft = { ...DEFAULT_MODEL };
-  function openProfileModal(isEdit) {
-    profileDraft = { ...state.model || DEFAULT_MODEL };
-    profileTitle.textContent = isEdit ? "\u7F16\u8F91\u6A21\u7279\u6863\u6848" : "\u5EFA\u7ACB\u6A21\u7279\u6863\u6848";
-    profileSubtitle.textContent = "\u8BF7\u586B\u5199\u8EAB\u4F53\u6D4B\u91CF\u6570\u636E\uFF0C\u8FD9\u4E9B\u53C2\u6570\u5C06\u51B3\u5B9A 3D \u6A21\u7279\u4F53\u578B\u4E0E\u670D\u88C5\u7684\u5408\u8EAB\u7A0B\u5EA6";
-    document.getElementById("profile-save").textContent = isEdit ? "\u4FDD\u5B58\u5E76\u66F4\u65B0" : "\u521B\u5EFA\u6A21\u7279\u5E76\u5F00\u59CB";
-    renderProfileForm();
-    profileModal.classList.add("open");
-    profileTip.classList.add("hidden");
-  }
   var profileTip = document.getElementById("profile-tip");
   function closeProfileModal() {
     profileModal.classList.remove("open");
   }
-  document.getElementById("tip-edit").addEventListener("click", () => {
-    openProfileModal(true);
-    profileTip.classList.add("hidden");
-  });
+  var tipEditEl = document.getElementById("tip-edit");
+  if (tipEditEl) tipEditEl.addEventListener("click", () => toast("\u6A21\u7279\u5C3A\u5BF8\u5DF2\u6309\u5B9E\u6D4B\u6570\u636E\u9501\u5B9A\uFF0C\u4E0D\u53EF\u8C03\u6574"));
   document.getElementById("tip-close").addEventListener("click", () => profileTip.classList.add("hidden"));
-  function renderProfileForm() {
-    const groups = [
-      { title: "\u57FA\u7840\u4FE1\u606F", fields: FIELD_META.slice(0, 2) },
-      { title: "\u4E09\u56F4\u6570\u636E", fields: FIELD_META.slice(2, 5) },
-      { title: "\u4F53\u6001\u7EC6\u8282", fields: FIELD_META.slice(5) }
-    ];
-    profileForm.innerHTML = groups.map((grp) => `
-    <div class="profile-group">
-      <h4>${grp.title}</h4>
-      ${grp.fields.map((f) => `
-        <div class="profile-field">
-          <div class="profile-field-label">
-            <label for="pf-${f.key}">${f.label}</label>
-            <span class="pf-hint">${f.hint}</span>
-          </div>
-          <div class="profile-input-row">
-            <input type="range" id="pf-range-${f.key}" data-key="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${profileDraft[f.key]}" />
-            <div class="number-wrap">
-              <input type="number" id="pf-${f.key}" data-key="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${profileDraft[f.key]}" />
-              <span>${f.unit}</span>
-            </div>
-          </div>
-        </div>`).join("")}
-    </div>`).join("");
-    profileForm.querySelectorAll("input[type=range]").forEach((r) => {
-      r.addEventListener("input", (e) => {
-        const key2 = e.target.dataset.key;
-        profileDraft[key2] = parseFloat(e.target.value);
-        profileForm.querySelector(`#pf-${key2}`).value = profileDraft[key2];
-        updateRangeFill(r);
-        updateProfilePreview();
-      });
-    });
-    profileForm.querySelectorAll("input[type=number]").forEach((n) => {
-      n.addEventListener("input", (e) => {
-        const key2 = e.target.dataset.key;
-        const f = FIELD_META.find((x) => x.key === key2);
-        let v = parseFloat(e.target.value);
-        if (!isFinite(v)) return;
-        v = Math.min(f.max, Math.max(f.min, v));
-        profileDraft[key2] = v;
-        const range = profileForm.querySelector(`#pf-range-${key2}`);
-        range.value = v;
-        updateRangeFill(range);
-        updateProfilePreview();
-      });
-    });
-    profileForm.querySelectorAll("input[type=range]").forEach(updateRangeFill);
-    updateProfilePreview();
-  }
-  function updateRangeFill(el) {
-    const min = parseFloat(el.min), max = parseFloat(el.max);
-    const p = (parseFloat(el.value) - min) / (max - min) * 100;
-    el.style.setProperty("--fill", p + "%");
-  }
-  function updateProfilePreview() {
-    const box = document.getElementById("profile-live-summary");
-    if (box) box.textContent = modelSummary(profileDraft);
-    const rec = recommendSize(profileDraft);
-    const recBox = document.getElementById("profile-rec-size");
-    if (recBox) recBox.textContent = `\u63A8\u8350\u5C3A\u7801 ${rec}`;
-  }
   document.getElementById("profile-save").addEventListener("click", () => {
     state.model = { ...profileDraft };
     saveProfile(state.model);
@@ -27787,7 +27572,14 @@
     if (!state.model) return;
     closeProfileModal();
   });
-  document.getElementById("btn-edit-model").addEventListener("click", () => openProfileModal(true));
+  document.getElementById("btn-edit-model").addEventListener("click", () => {
+    toast("\u6A21\u7279\u5C3A\u5BF8\u5DF2\u6309\u5B9E\u6D4B\u6570\u636E\u9501\u5B9A\uFF0C\u4E0D\u53EF\u8C03\u6574");
+  });
+  var tipEditEl2 = document.getElementById("tip-edit");
+  if (tipEditEl2) tipEditEl2.addEventListener("click", (e) => {
+    e.stopImmediatePropagation();
+    toast("\u6A21\u7279\u5C3A\u5BF8\u5DF2\u6309\u5B9E\u6D4B\u6570\u636E\u9501\u5B9A\uFF0C\u4E0D\u53EF\u8C03\u6574");
+  }, true);
   var VIEWS = {
     front: new Vector3(0, 0.35, 6.2),
     side: new Vector3(6.2, 0.35, 0),
@@ -28043,32 +27835,32 @@
   function guessGarment(img, color, subRatio) {
     const ratio = subRatio || img.height / img.width;
     const hsl = rgbToHsl(color.hex >> 16 & 255, color.hex >> 8 & 255, color.hex & 255);
-    let category, silhouette2, label;
+    let category, silhouette, label;
     if (ratio > 1.6) {
       category = "dresses";
-      silhouette2 = hsl[1] < 0.25 ? "fitted" : "aline";
+      silhouette = hsl[1] < 0.25 ? "fitted" : "aline";
       label = "\u957F\u6B3E\u4E3B\u4F53\uFF08\u63A8\u6D4B\u8FDE\u8863\u88D9\uFF09";
     } else if (ratio > 1.15) {
       if (hsl[2] < 0.35) {
         category = "bottoms";
-        silhouette2 = "straight";
+        silhouette = "straight";
         label = "\u7AD6\u957F\u6DF1\u8272\u4E3B\u4F53\uFF08\u63A8\u6D4B\u88E4\u88C5\uFF09";
       } else {
         category = "dresses";
-        silhouette2 = "aline";
+        silhouette = "aline";
         label = "\u4E2D\u957F\u4E3B\u4F53\uFF08\u63A8\u6D4B\u8FDE\u8863\u88D9\uFF09";
       }
     } else if (ratio < 0.9) {
       category = "tops";
-      silhouette2 = hsl[2] > 0.68 ? "blouse" : "fitted";
+      silhouette = hsl[2] > 0.68 ? "blouse" : "fitted";
       label = "\u5BBD\u77ED\u4E3B\u4F53\uFF08\u63A8\u6D4B\u4E0A\u88C5\uFF09";
     } else {
       category = "tops";
-      silhouette2 = hsl[1] < 0.2 ? "knit" : "fitted";
+      silhouette = hsl[1] < 0.2 ? "knit" : "fitted";
       label = "\u5E38\u89C4\u6BD4\u4F8B\uFF08\u63A8\u6D4B\u4E0A\u88C5\uFF09";
     }
     const candidates = currentBrandItems().filter((g) => g.category === category);
-    const item = candidates.find((g) => g.silhouette === silhouette2) || candidates.find((g) => g.fit === (hsl[1] < 0.2 ? "\u5BBD\u677E" : "\u5408\u4F53")) || candidates[0] || DB[0];
+    const item = candidates.find((g) => g.silhouette === silhouette) || candidates.find((g) => g.fit === (hsl[1] < 0.2 ? "\u5BBD\u677E" : "\u5408\u4F53")) || candidates[0] || DB[0];
     return { item, silhouette: item.silhouette, label, category };
   }
   function colorName(r, g, b) {
@@ -28120,14 +27912,8 @@
     resetScanUI();
     toast("\u7167\u7247\u8BC6\u522B\u6362\u8863\u5B8C\u6210");
   });
-  var saved = loadProfile();
-  if (saved) {
-    state.model = saved;
-    state.size = recommendSize(saved);
-  } else {
-    state.model = { ...DEFAULT_MODEL };
-    state.size = recommendSize(state.model);
-  }
+  state.model = { ...DEFAULT_MODEL };
+  state.size = recommendSize(state.model);
   rebuildAvatar();
   renderBrands();
   renderCategories();
@@ -28141,7 +27927,6 @@
   resize();
   animate();
   document.getElementById("loading").classList.add("hidden");
-  if (!saved) openProfileModal(false);
   initUpdate();
   window.__atelier = {
     state,

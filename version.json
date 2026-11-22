@@ -1,13 +1,13 @@
 {
-  "versionCode": 4,
-  "versionName": "1.3",
+  "versionCode": 6,
+  "versionName": "1.5",
   "releaseDate": "2026-11-22",
   "force": false,
-  "notes": "新版 1.3：新增巴尔曼（BALMAIN）女装数据库 40 款，与杜嘉班纳共 88 款可切换；商品卡片加入本地矢量款式图；修复手机端 3D 舞台高度塌成 0 导致模特不显示的问题；修复首次加载期间建档触发竞态导致模特消失的问题。",
+  "notes": "新版 1.5：模特改为平滑写真人体，关节与腰身自然过渡、腰围按实测85cm驱动，手臂自然下垂；按真实照片还原黑色齐肩波波头、金属圆框眼镜、亚洲偏白肤色与面部细节；模特尺寸锁定不可调。产品库为杜嘉班纳与巴尔曼官网真实在售款各144款，含真实商品照片与欧元/人民币价格。",
   "apk": {
     "url": "https://cdn.jsdelivr.net/gh/ericljw98-crypto/atelier-3d-fitting@main/apk/ATELIER-3D-Fitting.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk",
-    "size": 1803443,
-    "sha256": "8ae138a32cb91f1376226d9c00b6e9e10c6a87f413e8fcad61a5d18c61fa3890"
+    "size": 5412438,
+    "sha256": "ef03b364f6696218f337cf4bf0e88e4dcbd662c5fb88e0daae29ffd003d87abc"
   }
 }

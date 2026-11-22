@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
-import { garmentArt } from './garmentArt.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildRealBody } from './realBody.js';
+import { buildSmoothBody } from './smoothBody.js';
 import { evaluateFit } from './fitEngine.js';
 import { initUpdate } from './update.js';
 
@@ -108,31 +108,23 @@ function rebuildAvatar() {
 
   const seq = ++avatarLoadSeq;
   avatarGroup.remove(garmentGroup);
-  const placeholder = new THREE.Group();
-  avatarGroup.add(placeholder);
-  avatarGroup.add(garmentGroup);
+  if (currentAvatarMesh) avatarGroup.remove(currentAvatarMesh);
 
-  pendingAvatarLoad = buildRealBody(state.model);
-  pendingAvatarLoad.then(real => {
-    pendingAvatarLoad = null;
-    if (seq !== avatarLoadSeq) { avatarGroup.remove(placeholder); return; }
-    avatarGroup.remove(placeholder);
-    currentRealBody = real;
-    currentAvatarMesh = real.group;
-    avatarGroup.add(real.group);
-    avatarGroup.add(garmentGroup);
-    // 加载期间用户可能改过档案，使用最新值再刷新一次
-    real.applyProfile(state.model);
-  }).catch(err => {
-    pendingAvatarLoad = null;
-    console.error('写实模特加载失败，回退参数化人体', err);
+  try {
+    // 平滑写真人体：围度精确、无机械关节，与服装锚点一致
+    const body = buildSmoothBody(state.model);
     if (seq !== avatarLoadSeq) return;
-    avatarGroup.remove(placeholder);
+    currentRealBody = body;
+    currentAvatarMesh = body.group;
+    avatarGroup.add(body.group);
+    avatarGroup.add(garmentGroup);
+  } catch (err) {
+    console.error('平滑人体构建失败，回退参数化人体', err);
     currentAvatarMesh = buildBody(state.model);
     avatarGroup.add(currentAvatarMesh);
     avatarGroup.add(garmentGroup);
     applyBodyScale();
-  });
+  }
 }
 function applyBodyScale() {
   // 写实模特自身已处理缩放，参数化回退时才需要
@@ -250,18 +242,17 @@ function renderGarments() {
   const items = currentBrandItems().filter(g => g.category === state.category);
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
-    const sw = item.colors.slice(0, 4).map(c =>
-      `<i style="background:#${c.hex.toString(16).padStart(6, '0')}"></i>`).join('');
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div class="db-thumb">${garmentArt(item)}</div>
+      <div class="db-thumb"><img src="${item.image}" alt="${item.nameEn}" loading="lazy" onerror="this.style.display='none'"/></div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${SILHOUETTE_NAMES[item.silhouette] || item.silhouette} · ${item.fabric}</div>
-      <div class="db-foot"><span class="db-swatches">${sw}</span><span class="db-spec">${specText(item, state.size)}</span></div>
+      <div class="db-meta">${item.fabric}</div>
+      <div class="db-price"><span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">约 ¥${item.priceCNY.toLocaleString()}</span></div>
+      <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
   }).join('');
   els.list.querySelectorAll('.garment-card').forEach(card => {
@@ -366,7 +357,7 @@ function updateStatus() {
   els.status.classList.toggle('has-outfit', n > 0);
 }
 function renderModelChip() {
-  els.modelChip.textContent = state.model ? modelSummary(state.model) : '未建档';
+  els.modelChip.textContent = modelSummary(state.model) + ' · 已锁定';
 }
 
 let toastTimer = null;
@@ -398,7 +389,8 @@ function openProfileModal(isEdit) {
 }
 const profileTip = document.getElementById('profile-tip');
 function closeProfileModal() { profileModal.classList.remove('open'); }
-document.getElementById('tip-edit').addEventListener('click', () => { openProfileModal(true); profileTip.classList.add('hidden'); });
+const tipEditEl = document.getElementById('tip-edit');
+if (tipEditEl) tipEditEl.addEventListener('click', () => toast('模特尺寸已按实测数据锁定，不可调整'));
 document.getElementById('tip-close').addEventListener('click', () => profileTip.classList.add('hidden'));
 
 function renderProfileForm() {
@@ -478,7 +470,14 @@ document.getElementById('profile-cancel').addEventListener('click', () => {
   if (!state.model) return; // 首次建档不可取消
   closeProfileModal();
 });
-document.getElementById('btn-edit-model').addEventListener('click', () => openProfileModal(true));
+document.getElementById('btn-edit-model').addEventListener('click', () => {
+  toast('模特尺寸已按实测数据锁定，不可调整');
+});
+const tipEditEl2 = document.getElementById('tip-edit');
+if (tipEditEl2) tipEditEl2.addEventListener('click', (e) => {
+  e.stopImmediatePropagation();
+  toast('模特尺寸已按实测数据锁定，不可调整');
+}, true);
 
 /* ============================================================
    视角与操作
@@ -802,16 +801,10 @@ applyBtn.addEventListener('click', () => {
 /* ============================================================
    初始化
    ============================================================ */
-const saved = loadProfile();
-if (saved) {
-  state.model = saved;
-  state.size = recommendSize(saved);
-} else {
-  // 未建档时先用默认档案，确保打开即可看到 3D 人体
-  state.model = { ...DEFAULT_MODEL };
-  state.size = recommendSize(state.model);
-}
-// 无论是否已建档，都先构建并显示 3D 人体模型
+// 模特档案已按用户实测数据锁定，忽略本地缓存，始终使用固定档案
+state.model = { ...DEFAULT_MODEL };
+state.size = recommendSize(state.model);
+// 打开即构建并显示 3D 人体模型
 rebuildAvatar();
 renderBrands();
 renderCategories();
@@ -826,8 +819,7 @@ resize();
 animate();
 document.getElementById('loading').classList.add('hidden');
 
-/* 首次使用弹出建档向导（侧边面板，模特在背景持续可见） */
-if (!saved) openProfileModal(false);
+/* 模特数据已锁定，不再弹出建档向导 */
 
 /* 自动更新检查 */
 initUpdate();

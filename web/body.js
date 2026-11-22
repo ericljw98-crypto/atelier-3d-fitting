@@ -17,17 +17,22 @@ export const FOOT_Y = -1.73;
 const U = 1 / 50;                       // 每厘米对应的场景单位
 const BASE_HEIGHT = 170;                // 基准身高
 
+/* 固定模特档案：按用户实测数据锁定，不再由用户调整 */
 export const DEFAULT_MODEL = {
-  height: 170,
-  weight: 56,
-  bust: 90,
-  waist: 70,
-  hip: 96,
+  height: 165,
+  weight: 62.5,
+  bust: 94.5,      // 胸围 94–95cm，取中值
+  waist: 85,       // 腰围（贴身）
+  hip: 99,
   shoulder: 40,
-  arm: 58,
-  inseam: 78,
-  neck: 36,
+  arm: 51.5,       // 臂长 50–53cm，取中值
+  inseam: 78,      // 内缝长：用户给的腿长94cm为腰至脚整体口径，内缝取合理值78cm
+  neck: 34,
+  skin: 'asian-fair', // 亚洲人偏白肤色
 };
+
+/* 该文件为只读固定档案，FIXED_PROFILE 供 UI 判断是否隐藏调节入口 */
+export const FIXED_PROFILE = true;
 
 /* 建档参数的取值范围与提示 */
 export const FIELD_META = [
