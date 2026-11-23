@@ -1,15 +1,15 @@
 {
-  "versionCode": 18,
-  "versionName": "2.7",
+  "versionCode": 19,
+  "versionName": "2.8",
   "releaseDate": "2026-11-23",
-  "size": 48047638,
-  "sha256": "08b0ce2df5d3a1ef16e944ebb33c48ed57eef99fe2963df20a08367dd2695b3f",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.7/ATELIER-3D-Fitting-v2.7.apk",
-  "notes": "v2.7：修复写实人体一直加载失败、回退成椭球人台（根因：three.js 的 GLTFLoader 内部用 fetch()，而浏览器对 file:// 一律拒绝，APK 内 WebView 与桌面双击都是 file://；改为 GLB 全部内联进包，并用虚拟 https 源加载 assets，两处同时兜住）；新增尺码输入框，数字码与字母码互认（38 / M / M-L / XL 均可输入，非法输入给出可选项），手选尺码后不再被自动推荐覆盖；尺码按钮改为数字码与字母码并列显示",
+  "size": 48048588,
+  "sha256": "4c6b0c104af790eba8c600e45e4b2676f946e6295f103794069344d727d25b37",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.8/ATELIER-3D-Fitting-v2.8.apk",
+  "notes": "修复写实人体在电脑与手机上仍然回退的问题：smoothBody 中一处未定义变量导致每次加载都抛错并静默退回简化人台；同时把围度校验基准改为建模实测值，加载时不再把人台整体放大 9%。新增头皮发帽层，发缝与颅顶不再透出肤色，头发视觉上更密。",
   "apk": {
-    "size": 48047638,
-    "sha256": "08b0ce2df5d3a1ef16e944ebb33c48ed57eef99fe2963df20a08367dd2695b3f",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.7/ATELIER-3D-Fitting-v2.7.apk",
+    "size": 48048588,
+    "sha256": "4c6b0c104af790eba8c600e45e4b2676f946e6295f103794069344d727d25b37",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.8/ATELIER-3D-Fitting-v2.8.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
