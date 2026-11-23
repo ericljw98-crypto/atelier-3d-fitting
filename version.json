@@ -1,9 +1,15 @@
 {
-  "versionCode": 9,
-  "versionName": "1.8",
-  "releaseDate": "2026-11-22",
-  "size": 10766429,
-  "sha256": "36fe3a854b1cdd555ff2a3c6a1868f551e155e702520a7b8933817f65a429e3e",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/raw/main/apk/ATELIER-3D-Fitting.apk",
-  "notes": "模特换成现成扫描级女性人体（CC0 Woman Base Mesh，蒙皮骨骼＋真实皮肤贴图），并按档案三围逐高度径向塑形：胸 94.5 / 腰 85 / 臀 99cm、身高 165cm 与档案完全一致；服装在最终尺度上测量真实截面轮廓后外偏移生成，胸腰胯与手臂均贴合"
+  "versionCode": 11,
+  "versionName": "2.0",
+  "releaseDate": "2026-11-23",
+  "size": 7695553,
+  "sha256": "b01f9305ed22c1d832ef04cb2d08eca849df6edd61a3edf09bb9ae4d6a248656",
+  "downloadUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk",
+  "notes": "移除内衣模块，模特回到无内衣初始状态；保留中分长发、参数化体型与欧码体系",
+  "apk": {
+    "size": 7695553,
+    "sha256": "b01f9305ed22c1d832ef04cb2d08eca849df6edd61a3edf09bb9ae4d6a248656",
+    "url": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk",
+    "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
+  }
 }
