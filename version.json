@@ -1,15 +1,15 @@
 {
-  "versionCode": 17,
-  "versionName": "2.6",
+  "versionCode": 18,
+  "versionName": "2.7",
   "releaseDate": "2026-11-23",
-  "size": 44900527,
-  "sha256": "0d216a97c087ba40baa3f4de614b0d73c644dfc4e43ced35be714072f2028dae",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.6/ATELIER-3D-Fitting-v2.6.apk",
-  "notes": "v2.6：罩杯回退为 C（胸围 94.0 / 下胸围 80.6 / 杯差 13.5）；乳头恢复 6.8mm 正常凸起（此前被柔化压到 0.8mm，低于周围皮肤所以看着像下陷）；臀部改切向平滑，去掉臀下横向波纹且保住臀围；补出外阴体表形态；头发剪到下颌，删掉垂到背部与胸前的发丝碎片；眼镜框前移，不再只显示半圈；口红整体回退关闭；修复外套变成巨型黑块（剖面数据 NaN 传入几何）；修复腋窝黑点（腋窝外扩避开手臂 + 阴影偏置改 1.2cm）；体型滑块改为拖动即时变形",
+  "size": 48047638,
+  "sha256": "08b0ce2df5d3a1ef16e944ebb33c48ed57eef99fe2963df20a08367dd2695b3f",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.7/ATELIER-3D-Fitting-v2.7.apk",
+  "notes": "v2.7：修复写实人体一直加载失败、回退成椭球人台（根因：three.js 的 GLTFLoader 内部用 fetch()，而浏览器对 file:// 一律拒绝，APK 内 WebView 与桌面双击都是 file://；改为 GLB 全部内联进包，并用虚拟 https 源加载 assets，两处同时兜住）；新增尺码输入框，数字码与字母码互认（38 / M / M-L / XL 均可输入，非法输入给出可选项），手选尺码后不再被自动推荐覆盖；尺码按钮改为数字码与字母码并列显示",
   "apk": {
-    "size": 44900527,
-    "sha256": "0d216a97c087ba40baa3f4de614b0d73c644dfc4e43ced35be714072f2028dae",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.6/ATELIER-3D-Fitting-v2.6.apk",
+    "size": 48047638,
+    "sha256": "08b0ce2df5d3a1ef16e944ebb33c48ed57eef99fe2963df20a08367dd2695b3f",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.7/ATELIER-3D-Fitting-v2.7.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
