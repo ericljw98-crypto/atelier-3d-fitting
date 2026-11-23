@@ -1,15 +1,15 @@
 {
-  "versionCode": 12,
-  "versionName": "2.1",
+  "versionCode": 13,
+  "versionName": "2.2",
   "releaseDate": "2026-11-23",
-  "size": 44376653,
-  "sha256": "4c26de55fea7e0502ab492ea7c7e66e03eec33c1c29eb089b24e1d74c109c048",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.1/ATELIER-3D-Fitting-v2.1.apk",
-  "notes": "v2.1 写实成衣版：C杯人体（胸围不变、后背鼓包已修复）+ 7款MakeHuman官方CC0写实成衣，真实布料褶皱上身效果；修复换衣黑层问题",
+  "size": 44081530,
+  "sha256": "04cbc03dbfb6d855daac74b053f70ecdccd5cf114a69080475b10318a3ce16ac",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.2/ATELIER-3D-Fitting-v2.2.apk",
+  "notes": "v2.2：模特收腹修正（小腹不再前凸挺肚子，胸围不变杯型保持C杯），7款写实成衣按新体态重新贴合",
   "apk": {
-    "size": 44376653,
-    "sha256": "4c26de55fea7e0502ab492ea7c7e66e03eec33c1c29eb089b24e1d74c109c048",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.1/ATELIER-3D-Fitting-v2.1.apk",
+    "size": 44081530,
+    "sha256": "04cbc03dbfb6d855daac74b053f70ecdccd5cf114a69080475b10318a3ce16ac",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.2/ATELIER-3D-Fitting-v2.2.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
