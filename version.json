@@ -2,13 +2,13 @@
   "versionCode": 15,
   "versionName": "2.4",
   "releaseDate": "2026-11-23",
-  "size": 43681243,
-  "sha256": "1124ae85e9a46d4709148e7526a8108ffbf98ac0cfed4e13ba8a256041136e30",
+  "size": 43697309,
+  "sha256": "8574189de4f7f8fcdcb5645d59995e5fbcdb2b6184349ceb77794304c072282b",
   "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
-  "notes": "v2.4：罩杯升级为 D（胸围 93.4cm 不变，下胸围 76.4cm，杯差 17.0cm）；乳房改为碗型曲面并消除乳下深坑；臀部改双瓣圆顺后翘，不再尖削；上背中线鼓包压平；腋窝凹陷填平；口红改为贴合唇面（去掉浮空）；7 款写实成衣按新体态重新贴合并做防穿模；修复胸前异常黑块；重算人体法线",
+  "notes": "v2.4：罩杯升级为 D（胸围 93.4cm 不变，下胸围 76.4cm，杯差 17.0cm）；乳房改为碗型曲面并消除乳下深坑；臀部改双瓣圆顺后翘，不再尖削；上背中线鼓包压平；腋窝凹陷填平；口红改为贴合唇面（0.4mm 外扩、正视朝前），去掉浮空与背面剔除导致的不可见；7 款写实成衣按新体态重新贴合并做防穿模；修复胸前异常黑块（材质改单面 + 重算法线 + 阴影 normalBias）；重算人体法线",
   "apk": {
-    "size": 43681243,
-    "sha256": "1124ae85e9a46d4709148e7526a8108ffbf98ac0cfed4e13ba8a256041136e30",
+    "size": 43697309,
+    "sha256": "8574189de4f7f8fcdcb5645d59995e5fbcdb2b6184349ceb77794304c072282b",
     "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
