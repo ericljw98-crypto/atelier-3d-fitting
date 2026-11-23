@@ -1,15 +1,15 @@
 {
-  "versionCode": 21,
-  "versionName": "2.10",
+  "versionCode": 22,
+  "versionName": "2.11",
   "releaseDate": "2026-11-23",
-  "size": 48051396,
-  "sha256": "e047a9e55a36ba36462d9f0225787e4e2df973e6c720148c87009fdd90b9c17f",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.10/ATELIER-3D-Fitting-v2.10.apk",
-  "notes": "修复服装两类异常：袖筒与裤腿半径未限幅，袖山处取值 1.54 被车削成直径三米的圆盘，另有身侧悬空黑柱；根因是轮廓关键点的 x 坐标被脚底偏移污染（armX 0.144 被算成 -1.25），手臂中心、腿中心、袖长全部错位，现已按实测截面中心重建。撤掉服饰配色板，每件成衣按自己的官方花色上场。剔除包袋、香水等非服装条目，写实款改标非卖品不标价。新增停产档案 14 款并标注停产年份。外阴体表形态真正生效：此前的前侧掩码按 z 符号判断，而该模型骨盆前缘 z≈0，位移被整体乘零。",
+  "size": 52508237,
+  "sha256": "4a5c62f11408f8ddcd18407368517513e5171ce415fe12534632487473bdb6ef",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.11/ATELIER-3D-Fitting-v2.11.apk",
+  "notes": "服装生成器 v3：真实领口/袖窿/肩型；面料改用商品图贴图；全库 307 款补模特上身图；修复巴尔曼 144 款无法进入",
   "apk": {
-    "size": 48051396,
-    "sha256": "e047a9e55a36ba36462d9f0225787e4e2df973e6c720148c87009fdd90b9c17f",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.10/ATELIER-3D-Fitting-v2.10.apk",
+    "size": 52508237,
+    "sha256": "4a5c62f11408f8ddcd18407368517513e5171ce415fe12534632487473bdb6ef",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.11/ATELIER-3D-Fitting-v2.11.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
