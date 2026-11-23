@@ -1,15 +1,15 @@
 {
-  "versionCode": 14,
-  "versionName": "2.3",
+  "versionCode": 15,
+  "versionName": "2.4",
   "releaseDate": "2026-11-23",
-  "size": 44074449,
-  "sha256": "6ad83cd6543455a524cf3bdcb7681e95af170c7b5af31b6423011706c556fedc",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.3/ATELIER-3D-Fitting-v2.3.apk",
-  "notes": "v2.3：皮肤更白皙+玫瑰红口红；臀部后翘改善（臀围99.1cm达标、形态更饱满）；7款写实成衣按新体态重新贴合",
+  "size": 43681243,
+  "sha256": "1124ae85e9a46d4709148e7526a8108ffbf98ac0cfed4e13ba8a256041136e30",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
+  "notes": "v2.4：罩杯升级为 D（胸围 93.4cm 不变，下胸围 76.4cm，杯差 17.0cm）；乳房改为碗型曲面并消除乳下深坑；臀部改双瓣圆顺后翘，不再尖削；上背中线鼓包压平；腋窝凹陷填平；口红改为贴合唇面（去掉浮空）；7 款写实成衣按新体态重新贴合并做防穿模；修复胸前异常黑块；重算人体法线",
   "apk": {
-    "size": 44074449,
-    "sha256": "6ad83cd6543455a524cf3bdcb7681e95af170c7b5af31b6423011706c556fedc",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.3/ATELIER-3D-Fitting-v2.3.apk",
+    "size": 43681243,
+    "sha256": "1124ae85e9a46d4709148e7526a8108ffbf98ac0cfed4e13ba8a256041136e30",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
