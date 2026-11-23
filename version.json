@@ -1,15 +1,15 @@
 {
-  "versionCode": 15,
-  "versionName": "2.4",
+  "versionCode": 16,
+  "versionName": "2.5",
   "releaseDate": "2026-11-23",
-  "size": 43697309,
-  "sha256": "8574189de4f7f8fcdcb5645d59995e5fbcdb2b6184349ceb77794304c072282b",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
-  "notes": "v2.4：罩杯升级为 D（胸围 93.4cm 不变，下胸围 76.4cm，杯差 17.0cm）；乳房改为碗型曲面并消除乳下深坑；臀部改双瓣圆顺后翘，不再尖削；上背中线鼓包压平；腋窝凹陷填平；口红改为贴合唇面（0.4mm 外扩、正视朝前），去掉浮空与背面剔除导致的不可见；7 款写实成衣按新体态重新贴合并做防穿模；修复胸前异常黑块（材质改单面 + 重算法线 + 阴影 normalBias）；重算人体法线",
+  "size": 43718728,
+  "sha256": "da7ae58bb8ee506c1a75bb1d574a35cf816ccb7c05a563a360919c68a8381176",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.5/ATELIER-3D-Fitting-v2.5.apk",
+  "notes": "v2.5：修正模型前后朝向（此前乳房/收腹/背部/臀部四处形变全部作用在错误一侧，导致背鼓、胸失真、臀尖同时出现）；D 杯重新成形（胸围 93.4cm 不变、下胸围 76.4cm、杯差 17.0cm，乳房前推改为真正朝前）；上背压实、双瓣圆臀、腋窝外撑；口红从后脑移到正面唇部并修正绕序（原版靠关闭深度测试才可见，所以永远浮在脸前）；罩杯余量改到正面并新增面内采样修正，消除乳区透出皮肤；7 款成衣按新体态重拟合，残留穿透顶点 0–7 个",
   "apk": {
-    "size": 43697309,
-    "sha256": "8574189de4f7f8fcdcb5645d59995e5fbcdb2b6184349ceb77794304c072282b",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.4/ATELIER-3D-Fitting-v2.4.apk",
+    "size": 43718728,
+    "sha256": "da7ae58bb8ee506c1a75bb1d574a35cf816ccb7c05a563a360919c68a8381176",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.5/ATELIER-3D-Fitting-v2.5.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
