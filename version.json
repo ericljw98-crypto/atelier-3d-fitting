@@ -1,15 +1,15 @@
 {
-  "versionCode": 19,
-  "versionName": "2.8",
+  "versionCode": 20,
+  "versionName": "2.9",
   "releaseDate": "2026-11-23",
-  "size": 48048588,
-  "sha256": "4c6b0c104af790eba8c600e45e4b2676f946e6295f103794069344d727d25b37",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.8/ATELIER-3D-Fitting-v2.8.apk",
-  "notes": "修复写实人体在电脑与手机上仍然回退的问题：smoothBody 中一处未定义变量导致每次加载都抛错并静默退回简化人台；同时把围度校验基准改为建模实测值，加载时不再把人台整体放大 9%。新增头皮发帽层，发缝与颅顶不再透出肤色，头发视觉上更密。",
+  "size": 48048481,
+  "sha256": "c41556f16ce61060313807109f2c40df2d27d5bf1f4b7d16d6eb1aa7c8c59900",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.9/ATELIER-3D-Fitting-v2.9.apk",
+  "notes": "写实人体不再回退（修掉 smoothBody 中的未定义变量），围度校验改用建模实测值；新增头皮发帽层，发缝与颅顶不再透出肤色，头发更密；贴图在 file 协议下取不到时自动退回深发色，避免整头变白。",
   "apk": {
-    "size": 48048588,
-    "sha256": "4c6b0c104af790eba8c600e45e4b2676f946e6295f103794069344d727d25b37",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.8/ATELIER-3D-Fitting-v2.8.apk",
+    "size": 48048481,
+    "sha256": "c41556f16ce61060313807109f2c40df2d27d5bf1f4b7d16d6eb1aa7c8c59900",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.9/ATELIER-3D-Fitting-v2.9.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
