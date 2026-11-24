@@ -183,21 +183,29 @@ const FIT = {
 const fitCache = { model: null, mask: null, layer: null, cuts: new Map() };
 let fitReady = false, fitLoading = null, fitLeadId = null;
 
+/* 单文件预览：内联的 data URL 映射（preview.html 注入）。
+   data URL 图片不会污染画布，因此 file:// 下也能正常抠底与合成。 */
+const INLINE_IMAGES = (typeof window !== 'undefined' && window.__ATELIER_INLINE_IMAGES__) || null;
+function assetURL(src) {
+  if (INLINE_IMAGES && INLINE_IMAGES[src]) return INLINE_IMAGES[src];
+  return src;
+}
+
 function loadImg(src) {
   return new Promise((res, rej) => {
     const im = new Image();
     im.decoding = 'async';
     im.onload = () => res(im);
     im.onerror = () => rej(new Error(src));
-    im.src = src;
+    im.src = assetURL(src);
   });
 }
 
 function fitEnsure() {
   if (!fitLoading) {
     fitLoading = (async () => {
-      // file:// 下画布被跨源图片污染，取不到像素，直接放弃合成
-      if (location.protocol === 'file:') return false;
+      // file:// 下外部图片会污染画布；但若已内联为 data URL 则可正常合成
+      if (location.protocol === 'file:' && !INLINE_IMAGES) return false;
       try {
         const [m, k] = await Promise.all([
           loadImg('images/model-2d-front.jpg'),
@@ -594,9 +602,8 @@ const SWATCHES = [
 const _texCache = new Map();
 function fabricTexOf(itemId) {
   if (_texCache.has(itemId)) return _texCache.get(itemId);
-  // file:// 下本地图片被当作跨源资源，上传成 WebGL 贴图会抛安全错误，
-  // 此时退回纯色，宁可不贴图也不能让衣服变黑。
-  if (location.protocol === 'file:') { _texCache.set(itemId, null); return null; }
+  // file:// 下外部图片上传 WebGL 会抛安全错误；内联 data URL 不受此限制
+  if (location.protocol === 'file:' && !INLINE_IMAGES) { _texCache.set(itemId, null); return null; }
   const item = DB_BY_ID[itemId];
   const src = item && item.image;
   let tex = null;
@@ -661,7 +668,7 @@ function renderGarments() {
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div class="db-thumb">
         ${item.image
-          ? `<img class="db-photo" src="${item.image}" alt="${item.nameEn}" loading="lazy" onerror="this.remove()"/>`
+          ? `<img class="db-photo" src="${assetURL(item.image)}" alt="${item.nameEn}" loading="lazy" onerror="this.remove()"/>`
           : `<div class="db-thumb-fallback"><span>${item.archiveYear || 'ARCHIVE'}</span><b>${item.nameEn}</b><i>停产款 · 无官方图</i></div>`}
       </div>
       <div class="db-card-head">

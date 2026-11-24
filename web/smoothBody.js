@@ -996,7 +996,8 @@ function addHair(S, H, base) {
       避免试衣时胸前凸点（之前用户提过露点问题）。
    ③ 腰线：腰节处躯干径向收 1cm（≈围度 −6cm），高斯 σ≈9cm，
       和 2D 模特照片对上；四肢不动，只收躯干。
-   ④ 腿：裆点往下把 x 往中线收，末梢收到 87%，站姿变窄仍保留自然间隙。
+   ④ 腿：裆点往下把 x 往中线逐步收拢，膝踝进一步内收到基本并拢站姿，
+      收拢设下限（每腿到中线不小于 1.1cm），避免两腿穿插、脚踝交叠。
    全部在归一化空间做，1cm ≈ 1/165。 */
 function reshapeFigure(geo, S) {
   const pos = geo.attributes.position;
@@ -1037,9 +1038,14 @@ function reshapeFigure(geo, S) {
         arr[i + 2] = z * f;
       }
     }
-    if (y < ySeat * 0.96) {
-      const t = Math.min(1, (ySeat * 0.96 - y) / (ySeat * 0.82));
-      arr[i] = cx + x * (1 - 0.13 * t);
+    /* 双腿基本并拢：裆下起逐段内收，膝踝处收到约 78%；
+       每腿对中线保留 1.1cm，防止两腿在中线穿插。 */
+    if (col && col.getY(v) > 0.5) {
+      const t = Math.min(1, Math.max(0, (ySeat * 0.98 - y) / (ySeat * 0.86)));
+      const side = col.getZ(v) > 0.5 ? 1 : -1;
+      const shrink = 1 - 0.22 * Math.pow(t, 0.8);
+      const absX = Math.abs(x) * shrink;
+      arr[i] = cx + side * Math.max(absX, 1.1 * CM);
     }
     /* 手臂自然下垂：扫描姿态的两臂略向外撇，袖筒沿 armCx 走就会被撑开、袖山离肩。
        这里从肩峰往下逐步把手臂往中线收（腕部约 2.8cm），肩点不动，

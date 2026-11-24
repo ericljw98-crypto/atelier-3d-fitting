@@ -948,6 +948,25 @@ input[type="range"]::-moz-range-thumb {
   }
   .flat-caption { max-height: 30px; }
   .controls { border-left: none; border-top: 1px solid var(--border); }
+  /* APK 竖屏：把尺码与合身诊断提到模特上方，选码和看结果不必再滚到页面底部。
+     用 display:contents 让 controls 的子块直接参与 workspace 排序，其余控件保持原顺序。 */
+  .controls { display: contents; }
+  .controls > .panel-heading { order: -4; }
+  .controls > .size-group { order: -3; }
+  .controls > .fit-group { order: -2; }
+  .stage { order: -1; }
+  .wardrobe { order: 0; }
+  .controls > .model-chip { order: 1; }
+  .controls > .control-group:not(.size-group):not(.fit-group) { order: 2; }
+  .controls > .btn-clear { order: 3; }
+  .controls > .panel-heading,
+  .controls > .model-chip,
+  .controls > .control-group,
+  .controls > .btn-clear {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .controls > .btn-clear { margin: 12px 22px; }
   .topbar { height: auto; min-height: 60px; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
   .topbar-actions { width: 100%; justify-content: space-between; gap: 6px; }
   .top-btn { flex: 1 1 auto; white-space: nowrap; padding: 8px 6px; font-size: 11px; }

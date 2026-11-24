@@ -17,20 +17,26 @@ export const DB_META = {
   version: '1.2.0',
   basisSize: 'EU 38',
   unit: 'cm',
-  note: '成衣尺寸以 EU 38 为基准，全站统一使用欧码（EU 34–46）；款号为演示编码。',
+  note: '成衣尺寸以 EU 38 为基准，全站统一使用通用欧码女装（EU 34–54，对应 XS–7XL）；款号为演示编码。',
 };
 
-/* 欧码尺码表（EU，女装净体尺寸，cm）
-   档差 4cm（胸/臀）、4cm（腰），与欧洲女装放码惯例一致。
-   同时给出身高建议区间，用于同围度下的长短款选择。 */
+/* 通用欧码女装尺码表（EU，净体尺寸 cm）
+   档差 4cm（胸/腰/臀），与欧洲大众女装（Zara / H&M 等）放码惯例一致。
+   字母码按通用欧码标准标注，不是杜嘉班纳的意大利码（IT 数字比通用 EU 大 2，
+   IT 38 的胸围 83cm ≈ 通用 EU 36）。全站内部统一用通用 EU，商品成衣基准即 EU 38。
+   覆盖到 EU 54（7XL），补齐此前缺失的全线大码。 */
 export const SIZE_CHART = {
-  'EU 34': { bust: 80, waist: 64, hip: 88,  height: [158, 172], label: 'XS' },
-  'EU 36': { bust: 84, waist: 68, hip: 92,  height: [158, 172], label: 'S' },
-  'EU 38': { bust: 88, waist: 72, hip: 96,  height: [160, 174], label: 'M' },
-  'EU 40': { bust: 92, waist: 76, hip: 100, height: [160, 174], label: 'M/L' },
-  'EU 42': { bust: 96, waist: 80, hip: 104, height: [162, 176], label: 'L' },
-  'EU 44': { bust: 100, waist: 84, hip: 108, height: [162, 176], label: 'XL' },
-  'EU 46': { bust: 104, waist: 88, hip: 112, height: [164, 178], label: 'XXL' },
+  'EU 34': { bust: 80,  waist: 64,  hip: 88,  height: [158, 172], label: 'XS'   },
+  'EU 36': { bust: 84,  waist: 68,  hip: 92,  height: [158, 172], label: 'S'    },
+  'EU 38': { bust: 88,  waist: 72,  hip: 96,  height: [160, 174], label: 'M'    },
+  'EU 40': { bust: 92,  waist: 76,  hip: 100, height: [160, 174], label: 'L'    },
+  'EU 42': { bust: 96,  waist: 80,  hip: 104, height: [162, 176], label: 'XL'   },
+  'EU 44': { bust: 100, waist: 84,  hip: 108, height: [162, 176], label: 'XXL'  },
+  'EU 46': { bust: 104, waist: 88,  hip: 112, height: [164, 178], label: '3XL'  },
+  'EU 48': { bust: 108, waist: 92,  hip: 116, height: [164, 178], label: '4XL'  },
+  'EU 50': { bust: 112, waist: 96,  hip: 120, height: [164, 178], label: '5XL'  },
+  'EU 52': { bust: 116, waist: 100, hip: 124, height: [164, 178], label: '6XL'  },
+  'EU 54': { bust: 120, waist: 104, hip: 128, height: [164, 178], label: '7XL'  },
 };
 export const SIZES = Object.keys(SIZE_CHART);
 
@@ -39,15 +45,23 @@ export const SIZES = Object.keys(SIZE_CHART);
    （XS–XXL）。两者的对应不是均分，38 是 M、40 是 M/L、42 是 L，
    所以必须按表来，不能按序号推。
 
-   用户输入需要容错：'38' / 'eu38' / 'EU 38' / 'M' / 'm' / 'M/L' / 'ML'
-   都应被识别；数字落在两档之间时（如 39）就近取档并回告。 */
+   用户输入需要容错：'38' / 'eu38' / 'EU 38' / 'M' / 'm' / '3XL' / 'XXXL'
+   都应被识别；数字落在两档之间时（如 39）就近取档并回告。
+   带数字的字母码（3XL/4XL…）不能把数字抹掉，否则会和小码 XL 冲突。 */
 const LABEL_TO_SIZE = (() => {
-  const m = {};
+  const m = {}, alias = {};
   SIZES.forEach(k => {
-    const lab = String(SIZE_CHART[k].label || '').toUpperCase().replace(/[^A-Z]/g, '');
-    if (lab) m[lab] = k;                       // 'M/L' -> 'ML'
+    const lab = String(SIZE_CHART[k].label || '').toUpperCase();
+    const plain = lab.replace(/[^A-Z]/g, '');          // '3XL' -> 'XL'（别名用）
+    if (lab) m[lab] = k;                               // '3XL' 主键
+    if (plain && plain !== lab) alias[plain] = k;      // 'XL' 仅在没有正牌 XL 时兜底
+    const digit = lab.match(/^(\d+)X+L$/);
+    // '3XL' 的等价写法就是 'XXXL'（数字即 X 的个数）
+    if (digit) m['X'.repeat(Number(digit[1])) + 'L'] = k;
     m[k.replace(/\s+/g, '').replace(/^EU/, '')] = k;   // '38'
   });
+  // 只有 SIZE_CHART 里确实没有某个纯字母码时，才用去数字别名兜底
+  Object.keys(alias).forEach(a => { if (!m[a]) m[a] = alias[a]; });
   return m;
 })();
 
@@ -86,10 +100,17 @@ export function normalizeSize(raw) {
     return { size: best, snapped: bestD > 0.01, raw: String(raw) };
   }
 
-  // 字母码：去掉分隔符后查表（'M/L' -> 'ML'）
-  const key = s.replace(/[^A-Z]/g, '');
+  // 字母码：先原样查（'3XL'），再去分隔符与数字别名（'XXXL' / 'XL'）
+  if (LABEL_TO_SIZE[s]) {
+    return { size: LABEL_TO_SIZE[s], snapped: false, raw: String(raw) };
+  }
+  const key = s.replace(/[^A-Z0-9]/g, '');
   if (LABEL_TO_SIZE[key]) {
     return { size: LABEL_TO_SIZE[key], snapped: false, raw: String(raw) };
+  }
+  const lettersOnly = s.replace(/[^A-Z]/g, '');
+  if (LABEL_TO_SIZE[lettersOnly]) {
+    return { size: LABEL_TO_SIZE[lettersOnly], snapped: false, raw: String(raw) };
   }
   // 常见简写：ML 之外再兜一层 M-L、Medium 之类
   if (key === 'MEDIUM') return { size: 'EU 38', snapped: false, raw: String(raw) };

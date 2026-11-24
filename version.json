@@ -1,15 +1,15 @@
 {
-  "versionCode": 28,
-  "versionName": "2.17",
+  "versionCode": 29,
+  "versionName": "2.18",
   "releaseDate": "2026-11-24",
-  "size": 21361581,
-  "sha256": "7c91f63ca741bc9edd7704c672c26b22e6f20ce1218656e5ff677e2bc439e6fa",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.17/ATELIER-3D-Fitting-v2.17.apk",
-  "notes": "依据两张真人参考照精修下巴与下颌线，脸型更修长；颈围数据核对无误（领围17cm对应颈围34cm）。",
+  "size": 21362058,
+  "sha256": "e91d86f053544050b1b9863b4ed9098dc3338bc13f6db3a24724c843292a89d6",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.18/ATELIER-3D-Fitting-v2.18.apk",
+  "notes": "APK竖屏尺码与合身诊断上移至模特上方；3D双腿进一步并拢；尺码表修正字母码映射并补齐EU48-54大码；新增file协议可用的单文件预览，彻底解决WorkBuddy预览不显示服装。",
   "apk": {
-    "size": 21361581,
-    "sha256": "7c91f63ca741bc9edd7704c672c26b22e6f20ce1218656e5ff677e2bc439e6fa",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.17/ATELIER-3D-Fitting-v2.17.apk",
+    "size": 21362058,
+    "sha256": "e91d86f053544050b1b9863b4ed9098dc3338bc13f6db3a24724c843292a89d6",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.18/ATELIER-3D-Fitting-v2.18.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
