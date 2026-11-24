@@ -1,15 +1,15 @@
 {
-  "versionCode": 33,
-  "versionName": "2.22",
+  "versionCode": 34,
+  "versionName": "2.23",
   "releaseDate": "2026-11-24",
-  "size": 109509970,
-  "sha256": "6ad19c129b1995cc27d3057ab66cc1d7753c3f13df2df561ca0e66bb600d8108",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.22/ATELIER-3D-Fitting-v2.22.apk",
-  "notes": "DG官网全量扩充：抓取官网在售1882款，实入库1780款可上身成衣，商品库总计2109款（DG1922+Balmain187），图片零缺失。合身基准线修复：成衣尺寸改用商品平铺尺寸按官方档比放缩，不再恒等于基准线，诊断不再一律100分。尺码表裁至XS-3XL（删XXS与4XL以上）。搜索下方新增颜色/款式双筛选下拉。2D支持上衣+下装同时搭配。3D双腿改刚体平移并拢，消除腿根与脚踝凹陷。2D模特恢复第一稿定稿并按实测数据校准。分类改两级：试衣槽位四类+官网官方款式子类，各分类数量重算。右侧面板精简：移除造型控制标题、视角切换、手输尺码。",
+  "size": 109707378,
+  "sha256": "c69a39e3efbeb08e571b4bf3a73fecb6fb290f05ae5643dcc4bb1dd653a02804",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk",
+  "notes": "新增「往季精选」独立分类页（品牌层第三页，槽位仍为四类，合身诊断与2D合成照常工作）。入库杜嘉班纳 F68I2T-FSRJH 玫瑰印花粘胶连衣裙（官网已下架，来源授权经销商，IT 36-52，96%粘胶+丝衬里，配3张官方图）。商品库2110款。往季款在卡片上有独立标记、标签页用暖褐描边与在售区分。洋装牛仔衬衫 G5IQ9DGER02 经核实为男装，按只做女装的要求未收录。",
   "apk": {
-    "size": 109509970,
-    "sha256": "6ad19c129b1995cc27d3057ab66cc1d7753c3f13df2df561ca0e66bb600d8108",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.22/ATELIER-3D-Fitting-v2.22.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.22/ATELIER-3D-Fitting-v2.22.apk"
+    "size": 109707378,
+    "sha256": "c69a39e3efbeb08e571b4bf3a73fecb6fb290f05ae5643dcc4bb1dd653a02804",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk"
   }
 }

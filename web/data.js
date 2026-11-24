@@ -1,5 +1,6 @@
 import { buildRealDB } from './realDB.js';
 import { DG_CATALOG } from './dgCatalog.js';
+import { EXTRA_CATALOG } from './extraCatalog.js';
 
 /* ============================================================
    ATELIER · 杜嘉班纳（Dolce & Gabbana）女装参数数据库
@@ -173,6 +174,15 @@ export const BRANDS = [
   { id: 'BL', name: '巴尔曼', en: 'Balmain',          short: 'BL' },
 ];
 
+/* 往季款（vintage）：官网当前目录已下架、但仍可购买的旧季单品。
+   单独做成一个品牌页，不新增试衣槽位——这些款的 category 仍是
+   dresses/tops/bottoms/outer 之一，合身诊断与 2D 合成照常工作。
+   vintage: true 的款在当前品牌页不显示，只在「往季」页出现。 */
+export const VINTAGE_BRAND = {
+  id: 'VT', name: '往季精选', en: 'Vintage', short: 'VINTAGE',
+  isVintage: true,
+};
+
 /* 非服装类商品（包袋、香水、眼镜、鞋履等）不可上身试穿，
    混在成衣列表里只会给出错误的合身诊断，一律不入库。
    判定看英文名里的核心名词，避免把 "belted trench" 一类误杀。 */
@@ -225,6 +235,12 @@ const mergeById = (...lists) => {
 export const DB = mergeById(
   buildRealDB(PALETTE, ALL),
   DG_CATALOG.map(it => ({
+    ...it,
+    nameEn: it.nameEn || it.name,
+    colors: [{ name: it.colorName, hex: it.colorHex }],
+    sizes: ALL,
+  })),
+  EXTRA_CATALOG.map(it => ({
     ...it,
     nameEn: it.nameEn || it.name,
     colors: [{ name: it.colorName, hex: it.colorHex }],

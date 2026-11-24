@@ -1088,6 +1088,13 @@ input[type="range"]::-moz-range-thumb {
 .brand-tab.active {
   background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
 }
+/* 往季页与在售品牌页视觉上要能一眼分开：往季是已下架的旧季单品，
+   用暖褐色描边标示，避免用户误以为官网仍在售。 */
+.brand-tab.vintage { color: #b08c5a; }
+.brand-tab.vintage b { font-size: 10px; letter-spacing: .04em; }
+.brand-tab.vintage.active {
+  background: rgba(176, 140, 90, .16); border-color: #b08c5a; color: #cfa96f;
+}
 
 /* 商品实拍图 */
 .db-thumb {
@@ -1132,6 +1139,7 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid currentColor; opacity: .85; white-space: nowrap;
 }
 .db-tag.archive { color: #c9a35c; }
+.db-tag.vintage { color: #b08c5a; }
 .db-tag.demo { color: #8fa3b8; }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
 .db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }

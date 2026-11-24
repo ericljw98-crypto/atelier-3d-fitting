@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
+import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, VINTAGE_BRAND, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
@@ -797,7 +797,14 @@ function fabricTexOf(itemId) {
   return tex;
 }
 
-function currentBrandItems() { return DB.filter(g => g.brand === state.brand); }
+/* 当前品牌页的商品集。
+   state.brand === 'VT' 是「往季精选」页：只收 vintage 款。
+   DG / BL 是在售页：官网当前目录的款，vintage 款不在其中，
+   否则用户会在两个地方看到同一件衣服。 */
+function currentBrandItems() {
+  if (state.brand === VINTAGE_BRAND.id) return DB.filter(g => g.vintage);
+  return DB.filter(g => g.brand === state.brand && !g.vintage);
+}
 
 function clearSearch() {
   state.query = '';
@@ -823,7 +830,7 @@ function matchingItems() {
   if (!q && !fc && !fst) return currentBrandItems().filter(g => g.category === state.category);
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
-  const brandName = Object.fromEntries(BRANDS.map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
+  const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
   return DB.filter(g => {
     if (fc && !(g.colors || []).some(c => c.name === fc)) return false;
     if (fst && g.style !== fst) return false;
@@ -855,8 +862,9 @@ function filterOptions() {
 
 function renderBrands() {
   if (!els.brands) return;
-  els.brands.innerHTML = BRANDS.map(b =>
-    `<button class="brand-tab ${b.id === state.brand ? 'active' : ''}" data-brand="${b.id}">
+  const all = [...BRANDS, VINTAGE_BRAND];
+  els.brands.innerHTML = all.map(b =>
+    `<button class="brand-tab ${b.id === state.brand ? 'active' : ''}${b.isVintage ? ' vintage' : ''}" data-brand="${b.id}">
        <b>${b.short}</b><span>${b.name}</span>
      </button>`
   ).join('');
@@ -864,8 +872,8 @@ function renderBrands() {
     btn.addEventListener('click', () => {
       state.brand = btn.dataset.brand;
       clearSearch(); clearFilters();
-      const b = BRANDS.find(x => x.id === state.brand);
-      els.wardrobeTitle.textContent = `${b.name}女装`;
+      const b = [...BRANDS, VINTAGE_BRAND].find(x => x.id === state.brand);
+      els.wardrobeTitle.textContent = b.isVintage ? b.name : `${b.name}女装`;
       els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
       renderBrands(); renderCategories(); renderGarments();
       renderSizes(); syncSizeControls();   // 品牌换了，官方码名（IT/FR）随之切换
@@ -918,7 +926,8 @@ function renderGarments() {
   }
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
-    const brand = BRANDS.find(b => b.id === item.brand);
+    const brand = [...BRANDS, VINTAGE_BRAND].find(b => b.id === item.brand)
+      || (item.vintage ? { short: 'VINTAGE', name: '往季' } : null);
     const cat = DB_CATEGORIES.find(c => c.id === item.category);
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -929,6 +938,7 @@ function renderGarments() {
       </div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
+        ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ''}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
         <span class="db-fit">${item.fit}</span>
       </div>
