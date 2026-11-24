@@ -148,42 +148,14 @@ function applyBodyScale() {
    换色、换码、换款只改一处状态，两边同一个数据源，不会各说各话。
    ============================================================ */
 const flatEls = {
-  canvas: document.getElementById('canvas-2d'),
   fit: document.getElementById('canvas-2d-fit'),
   label: document.getElementById('flat-view-label'),
   caption: document.getElementById('flat-caption'),
   empty: document.getElementById('flat-empty'),
   clear: document.getElementById('flat-clear'),
 };
-const flat = { dirty: true, view: 'front', w: 0, h: 0 };
+const flat = { dirty: true };
 function flatMark() { flat.dirty = true; }
-
-let flatRenderer = null, flatCam = null;
-if (flatEls.canvas) {
-  flatRenderer = new THREE.WebGLRenderer({ canvas: flatEls.canvas, antialias: true, alpha: true });
-  flatRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  flatRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  flatRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  flatRenderer.toneMappingExposure = 1.05;
-  flatCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 60);
-}
-
-const FLAT_VIEW = {
-  front: { pos: [0, 0, 12], label: '正面' },
-  side: { pos: [12, 0, 0], label: '侧面' },
-  back: { pos: [0, 0, -12], label: '背面' },
-};
-
-/* 2D 里不要地面与灯环：正交投影下圆盘会横切过脚踝，只剩一条脏线 */
-const FLAT_HIDE = [];
-function flatInitHideList() {
-  FLAT_HIDE.length = 0;
-  scene.children.forEach(o => {
-    if (o === avatarGroup) return;
-    if (o.isLight || o.isCamera) return;
-    FLAT_HIDE.push(o);
-  });
-}
 
 /* ---------------- 2D 上身合成 ----------------
    底图是一张按档案尺寸（165cm / 94.5-87-100）生成的正面站姿人像，
@@ -475,24 +447,11 @@ function fitDrawGarment(item) {
   });
 }
 
-function flatResize() {
-  const c = flatEls.canvas;
-  if (!c || !flatRenderer) return false;
-  const w = c.clientWidth | 0, h = c.clientHeight | 0;
-  if (w < 24 || h < 24) return false;
-  if (flat.w !== w || flat.h !== h) {
-    flatRenderer.setSize(w, h, false);
-    flat.w = w; flat.h = h;
-  }
-  return true;
-}
-
 function flatDraw() {
-  if (!flatEls.canvas) return;
+  if (!flatEls.fit) return;
 
-  /* 2D 只有一条路：照片模特 + 商品图合成。
-     曾经在底图没就绪时退回「3D 正交投影」，结果界面会突然跳回旧人台，
-     两种模型来回切看着像出错。现在旧视图整段删除，只剩这个人。 */
+  /* 2D 只有一条路：照片模特 + 商品图合成。旧的 3D 正交人台（木偶人）
+     渲染器、相机、隐藏列表与画布已整段删除，不存在任何回退分支。 */
   const wornNow = Object.values(state.outfit).filter(Boolean);
   const lead = wornNow[wornNow.length - 1] || null;
   const custom = uploadedPhotoItem();
@@ -533,7 +492,7 @@ function flatDraw() {
       ? ` · 成衣${leadItem.category === 'bottoms' ? '臀围' : '胸围'} ${Math.round(graded[leadItem.category === 'bottoms' ? 'hip' : 'bust'])}cm`
       : '';
     flatEls.caption.innerHTML = custom
-      ? `上传照片 · 已按 ${state.size} 放码<br>2D 直接合成 · 模特 ${hcm}cm · 3D 仅显示打底衣`
+      ? `上传照片 · 已按 ${state.size} 放码<br>2D 直接合成 · 模特 ${hcm}cm · 3D 不显示上传款`
       : leadItem
         ? (hasPhoto
           ? `<b>${leadItem.code}</b> ${leadItem.name}<br>2D 合成 · 模特 ${hcm}cm · 尺码 ${state.size}${gradeText}`
@@ -1071,7 +1030,6 @@ els.views.querySelectorAll('button').forEach(b => {
     els.views.querySelectorAll('button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     moveCameraTo(VIEWS[b.dataset.view]);
-    flat.view = b.dataset.view;      // 2D 同步到同一视角
     flatMark();
   });
 });
@@ -1094,8 +1052,8 @@ function resize() {
 }
 new ResizeObserver(resize).observe(container);
 window.addEventListener('resize', resize);
-if (flatEls.canvas && flatEls.canvas.parentElement) {
-  new ResizeObserver(() => flatMark()).observe(flatEls.canvas.parentElement);
+if (flatEls.fit && flatEls.fit.parentElement) {
+  new ResizeObserver(() => flatMark()).observe(flatEls.fit.parentElement);
 }
 /* ============================================================
    舞台模式：默认 2D 上身，3D 作为独立标签按需开启

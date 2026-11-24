@@ -398,12 +398,6 @@ body {
   overflow: hidden;
 }
 
-/* 旧的 2D 正交人台已废弃：这张画布只当离屏缓冲用（渲写实款网格），
-   永远不显示。 */
-#canvas-2d {
-  display: none;
-}
-
 /* 2D 上身图：把人像与服装合成在同一张画布上。
    画布属性固定 1024×1536（与模特底图一致），CSS 靠 max-width/max-height
    等比缩放并居中，这样合成时的像素坐标与底图一一对应，不需要做额外换算。 */
@@ -424,7 +418,6 @@ body {
 }
 #canvas-2d-fit.on { display: block; }
 #canvas-2d-fit.on ~ .flat-empty { display: none; }
-#canvas-2d.hidden, #canvas-2d.off { display: none; }
 
 .flat-empty {
   position: absolute;
