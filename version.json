@@ -1,15 +1,15 @@
 {
-  "versionCode": 26,
-  "versionName": "2.15",
+  "versionCode": 27,
+  "versionName": "2.16",
   "releaseDate": "2026-11-24",
-  "size": 20728461,
-  "sha256": "a2a06d5a40127a28492448fa1d4e03ac87a407b36b85eb91619e1047e05da663",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.15/ATELIER-3D-Fitting-v2.15.apk",
-  "notes": "以合身数据为基准线统一合身诊断、尺码推荐与 2D 图样放码；删除非品牌非卖展示款；2D 模特下巴与五官轻微精修。",
+  "size": 21361273,
+  "sha256": "7968cc41ec5c4de694221a9c58e9e056f6fb745f1c31ddadb1da8e65586ce59d",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.16/ATELIER-3D-Fitting-v2.16.apk",
+  "notes": "按实测围度收窄2D模特臀腿段；按标注照收窄两侧下颌角，肩线与身体像素标定保持不变。",
   "apk": {
-    "size": 20728461,
-    "sha256": "a2a06d5a40127a28492448fa1d4e03ac87a407b36b85eb91619e1047e05da663",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.15/ATELIER-3D-Fitting-v2.15.apk",
+    "size": 21361273,
+    "sha256": "7968cc41ec5c4de694221a9c58e9e056f6fb745f1c31ddadb1da8e65586ce59d",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.16/ATELIER-3D-Fitting-v2.16.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
