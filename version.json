@@ -1,15 +1,15 @@
 {
-  "versionCode": 34,
-  "versionName": "2.23",
+  "versionCode": 35,
+  "versionName": "2.24",
   "releaseDate": "2026-11-24",
-  "size": 109707378,
-  "sha256": "c69a39e3efbeb08e571b4bf3a73fecb6fb290f05ae5643dcc4bb1dd653a02804",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk",
-  "notes": "新增「往季精选」独立分类页（品牌层第三页，槽位仍为四类，合身诊断与2D合成照常工作）。入库杜嘉班纳 F68I2T-FSRJH 玫瑰印花粘胶连衣裙（官网已下架，来源授权经销商，IT 36-52，96%粘胶+丝衬里，配3张官方图）。商品库2110款。往季款在卡片上有独立标记、标签页用暖褐描边与在售区分。洋装牛仔衬衫 G5IQ9DGER02 经核实为男装，按只做女装的要求未收录。",
+  "size": 109966422,
+  "sha256": "9758544f4677e39d589ea3f244139f342d7b52dff38083c04c611346117359d0",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk",
+  "notes": "往季精选扩充到4款：新增 DG F6ARQT-FJ1JO 浅蓝印花衬衫式连衣裙（kameron.ua 白底平铺图）、Balmain DF1R8029KG96 粉色 PB Labyrinth 提花长袖连衣裙（symbol.ua 白底平铺图）、DG 177772 花卉印花宽肩带A字迷你裙（domino.ua 透明底平铺图）；F68I2T-FSRJH 玫瑰饼干印花连衣裙主图换成 Pinterest 官方图库的白底平铺图，原模特穿着照无法用于试穿。2D领口开洞修正：新增几何判据（领高比=领顶到肩点距离/肩宽 >0.16 判为高领翻领款），高领针织与大翻领衬衫不再被挖出突兀肤色块；领口本来就敞开的款（抠底后已透明）也不再重复开挖。商品库2113款。",
   "apk": {
-    "size": 109707378,
-    "sha256": "c69a39e3efbeb08e571b4bf3a73fecb6fb290f05ae5643dcc4bb1dd653a02804",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.23/ATELIER-3D-Fitting-v2.23.apk"
+    "size": 109966422,
+    "sha256": "9758544f4677e39d589ea3f244139f342d7b52dff38083c04c611346117359d0",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk"
   }
 }

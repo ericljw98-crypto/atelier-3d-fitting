@@ -1095,6 +1095,13 @@ input[type="range"]::-moz-range-thumb {
 .brand-tab.active {
   background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
 }
+/* 往季页与在售品牌页视觉上要能一眼分开：往季是已下架的旧季单品，
+   用暖褐色描边标示，避免用户误以为官网仍在售。 */
+.brand-tab.vintage { color: #b08c5a; }
+.brand-tab.vintage b { font-size: 10px; letter-spacing: .04em; }
+.brand-tab.vintage.active {
+  background: rgba(176, 140, 90, .16); border-color: #b08c5a; color: #cfa96f;
+}
 
 /* 商品实拍图 */
 .db-thumb {
@@ -1139,6 +1146,7 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid currentColor; opacity: .85; white-space: nowrap;
 }
 .db-tag.archive { color: #c9a35c; }
+.db-tag.vintage { color: #b08c5a; }
 .db-tag.demo { color: #8fa3b8; }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
 .db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
@@ -32299,6 +32307,11 @@ input[type="range"]::-moz-range-thumb {
     { id: "dg-F0W6JTHU2BXN0000", code: "F0W6JTHU2BXN0000", name: "风衣 纯羊绒 双排扣", brand: "DG", category: "outer", style: "大衣", silhouette: "trench", fit: "宽松", season: "FW2026", collection: "Official", fabric: "羊绒", colorName: "黑", colorHex: "#16171b", measurements: { "bust": 94, "waist": 76, "shoulder": 42, "sleeve": 24, "length": 88 }, ease: { "bust": 12, "waist": 12, "shoulder": 1 }, priceEUR: 10705, priceCNY: 83500, image: "images/dg_F0W6JTHU2BXN0000.jpg", url: "https://www.dolcegabbana.com/zh/%E6%97%B6%E5%B0%9A/%E5%A5%B3%E5%A3%AB/%E6%9C%8D%E8%A3%85/%E5%A4%A7%E8%A1%A3%E4%B8%8E%E5%A4%96%E5%A5%97/%E9%A3%8E%E8%A1%A3-%E7%BA%AF%E7%BE%8A%E7%BB%92-%E5%8F%8C%E6%8E%92%E6%89%A3-%E9%BB%91-F0W6JTHU2BXN0000.html" }
   ];
 
+  // 3d-fitting-room/extraCatalog.js
+  var EXTRA_CATALOG = [
+    { id: "dg-F68I2TFSRJHHKN07", code: "F68I2T-FSRJH", name: "玫瑰印花粘胶连衣裙", nameEn: "Rose print viscose dress", brand: "DG", category: "dresses", style: "连衣裙", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "粘胶", colorName: "白色", colorHex: "#f0ece1", measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 40, "sleeve": 26, "length": 96 }, ease: { "bust": 7, "waist": 7, "hip": 7, "shoulder": 0 }, priceEUR: 789, priceCNY: 6100, image: "images/dg_F68I2TFSRJHHKN07.jpg", url: "https://kameron.ua/ua/store/plate-dolce-gabbana-f68i2t-fsrjh-belyj", vintage: true, priceNote: "往季款 · 经销商现价 7650 UAH（约 €158），吊牌原价 €789" }
+  ];
+
   // 3d-fitting-room/data.js
   var SIZE_CHART = {
     "IT 38": { bust: 83, waist: 65, hip: 91, height: [158, 172], label: "XS" },
@@ -32384,6 +32397,13 @@ input[type="range"]::-moz-range-thumb {
     { id: "DG", name: "杜嘉班纳", en: "Dolce & Gabbana", short: "DG" },
     { id: "BL", name: "巴尔曼", en: "Balmain", short: "BL" }
   ];
+  var VINTAGE_BRAND = {
+    id: "VT",
+    name: "往季精选",
+    en: "Vintage",
+    short: "VINTAGE",
+    isVintage: true
+  };
   var NON_APPAREL = /\b(handbag|bag|tote|clutch|pouch|backpack|wallet|card holder|belt bag|perfume|parfum|eau de|fragrance|candle|sunglasses|eyewear|eyeglasses|sneakers?|sandals?|boots?|loafers?|pumps?|heels?|necklace|earrings?|bracelet|ring|watch|scarf|shawl|gloves?|tights|socks?)\b/i;
   var isWearable = (it) => ["dresses", "tops", "bottoms", "outer"].includes(it.category) && !NON_APPAREL.test(it.nameEn || "") && !NON_APPAREL.test(it.name || "");
   var STYLE_FROM_NAME = [
@@ -32421,6 +32441,12 @@ input[type="range"]::-moz-range-thumb {
   var DB = mergeById(
     buildRealDB(PALETTE, ALL),
     DG_CATALOG.map((it) => ({
+      ...it,
+      nameEn: it.nameEn || it.name,
+      colors: [{ name: it.colorName, hex: it.colorHex }],
+      sizes: ALL
+    })),
+    EXTRA_CATALOG.map((it) => ({
       ...it,
       nameEn: it.nameEn || it.name,
       colors: [{ name: it.colorName, hex: it.colorHex }],
@@ -37800,7 +37826,8 @@ input[type="range"]::-moz-range-thumb {
     return tex;
   }
   function currentBrandItems() {
-    return DB.filter((g) => g.brand === state.brand);
+    if (state.brand === VINTAGE_BRAND.id) return DB.filter((g) => g.vintage);
+    return DB.filter((g) => g.brand === state.brand && !g.vintage);
   }
   function clearSearch() {
     state.query = "";
@@ -37827,7 +37854,7 @@ input[type="range"]::-moz-range-thumb {
     if (!q && !fc && !fst) return currentBrandItems().filter((g) => g.category === state.category);
     const terms = q.split(/\s+/).filter(Boolean);
     const catName = Object.fromEntries(DB_CATEGORIES.map((c) => [c.id, c.name + " " + c.en]));
-    const brandName = Object.fromEntries(BRANDS.map((b) => [b.id, `${b.name} ${b.en} ${b.short}`]));
+    const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map((b) => [b.id, `${b.name} ${b.en} ${b.short}`]));
     return DB.filter((g) => {
       if (fc && !(g.colors || []).some((c) => c.name === fc)) return false;
       if (fst && g.style !== fst) return false;
@@ -37862,8 +37889,9 @@ input[type="range"]::-moz-range-thumb {
   }
   function renderBrands() {
     if (!els2.brands) return;
-    els2.brands.innerHTML = BRANDS.map(
-      (b) => `<button class="brand-tab ${b.id === state.brand ? "active" : ""}" data-brand="${b.id}">
+    const all = [...BRANDS, VINTAGE_BRAND];
+    els2.brands.innerHTML = all.map(
+      (b) => `<button class="brand-tab ${b.id === state.brand ? "active" : ""}${b.isVintage ? " vintage" : ""}" data-brand="${b.id}">
        <b>${b.short}</b><span>${b.name}</span>
      </button>`
     ).join("");
@@ -37872,8 +37900,8 @@ input[type="range"]::-moz-range-thumb {
         state.brand = btn.dataset.brand;
         clearSearch();
         clearFilters();
-        const b = BRANDS.find((x) => x.id === state.brand);
-        els2.wardrobeTitle.textContent = `${b.name}女装`;
+        const b = [...BRANDS, VINTAGE_BRAND].find((x) => x.id === state.brand);
+        els2.wardrobeTitle.textContent = b.isVintage ? b.name : `${b.name}女装`;
         els2.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
         renderBrands();
         renderCategories();
@@ -37923,7 +37951,7 @@ input[type="range"]::-moz-range-thumb {
     }
     els2.list.innerHTML = items.map((item) => {
       const chosen = Object.values(state.outfit).some((o) => o && o.id === item.id);
-      const brand = BRANDS.find((b) => b.id === item.brand);
+      const brand = [...BRANDS, VINTAGE_BRAND].find((b) => b.id === item.brand) || (item.vintage ? { short: "VINTAGE", name: "往季" } : null);
       const cat = DB_CATEGORIES.find((c) => c.id === item.category);
       return `<div class="garment-card db-card ${chosen ? "selected" : ""}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -37932,6 +37960,7 @@ input[type="range"]::-moz-range-thumb {
       </div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
+        ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ""}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ""}</span>` : ""}
         <span class="db-fit">${item.fit}</span>
       </div>

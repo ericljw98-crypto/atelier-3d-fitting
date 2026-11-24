@@ -366,32 +366,60 @@ function cutGarment(img, uploaded = false, item = null) {
   const box = { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
   const shoulder = detectShoulder(loA, hiA, y0, y1, box.h);
 
-  /* 领口开洞：幽灵模特商品图里领口内侧是衬布/拉链，不是透明；
-     直接整块贴上去就会把穿者的脖子盖住。按肩线和品类关键词裁出
-     U / V / 方领，让底层真人皮肤的领口真正露出来。 */
+  /* 领口开洞：幽灵模特商品图里领口内侧有时是衬布/拉链（不透明），
+     直接整块贴上去会把穿者的脖子盖住；但领口本来就是敞开的款
+     （深 V、抹胸、宽肩带 V 领），抠底后那里已经是透明，挖了反而
+     把衣服本体挖掉、在胸口露出突兀的肤色块。
+     所以先量领口区域抠底后的透明占比：
+       · 本来就空（占比高）→ 不挖，让底模皮肤自然透出来；
+       · 仍是不透明布料 → 只在领型明确是敞口时才挖，且范围收窄。
+     领型判断优先看名称里的领口词；圆领/高领/翻领/衬衫领一律不挖。 */
   if (item && item.category !== 'bottoms' && shoulder && !shoulder.strapless) {
     const mid = (shoulder.lo + shoulder.hi + 1) / 2;
     const nw = Math.max(18, 0.34 * shoulder.w);
     const text = ((item.nameEn || '') + ' ' + (item.name || '')).toLowerCase();
-    let depthK = 0.16, shape = 'u';
-    if (/deep|plunge|v[-\s]?neck|vneck|d[eé]collet|dos[-\s]?nu|backless|halter|cowl/.test(text)) {
-      depthK = 0.30; shape = 'v';
-    } else if (/square|carr[eé]|carre/.test(text)) {
-      depthK = 0.18; shape = 'square';
-    } else if (/crew|round|high[-\s]?neck|turtle|mock|blouse|shirt|camisole|top/.test(text)) {
-      depthK = 0.14;
-    }
-    const topY = shoulder.y - 0.045 * shoulder.w;
-    const botY = shoulder.y + depthK * shoulder.w;
-    for (let py = Math.max(0, Math.floor(topY)); py <= Math.min(h - 1, Math.ceil(botY)); py++) {
+    // 领口区（肩线以下、中心 nw 宽）的透明像素占比
+    const probeTop = Math.max(0, Math.floor(shoulder.y));
+    const probeBot = Math.min(h - 1, Math.ceil(shoulder.y + 0.20 * shoulder.w));
+    let empty = 0, total = 0;
+    for (let py = probeTop; py <= probeBot; py++) {
       for (let px = Math.max(0, Math.floor(mid - nw / 2)); px <= Math.min(w - 1, Math.ceil(mid + nw / 2)); px++) {
-        const u = (px - mid) / (nw / 2);
-        if (Math.abs(u) > 1) continue;
-        let yb;
-        if (shape === 'v') yb = topY + (botY - topY) * (1 - Math.abs(u));
-        else if (shape === 'square') yb = botY - (botY - topY) * 0.55 * Math.pow(Math.abs(u), 8);
-        else yb = topY + (botY - topY) * Math.sqrt(Math.max(0, 1 - u * u));
-        if (py <= yb) p[(py * w + px) * 4 + 3] = 0;
+        total++;
+        if (p[(py * w + px) * 4 + 3] < 40) empty++;
+      }
+    }
+    const openRatio = total ? empty / total : 0;
+    /* 有领/高领/衬衫领等闭合领口：领口内侧是衣服本体，不能挖。
+       名称匹配会漏（"PB Labyrinth jacquard dress" 这类高领针织不含领型词），
+       所以再加一道几何判据：领高比 = 领顶到肩点的距离 ÷ 肩宽。
+       领子占肩宽两成以上，说明这是高领/大翻领/立领款——它的领口内侧
+       本来就是衣服，挖了会在胸口留下一块突兀的肤色块。
+       深 V、抹胸、宽肩带的领高比普遍小于 0.12，不受影响。 */
+    const collarK = (shoulder.y - box.y0) / Math.max(shoulder.w, 1);
+    const tallCollar = collarK > 0.16;
+    const closed = tallCollar
+      || /crew|round[-\s]?neck|high[-\s]?neck|turtle|mock|blouse|shirt|collar|knit|polo|camisole|turtleneck|jersey|rib/.test(text);
+    // 明确敞口的领型
+    const openV = /deep|plunge|v[-\s]?neck|vneck|d[eé]collet|dos[-\s]?nu|backless|halter|cowl|strapless/.test(text);
+    if (openRatio < 0.28 && !closed) {
+      let depthK = 0.16, shape = 'u';
+      if (openV) {
+        depthK = 0.30; shape = 'v';
+      } else if (/square|carr[eé]|carre/.test(text)) {
+        depthK = 0.18; shape = 'square';
+      }
+      const topY = shoulder.y - 0.045 * shoulder.w;
+      const botY = shoulder.y + depthK * shoulder.w;
+      for (let py = Math.max(0, Math.floor(topY)); py <= Math.min(h - 1, Math.ceil(botY)); py++) {
+        for (let px = Math.max(0, Math.floor(mid - nw / 2)); px <= Math.min(w - 1, Math.ceil(mid + nw / 2)); px++) {
+          const u = (px - mid) / (nw / 2);
+          if (Math.abs(u) > 1) continue;
+          let yb;
+          if (shape === 'v') yb = topY + (botY - topY) * (1 - Math.abs(u));
+          else if (shape === 'square') yb = botY - (botY - topY) * 0.55 * Math.pow(Math.abs(u), 8);
+          else yb = topY + (botY - topY) * Math.sqrt(Math.max(0, 1 - u * u));
+          if (py <= yb) p[(py * w + px) * 4 + 3] = 0;
+        }
       }
     }
   }
