@@ -1,15 +1,15 @@
 {
-  "versionCode": 22,
-  "versionName": "2.11",
-  "releaseDate": "2026-11-23",
-  "size": 52508237,
-  "sha256": "4a5c62f11408f8ddcd18407368517513e5171ce415fe12534632487473bdb6ef",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.11/ATELIER-3D-Fitting-v2.11.apk",
-  "notes": "服装生成器 v3：真实领口/袖窿/肩型；面料改用商品图贴图；全库 307 款补模特上身图；修复巴尔曼 144 款无法进入",
+  "versionCode": 23,
+  "versionName": "2.12",
+  "releaseDate": "2026-11-24",
+  "size": 59980545,
+  "sha256": "9ef3bd7cfec44d79ece8e735a26bdb4244b12dc144e9b7e890faeb4ad7c6b6e4",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.12/ATELIER-3D-Fitting-v2.12.apk",
+  "notes": "2D 上身图重做：衣肩按肩线贴到人体肩点、服装随尺码放码、右上角可一键清空上身；写实网格款补平铺图，2D 不再空白；商品图升级为官网高清图（127 款 740×943）；3D 人体改 B+ 罩杯、收腰、并腿",
   "apk": {
-    "size": 52508237,
-    "sha256": "4a5c62f11408f8ddcd18407368517513e5171ce415fe12534632487473bdb6ef",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.11/ATELIER-3D-Fitting-v2.11.apk",
+    "size": 59980545,
+    "sha256": "9ef3bd7cfec44d79ece8e735a26bdb4244b12dc144e9b7e890faeb4ad7c6b6e4",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.12/ATELIER-3D-Fitting-v2.12.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
