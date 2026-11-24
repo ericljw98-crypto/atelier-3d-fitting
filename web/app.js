@@ -4,8 +4,7 @@ import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOU
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
-import { buildRealGarment } from './realGarments.js';
-import { evaluateFit, garmentMeasurements } from './fitEngine.js';
+import { evaluateFit, garmentMeasurements, fitSizeForModel } from './fitEngine.js';
 import { initUpdate } from './update.js';
 
 /* ============================================================
@@ -344,13 +343,10 @@ function detectShoulder(lo, hi, y0, y1, H) {
 }
 
 function cutFor(item) {
-  if (!item || (!item.image && !item.flat)) return null;
+  if (!item || !item.image) return null;
   let job = fitCache.cuts.get(item.id);
   if (!job) {
-    /* flat 是离线烘好的白底平面图（写实网格款用它）。
-       写实款的官方商品图是「人台穿着」的渲染图，直接抠会把头、手臂、腿一起抠进来，
-       所以另外渲一张只有衣服的图，2D 与卡片各用各的。 */
-    job = loadImg(item.flat || item.image).then(cutGarment).catch(() => null);
+    job = loadImg(item.image).then(cutGarment).catch(() => null);
     fitCache.cuts.set(item.id, job);
   }
   return job;
@@ -362,20 +358,21 @@ function fitDrawModelOnly() {
   ctx.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
 }
 
-/* 尺码 → 图样放码倍率
+/* 尺码 → 图样放码倍率（成衣围度来自合身基准线）
    ------------------------------------------------------------
-   商品图只有一张，要让它真正跟着尺码变，按成衣档差放缩整张图（含印花图样）：
-   正面宽度 ≈ 围度的一半，所以横向倍率直接取「该码围度 / 基准码围度」，
-   不取平方根——之前取 √ 让 EU34→EU46 只差 9%，肉眼看就是「没联动」。
-   纵向按每码约 1.2cm 的衣长档差折算（100cm 基准），幅度小于横向，
-   符合真实放码「围度吃档差、衣长少量增加」。胸装看胸围，下装看臀围。 */
+   倍率取「该码成衣围度 / EU38 基准码成衣围度」，与合身诊断读的
+   是同一个 garmentMeasurements()：基准线（净体 + 合身放松量）定了以后，
+   各码只是在基准上加减档差，所以图样宽度与诊断结论同增同减。
+   横向直接取围度比，不取平方根——√ 会把档差压到肉眼看不出来。 */
 function sizeFitFactors(item, size) {
-  const base = SIZE_CHART['EU 38'] || { bust: 88, hip: 96 };
-  const row = SIZE_CHART[size] || base;
+  const model = state.model || DEFAULT_MODEL;
+  const fitSize = fitSizeForModel(model);
+  const gm = garmentMeasurements(item.id, size, model) || {};
+  const gmBase = garmentMeasurements(item.id, 'EU 38', model) || {};
   const key = (item && item.category === 'bottoms') ? 'hip' : 'bust';
-  const girth = (row[key] || base[key]) / base[key];
-  const w = Math.min(1.22, Math.max(0.86, girth));
-  const i = Math.max(0, SIZES.indexOf(size)) - Math.max(0, SIZES.indexOf('EU 38'));
+  const denom = gmBase[key] || 1;
+  const w = Math.min(1.22, Math.max(0.82, (gm[key] || denom) / denom));
+  const i = Math.max(0, SIZES.indexOf(size)) - Math.max(0, SIZES.indexOf(fitSize));
   const h = Math.min(1.14, Math.max(0.90, 1 + i * 0.012));
   return { w, h };
 }
@@ -472,7 +469,7 @@ function flatDraw() {
      曾经给「没有商品图」的款兜底走 3D 网格投影，渲出来是一块纯色剪影，
      跟商品图的印花、质感完全对不上，用户看到的就是「又回退了」。
      现在没有商品图就只显示模特底图，并在下方说明原因。 */
-  const hasPhoto = !!(leadItem && (leadItem.flat || (leadItem.image && !leadItem.realistic)));
+  const hasPhoto = !!(leadItem && leadItem.image);
   if (hasPhoto) {
     fitLeadId = leadItem.id;
     fitDrawGarment(leadItem);
@@ -487,7 +484,7 @@ function flatDraw() {
   if (flatEls.label) flatEls.label.textContent = custom ? '照片上身' : hasPhoto ? '正面合成' : (leadItem ? '无平铺图' : '模特底图');
   if (flatEls.caption) {
     const hcm = state.model ? state.model.height : 165;
-    const graded = hasPhoto ? garmentMeasurements(leadItem.id, state.size) : null;
+    const graded = hasPhoto ? garmentMeasurements(leadItem.id, state.size, state.model) : null;
     const gradeText = graded
       ? ` · 成衣${leadItem.category === 'bottoms' ? '臀围' : '胸围'} ${Math.round(graded[leadItem.category === 'bottoms' ? 'hip' : 'bust'])}cm`
       : '';
@@ -527,27 +524,6 @@ function selectGarment(itemId, opt = {}) {
   const color = opt.color ?? (own ? own.hex : state.color);
   const colorName = opt.colorName ?? (own ? own.name : state.colorName);
 
-  // 写实成衣：异步加载 GLB（固定版型，尺码用于合身诊断）
-  if (item.model3d) {
-    const token = ++realLoadToken;
-    const H = state.model.height * (1 / 50);
-    // 写实成衣保留官方贴图花色，不做整体染色（染色会把印花糊成纯色）
-    buildRealGarment(item, H, 0xffffff)
-      .then(group => {
-        if (token !== realLoadToken) {           // 已被更新的选择取代，丢弃
-          group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose?.(); } });
-          return;
-        }
-        garmentGroup.add(group);
-        state.outfit[slot] = { id: itemId, slot, group, color: 0xffffff, colorName: '官方花色' };
-        state.activeSlot = slot;
-        renderGarments(); renderSummary(); updateStatus(); renderColors(); renderFitReport();
-        toast(`已试穿：${item.name}（写实成衣）`);
-      })
-      .catch(err => { console.error(err); toast('写实成衣加载失败'); });
-    return;
-  }
-
   // 程序化服装（含完整尺码放码）
   ++realLoadToken;
   if (!bodyReady()) {
@@ -576,11 +552,6 @@ function setColor(hex, name) {
   state.color = hex; state.colorName = name;
   if (state.activeSlot && state.outfit[state.activeSlot]) {
     const entry = state.outfit[state.activeSlot];
-    if (entry.group.userData.realistic) {
-      toast('写实成衣为官方固定花色，不支持换色');
-      renderColors();
-      return;
-    }
     entry.group.userData.dyeMaterials?.forEach(m => m.color.setHex(hex));
     entry.color = hex; entry.colorName = name;
     renderSummary();
@@ -674,12 +645,8 @@ function renderCategories() {
   });
 }
 
-/** 价格区块：在售款给欧元与原价；写实展示款不标价，写清「非卖品」；
-    停产档案款标当年零售价并注明不可购。 */
+/** 价格区块：在售款给欧元与原价；停产档案款标当年零售价并注明不可购。 */
 function priceMarkup(item) {
-  if (item.nonCommercial) {
-    return `<span class="price-eur price-none">非卖品</span><span class="price-cny">CC0 开放模型 · 无定价</span>`;
-  }
   if (item.discontinued) {
     return `<span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">${item.archiveYear || ''} 年零售价 · 已停产</span>`;
   }
@@ -700,7 +667,6 @@ function renderGarments() {
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
-        ${item.nonCommercial ? '<span class="db-tag demo">展示款</span>' : ''}
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
@@ -856,7 +822,7 @@ function renderFitReport() {
     return `<div class="fit-part">
       <div class="fit-part-head"><span>${p.label}</span><span class="fit-part-status ${p.status}">${p.statusLabel}</span></div>
       <div class="fit-part-bar"><i class="${p.status}" style="width:${fill}%"></i></div>
-      <div class="fit-part-data">成衣 ${p.garment} · 身体 ${p.body} · 放松 ${p.ease > 0 ? '+' : ''}${p.ease}cm<span>设计 ${p.designEase > 0 ? '+' : ''}${p.designEase}</span></div>
+      <div class="fit-part-data">成衣 ${p.garment} · 合身基准 ${p.baseline} · 身体 ${p.body}<span>基准放松 ${p.designEase > 0 ? '+' : ''}${p.designEase} · 偏差 ${p.delta > 0 ? '+' : ''}${p.delta}cm</span></div>
     </div>`;
   }).join('');
 

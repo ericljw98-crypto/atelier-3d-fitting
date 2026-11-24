@@ -1228,8 +1228,8 @@ input[type="range"]::-moz-range-thumb {
 .fit-part-bar i { display: block; height: 100%; background: #7fd6a0; border-radius: 3px; transition: width .4s ease; }
 .fit-part-bar i.tight, .fit-part-bar i.loose { background: #e8bf7a; }
 .fit-part-bar i.tooTight, .fit-part-bar i.tooLoose { background: #ea8a80; }
-.fit-part-data { color: var(--text-faint); font-size: 9.5px; display: flex; justify-content: space-between; }
-.fit-part-data span { color: var(--text-dim); }
+.fit-part-data { color: var(--text-faint); font-size: 9.5px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; line-height: 1.5; }
+.fit-part-data span { color: var(--text-dim); white-space: nowrap; }
 .fit-recommend {
   margin-top: 12px; padding: 8px 10px; border-radius: 5px;
   background: rgba(224,168,76,.1); border: 1px solid rgba(224,168,76,.25);

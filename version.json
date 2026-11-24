@@ -1,15 +1,15 @@
 {
-  "versionCode": 25,
-  "versionName": "2.14",
+  "versionCode": 26,
+  "versionName": "2.15",
   "releaseDate": "2026-11-24",
-  "size": 57933513,
-  "sha256": "a1eb0d134695cea614b75c195a19de53645d72103b3b29550d9eb4a2fba5c86e",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.14/ATELIER-3D-Fitting-v2.14.apk",
-  "notes": "2D 图样随尺码放码；识图不可靠时直接把上传照片贴到模特；3D 手臂自然下垂、袖筒收细并补袖窿。已回退肉色紧身衣，并彻底删除旧 2D 木偶人正交渲染路径，不再有木偶人回退",
+  "size": 20728461,
+  "sha256": "a2a06d5a40127a28492448fa1d4e03ac87a407b36b85eb91619e1047e05da663",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.15/ATELIER-3D-Fitting-v2.15.apk",
+  "notes": "以合身数据为基准线统一合身诊断、尺码推荐与 2D 图样放码；删除非品牌非卖展示款；2D 模特下巴与五官轻微精修。",
   "apk": {
-    "size": 57933513,
-    "sha256": "a1eb0d134695cea614b75c195a19de53645d72103b3b29550d9eb4a2fba5c86e",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.14/ATELIER-3D-Fitting-v2.14.apk",
+    "size": 20728461,
+    "sha256": "a2a06d5a40127a28492448fa1d4e03ac87a407b36b85eb91619e1047e05da663",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.15/ATELIER-3D-Fitting-v2.15.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }

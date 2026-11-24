@@ -1,5 +1,4 @@
 import { buildRealDB } from './realDB.js';
-import { REAL_GARMENTS } from './realGarments.js';
 import { buildArchiveDB } from './archive.js';
 
 /* ============================================================
@@ -164,8 +163,10 @@ const isWearable = it =>
   !NON_APPAREL.test(it.nameEn || '') &&
   !NON_APPAREL.test(it.name || '');
 
-/** 全量数据库：在售真实款式（官网公开数据）+ 历史停产版型（档案款） */
-export const DB = [...REAL_GARMENTS, ...buildArchiveDB(PALETTE, ALL), ...buildRealDB(PALETTE, ALL)]
+/** 全量数据库：只保留品牌原始商品（官网在售款 + 历史停产档案款）。
+    CC0 开放模型的非卖展示款已整批移除——它们不是品牌产品，混在列表里
+    既给不出真实价格，也没有对应的官方货号，对用户没有参考价值。 */
+export const DB = [...buildArchiveDB(PALETTE, ALL), ...buildRealDB(PALETTE, ALL)]
   .filter(isWearable);
 
 export const DB_BY_ID = {};
