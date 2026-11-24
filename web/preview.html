@@ -1618,32 +1618,12 @@ input[type="range"]::-moz-range-thumb {
       </section>
 
       <aside class="controls panel">
-        <div class="panel-heading">
-          <h2>造型控制</h2>
-          <p>基于你的模特档案</p>
-        </div>
-
         <div class="model-chip" id="model-chip">未建档</div>
 
         <div class="control-group size-group">
           <h3>尺码</h3>
-          <div class="size-input-wrap">
-            <label for="size-input">输入你的码</label>
-            <input id="size-input" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="38 / M / EU 40" aria-describedby="size-input-note" />
-            <span class="size-input-note" id="size-input-note">数字码或字母码均可</span>
-          </div>
           <div class="size-buttons" id="size-buttons"></div>
           <p class="size-hint" id="size-hint"></p>
-        </div>
-
-        <div class="control-group">
-          <h3>视角</h3>
-          <div class="segmented" id="view-buttons">
-            <button data-view="front" class="active">正面</button>
-            <button data-view="side">侧面</button>
-            <button data-view="back">背面</button>
-          </div>
         </div>
 
         <div class="control-group">
@@ -32356,41 +32336,6 @@ input[type="range"]::-moz-range-thumb {
     const n = parseFloat(String(size).replace(/[^\d.]/g, ""));
     return isFinite(n) ? n : null;
   }
-  function normalizeSize(raw) {
-    if (raw == null) return null;
-    const s = String(raw).trim().toUpperCase().replace(/\s+/g, "");
-    if (!s) return null;
-    const num = s.replace(/^IT/, "").replace(/^EU/, "");
-    if (/^\d{2}(\.\d+)?$/.test(num)) {
-      const v = parseFloat(num);
-      let best = null, bestD = Infinity;
-      SIZES.forEach((k) => {
-        const kv = sizeNumber(k);
-        const d = Math.abs(kv - v);
-        if (d < bestD) {
-          bestD = d;
-          best = k;
-        }
-      });
-      if (!best) return null;
-      return { size: best, snapped: bestD > 0.01, raw: String(raw) };
-    }
-    if (LABEL_TO_SIZE[s]) {
-      return { size: LABEL_TO_SIZE[s], snapped: false, raw: String(raw) };
-    }
-    const key2 = s.replace(/[^A-Z0-9]/g, "");
-    if (LABEL_TO_SIZE[key2]) {
-      return { size: LABEL_TO_SIZE[key2], snapped: false, raw: String(raw) };
-    }
-    const lettersOnly = s.replace(/[^A-Z]/g, "");
-    if (LABEL_TO_SIZE[lettersOnly]) {
-      return { size: LABEL_TO_SIZE[lettersOnly], snapped: false, raw: String(raw) };
-    }
-    if (key2 === "MEDIUM") return { size: "IT 42", snapped: false, raw: String(raw) };
-    if (key2 === "SMALL") return { size: "IT 40", snapped: false, raw: String(raw) };
-    if (key2 === "LARGE") return { size: "IT 44", snapped: false, raw: String(raw) };
-    return null;
-  }
   var PALETTE = {
     black: { name: "曜石黑", hex: 1447707 },
     ivory: { name: "象牙白", hex: 15789281 },
@@ -37752,9 +37697,11 @@ input[type="range"]::-moz-range-thumb {
     colors: document.getElementById("color-swatches"),
     sizes: document.getElementById("size-buttons"),
     sizeHint: document.getElementById("size-hint"),
-    sizeInput: document.getElementById("size-input"),
-    sizeNote: document.getElementById("size-input-note"),
-    views: document.getElementById("view-buttons"),
+    sizeInput: null,
+    // 手输尺码已移除
+    sizeNote: null,
+    views: null,
+    // 视角切换已移除
     summary: document.getElementById("outfit-summary"),
     status: document.getElementById("stage-status"),
     toast: document.getElementById("toast"),
@@ -38021,33 +37968,11 @@ input[type="range"]::-moz-range-thumb {
     return l ? `IT ${n} · ${l}` : `IT ${n}`;
   }
   function syncSizeControls() {
-    if (els2.sizeInput) els2.sizeInput.value = sizeText(state.size);
     if (els2.sizes) {
       els2.sizes.querySelectorAll("button").forEach((b) => {
         b.classList.toggle("active", b.dataset.size === state.size);
       });
     }
-  }
-  function applySizeInput(raw) {
-    const hit = normalizeSize(raw);
-    if (!hit) {
-      if (els2.sizeNote) {
-        els2.sizeNote.textContent = "没有这个码，可输 34–46 或 XS / S / M / L / XL / XXL";
-        els2.sizeNote.className = "size-input-note bad";
-      }
-      return false;
-    }
-    state.size = hit.size;
-    state.sizeLocked = true;
-    if (els2.sizeNote) {
-      els2.sizeNote.textContent = hit.snapped ? `没有 ${String(raw).trim()}，已就近取 ${sizeText(hit.size)}` : `已按 ${sizeText(hit.size)} 试穿`;
-      els2.sizeNote.className = "size-input-note ok";
-    }
-    syncSizeControls();
-    renderGarments();
-    recomputeOutfitForSize();
-    updateStatus();
-    return true;
   }
   function renderSizes() {
     const rec = fitSizeForModel(state.model || DEFAULT_MODEL);
@@ -38073,21 +37998,6 @@ input[type="range"]::-moz-range-thumb {
     const bustW = m.bust != null && m.waist != null ? Math.round(m.bust - m.waist) : null;
     const bodyType = bustW == null ? "" : bustW >= 17 ? "Y型" : bustW >= 12 ? "A型" : bustW >= 8 ? "B型" : "C型";
     els2.sizeHint.textContent = `三围 ${m.bust ?? "—"} / ${m.waist ?? "—"} / ${m.hip ?? "—"}cm${bodyType ? ` · ${bodyType}身材` : ""}，按胸臀厘米对标推荐 ${sizeText(rec)}${bodyType === "B型" || bodyType === "C型" ? "（腰围偏大，已按胸臀放宽一档）" : ""}`;
-  }
-  if (els2.sizeInput) {
-    const commit = () => {
-      const v = els2.sizeInput.value.trim();
-      if (v) applySizeInput(v);
-    };
-    els2.sizeInput.addEventListener("change", commit);
-    els2.sizeInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        commit();
-        els2.sizeInput.blur();
-      }
-    });
-    els2.sizeInput.addEventListener("focus", () => els2.sizeInput.select());
   }
   function recomputeOutfitForSize() {
     Object.keys(state.outfit).forEach((slot) => {
@@ -38207,17 +38117,6 @@ input[type="range"]::-moz-range-thumb {
     back: new Vector3(0, 0.35, -6.2)
   };
   var camAnim = null;
-  function moveCameraTo(pos) {
-    camAnim = { from: camera.position.clone(), to: pos.clone(), t: 0 };
-  }
-  els2.views.querySelectorAll("button").forEach((b) => {
-    b.addEventListener("click", () => {
-      els2.views.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      moveCameraTo(VIEWS[b.dataset.view]);
-      flatMark();
-    });
-  });
   document.getElementById("btn-clear").addEventListener("click", clearAll);
   if (flatEls.clear) flatEls.clear.addEventListener("click", clearAll);
   function resize() {

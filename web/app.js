@@ -702,9 +702,9 @@ const els = {
   colors: document.getElementById('color-swatches'),
   sizes: document.getElementById('size-buttons'),
   sizeHint: document.getElementById('size-hint'),
-  sizeInput: document.getElementById('size-input'),
-  sizeNote: document.getElementById('size-input-note'),
-  views: document.getElementById('view-buttons'),
+  sizeInput: null,   // 手输尺码已移除
+  sizeNote: null,
+  views: null,   // 视角切换已移除
   summary: document.getElementById('outfit-summary'),
   status: document.getElementById('stage-status'),
   toast: document.getElementById('toast'),
@@ -977,7 +977,6 @@ function sizeText(size) {
 
 /** 把当前尺码回写到输入框与按钮态，不触发重建 */
 function syncSizeControls() {
-  if (els.sizeInput) els.sizeInput.value = sizeText(state.size);
   if (els.sizes) {
     els.sizes.querySelectorAll('button').forEach(b => {
       b.classList.toggle('active', b.dataset.size === state.size);
@@ -985,33 +984,6 @@ function syncSizeControls() {
   }
 }
 
-/**
- * 应用用户手输的尺码。
- * 支持 38 / eu38 / M / S / L / XL / M-L 等写法；无法识别时给出可选项而不静默失败。
- */
-function applySizeInput(raw) {
-  const hit = normalizeSize(raw);
-  if (!hit) {
-    if (els.sizeNote) {
-      els.sizeNote.textContent = '没有这个码，可输 34–46 或 XS / S / M / L / XL / XXL';
-      els.sizeNote.className = 'size-input-note bad';
-    }
-    return false;
-  }
-  state.size = hit.size;
-  state.sizeLocked = true;
-  if (els.sizeNote) {
-    els.sizeNote.textContent = hit.snapped
-      ? `没有 ${String(raw).trim()}，已就近取 ${sizeText(hit.size)}`
-      : `已按 ${sizeText(hit.size)} 试穿`;
-    els.sizeNote.className = 'size-input-note ok';
-  }
-  syncSizeControls();
-  renderGarments();
-  recomputeOutfitForSize();
-  updateStatus();
-  return true;
-}
 
 function renderSizes() {
   const rec = recommendSize(state.model || DEFAULT_MODEL);
@@ -1035,20 +1007,6 @@ function renderSizes() {
   const bustW = m.bust != null && m.waist != null ? Math.round(m.bust - m.waist) : null;
   const bodyType = bustW == null ? '' : bustW >= 17 ? 'Y型' : bustW >= 12 ? 'A型' : bustW >= 8 ? 'B型' : 'C型';
   els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm${bodyType ? ` · ${bodyType}身材` : ''}，按胸臀厘米对标推荐 ${sizeText(rec)}${bodyType === 'B型' || bodyType === 'C型' ? '（腰围偏大，已按胸臀放宽一档）' : ''}`;
-}
-
-/* 手输尺码：不用 input 事件逐字符提交——输 "3" 会立刻被就近吸附成 34，
-   体验很怪。改为回车 / 失焦提交。 */
-if (els.sizeInput) {
-  const commit = () => {
-    const v = els.sizeInput.value.trim();
-    if (v) applySizeInput(v);
-  };
-  els.sizeInput.addEventListener('change', commit);
-  els.sizeInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); commit(); els.sizeInput.blur(); }
-  });
-  els.sizeInput.addEventListener('focus', () => els.sizeInput.select());
 }
 
 /* 换尺码后，用新尺码重建已穿服装 */
@@ -1270,14 +1228,6 @@ const VIEWS = {
 };
 let camAnim = null;
 function moveCameraTo(pos) { camAnim = { from: camera.position.clone(), to: pos.clone(), t: 0 }; }
-els.views.querySelectorAll('button').forEach(b => {
-  b.addEventListener('click', () => {
-    els.views.querySelectorAll('button').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    moveCameraTo(VIEWS[b.dataset.view]);
-    flatMark();
-  });
-});
 document.getElementById('btn-clear').addEventListener('click', clearAll);
 if (flatEls.clear) flatEls.clear.addEventListener('click', clearAll);
 
