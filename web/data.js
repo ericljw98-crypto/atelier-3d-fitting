@@ -1,11 +1,10 @@
 import { buildRealDB } from './realDB.js';
-import { buildArchiveDB } from './archive.js';
 
 /* ============================================================
    ATELIER · 杜嘉班纳（Dolce & Gabbana）女装参数数据库
    ------------------------------------------------------------
    数据说明：
-   - measurements 为成衣尺寸，单位 cm，基准尺码 EU 38。
+   - measurements 为成衣尺寸，单位 cm，基准尺码 IT 42（DG 官方 M 码）。
    - ease 为对应部位的放松量（成衣尺寸 − 人体净体尺寸），单位 cm。
    - silhouette 决定程序化 3D 版型构建方式。
    - 款号为演示编码，非官方商品编号；本库为可扩充的教学演示数据。
@@ -15,37 +14,38 @@ export const DB_META = {
   brand: 'Dolce & Gabbana',
   brandZh: '杜嘉班纳',
   version: '1.2.0',
-  basisSize: 'EU 38',
+  basisSize: 'IT 42',
   unit: 'cm',
-  note: '成衣尺寸以 EU 38 为基准，全站统一使用通用欧码女装（EU 34–54，对应 XS–7XL）；款号为演示编码。',
+  note: '尺码数值采用 Dolce & Gabbana 官方 IT 女装表（IT 36–58 / XXS–7XL）；Balmain 按官方 FR↔IT 对照显示法码。款号为演示编码。',
 };
 
-/* 通用欧码女装尺码表（EU，净体尺寸 cm）
-   档差 4cm（胸/腰/臀），与欧洲大众女装（Zara / H&M 等）放码惯例一致。
-   字母码按通用欧码标准标注，不是杜嘉班纳的意大利码（IT 数字比通用 EU 大 2，
-   IT 38 的胸围 83cm ≈ 通用 EU 36）。全站内部统一用通用 EU，商品成衣基准即 EU 38。
-   覆盖到 EU 54（7XL），补齐此前缺失的全线大码。 */
+/* 女装尺码表 —— 数值逐字照抄 DOLCE & GABBANA 官方 Women's Clothing Size (IT)
+   来源：sendegaro.com / sizechart.uk 收录的 DG 官方尺码指南。
+   DG 用意大利码 IT；Balmain 用法国码 FR，两者的数字不能直接混用。
+   本表内部用统一档位键 IT 36…58，UI 按当前品牌显示各自的官方码名。
+   bust/waist/hip 为官方人体净体尺寸（cm），未做任何推算或平移。 */
 export const SIZE_CHART = {
-  'EU 34': { bust: 80,  waist: 64,  hip: 88,  height: [158, 172], label: 'XS'   },
-  'EU 36': { bust: 84,  waist: 68,  hip: 92,  height: [158, 172], label: 'S'    },
-  'EU 38': { bust: 88,  waist: 72,  hip: 96,  height: [160, 174], label: 'M'    },
-  'EU 40': { bust: 92,  waist: 76,  hip: 100, height: [160, 174], label: 'L'    },
-  'EU 42': { bust: 96,  waist: 80,  hip: 104, height: [162, 176], label: 'XL'   },
-  'EU 44': { bust: 100, waist: 84,  hip: 108, height: [162, 176], label: 'XXL'  },
-  'EU 46': { bust: 104, waist: 88,  hip: 112, height: [164, 178], label: '3XL'  },
-  'EU 48': { bust: 108, waist: 92,  hip: 116, height: [164, 178], label: '4XL'  },
-  'EU 50': { bust: 112, waist: 96,  hip: 120, height: [164, 178], label: '5XL'  },
-  'EU 52': { bust: 116, waist: 100, hip: 124, height: [164, 178], label: '6XL'  },
-  'EU 54': { bust: 120, waist: 104, hip: 128, height: [164, 178], label: '7XL'  },
+  'IT 36': { bust: 80,  waist: 62,  hip: 88,  height: [158, 172], label: 'XXS' },
+  'IT 38': { bust: 83,  waist: 65,  hip: 91,  height: [158, 172], label: 'XS'  },
+  'IT 40': { bust: 86,  waist: 68,  hip: 94,  height: [158, 172], label: 'S'   },
+  'IT 42': { bust: 90,  waist: 72,  hip: 98,  height: [160, 174], label: 'M'   },
+  'IT 44': { bust: 94,  waist: 76,  hip: 102, height: [160, 174], label: 'L'   },
+  'IT 46': { bust: 98,  waist: 80,  hip: 106, height: [162, 176], label: 'XL'  },
+  'IT 48': { bust: 102, waist: 84,  hip: 110, height: [162, 176], label: 'XXL' },
+  'IT 50': { bust: 106, waist: 88,  hip: 114, height: [162, 176], label: '3XL' },
+  'IT 52': { bust: 111, waist: 94,  hip: 118, height: [164, 178], label: '4XL' },
+  'IT 54': { bust: 116, waist: 100, hip: 124, height: [164, 178], label: '5XL' },
+  'IT 56': { bust: 121, waist: 105, hip: 130, height: [164, 178], label: '6XL' },
+  'IT 58': { bust: 126, waist: 110, hip: 136, height: [164, 178], label: '7XL' },
 };
 export const SIZES = Object.keys(SIZE_CHART);
 
 /* ---------------- 尺码的两种写法 ----------------
-   欧洲女装同一件衣服上通常并列标两个码：数字码（34–46）与国际字母码
-   （XS–XXL）。两者的对应不是均分，38 是 M、40 是 M/L、42 是 L，
-   所以必须按表来，不能按序号推。
+   DG 女装以意大利码 IT 标注，并与国际字母码 XXS–7XL 一一对应；
+   Balmain 用法国码 FR，两者按官方对照表换算，不是同一套数字。
+   必须按表查，不能按序号推。
 
-   用户输入需要容错：'38' / 'eu38' / 'EU 38' / 'M' / 'm' / '3XL' / 'XXXL'
+   用户输入需要容错：'42' / 'it42' / 'IT 42' / 'M' / 'm' / '3XL' / 'XXXL'
    都应被识别；数字落在两档之间时（如 39）就近取档并回告。
    带数字的字母码（3XL/4XL…）不能把数字抹掉，否则会和小码 XL 冲突。 */
 const LABEL_TO_SIZE = (() => {
@@ -58,20 +58,22 @@ const LABEL_TO_SIZE = (() => {
     const digit = lab.match(/^(\d+)X+L$/);
     // '3XL' 的等价写法就是 'XXXL'（数字即 X 的个数）
     if (digit) m['X'.repeat(Number(digit[1])) + 'L'] = k;
-    m[k.replace(/\s+/g, '').replace(/^EU/, '')] = k;   // '38'
+    const flat = k.replace(/\s+/g, '');
+    m[flat] = k;                       // 'IT42'
+    m[flat.replace(/^IT/, '')] = k;    // '42'
   });
   // 只有 SIZE_CHART 里确实没有某个纯字母码时，才用去数字别名兜底
   Object.keys(alias).forEach(a => { if (!m[a]) m[a] = alias[a]; });
   return m;
 })();
 
-/** 标准尺码键 -> 字母码（EU 38 -> M） */
+/** 标准尺码键 -> 字母码（IT 42 -> M） */
 export function sizeLetter(size) {
   const row = SIZE_CHART[size];
   return row ? row.label : '';
 }
 
-/** 标准尺码键 -> 数字（EU 38 -> 38） */
+/** 标准尺码键 -> 数字（IT 42 -> 42） */
 export function sizeNumber(size) {
   const n = parseFloat(String(size).replace(/[^\d.]/g, ''));
   return isFinite(n) ? n : null;
@@ -86,8 +88,8 @@ export function normalizeSize(raw) {
   const s = String(raw).trim().toUpperCase().replace(/\s+/g, '');
   if (!s) return null;
 
-  // 数字码：允许 '38' / 'EU38' / '38.0'
-  const num = s.replace(/^EU/, '');
+  // 数字码：允许 '42' / 'IT42' / '42.0'
+  const num = s.replace(/^IT/, '').replace(/^EU/, '');
   if (/^\d{2}(\.\d+)?$/.test(num)) {
     const v = parseFloat(num);
     let best = null, bestD = Infinity;
@@ -113,9 +115,9 @@ export function normalizeSize(raw) {
     return { size: LABEL_TO_SIZE[lettersOnly], snapped: false, raw: String(raw) };
   }
   // 常见简写：ML 之外再兜一层 M-L、Medium 之类
-  if (key === 'MEDIUM') return { size: 'EU 38', snapped: false, raw: String(raw) };
-  if (key === 'SMALL') return { size: 'EU 36', snapped: false, raw: String(raw) };
-  if (key === 'LARGE') return { size: 'EU 42', snapped: false, raw: String(raw) };
+  if (key === 'MEDIUM') return { size: 'IT 42', snapped: false, raw: String(raw) };
+  if (key === 'SMALL') return { size: 'IT 40', snapped: false, raw: String(raw) };
+  if (key === 'LARGE') return { size: 'IT 44', snapped: false, raw: String(raw) };
   return null;
 }
 
@@ -171,7 +173,6 @@ const ALL = SIZES;
 export const BRANDS = [
   { id: 'DG', name: '杜嘉班纳', en: 'Dolce & Gabbana', short: 'DG' },
   { id: 'BL', name: '巴尔曼', en: 'Balmain',          short: 'BL' },
-  { id: 'AR', name: '停产档案', en: 'ARCHIVE',        short: 'AR' },
 ];
 
 /* 非服装类商品（包袋、香水、眼镜、鞋履等）不可上身试穿，
@@ -184,11 +185,13 @@ const isWearable = it =>
   !NON_APPAREL.test(it.nameEn || '') &&
   !NON_APPAREL.test(it.name || '');
 
-/** 全量数据库：只保留品牌原始商品（官网在售款 + 历史停产档案款）。
-    CC0 开放模型的非卖展示款已整批移除——它们不是品牌产品，混在列表里
-    既给不出真实价格，也没有对应的官方货号，对用户没有参考价值。 */
-export const DB = [...buildArchiveDB(PALETTE, ALL), ...buildRealDB(PALETTE, ALL)]
-  .filter(isWearable);
+/** 全量数据库：只保留官方在售款。
+    · CC0 非卖展示款、历史停产档案款均已移除：档案款没有官方商品图，
+      2D 无法合成、价格也是估算，混进列表只会给出错误的参考。
+    · 无图片的商品一律不入库（2D 主视图依赖商品图，纯色兜底已禁止）。 */
+export const DB = [...buildRealDB(PALETTE, ALL)]
+  .filter(isWearable)
+  .filter(it => !!(it.image && it.image.trim()));
 
 export const DB_BY_ID = {};
 DB.forEach(g => { DB_BY_ID[g.id] = g; });

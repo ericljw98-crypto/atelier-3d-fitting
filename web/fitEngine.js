@@ -15,7 +15,7 @@
 import { SIZE_CHART, SIZES, DB_BY_ID } from './data.js';
 import { DEFAULT_MODEL } from './body.js';
 
-const BASE_SIZE = 'EU 38';
+const BASE_SIZE = 'IT 42';
 
 /* 合身放松量（cm）：净体之上、穿着舒适且外观合身所需的余量。
    这是「合身基准线」的核心参数，全站统一，不再由每件商品各写一套。 */
@@ -58,18 +58,27 @@ export function fitBaseline(item, model) {
   return out;
 }
 
-/** 合身码：净体三围各落在哪一档，取最紧的一档（与尺码提示口径一致） */
+/** 尺寸落档：某部位净体落在标准表的哪一码 */
+function sizeForMeasure(part, value) {
+  if (!value) return null;
+  for (const s of SIZES) if (SIZE_CHART[s][part] >= value) return s;
+  return SIZES[SIZES.length - 1];
+}
+
+/** 合身码：以胸围、臀围为主，腰围作参考。
+    旧逻辑取三围最紧项，对 B/C 型（胸腰差小）身材会把人误推到特大码：
+    例如胸 94.5 / 腰 85 / 臀 99 的 B 型，胸落 XL、臀落 L、腰落 3XL，
+    取最紧就变成 3XL，但成衣 S/M 的胸臀本就够穿。
+    标准欧码表按胸腰差 16–20cm 的 A 型设计，对 B/C 型必须让腰退居参考位。 */
 export function fitSizeForModel(model) {
   const m = { ...DEFAULT_MODEL, ...(model || {}) };
-  let pick = SIZES[0];
-  ['bust', 'waist', 'hip'].forEach(k => {
-    const v = m[k];
-    if (!v) return;
-    let hit = SIZES[SIZES.length - 1];
-    for (const s of SIZES) { if (SIZE_CHART[s][k] >= v) { hit = s; break; } }
-    if (SIZES.indexOf(hit) > SIZES.indexOf(pick)) pick = hit;
-  });
-  return pick;
+  const byBust = sizeForMeasure('bust', m.bust);
+  const byHip = sizeForMeasure('hip', m.hip);
+  const byWaist = sizeForMeasure('waist', m.waist);
+  const candidates = [byBust, byBust, byHip, byWaist].filter(Boolean); // 胸臀权重更高
+  // 取中位数：既不被单一偏大的腰拉飞，也不会低估确实偏大的围度
+  candidates.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b));
+  return candidates[Math.floor(candidates.length / 2)] || byBust || SIZES[0];
 }
 
 /** 某尺码相对基准码的档差（cm），分部位按各自档差累计 */

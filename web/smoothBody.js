@@ -1038,6 +1038,14 @@ function reshapeFigure(geo, S) {
         arr[i + 2] = z * f;
       }
     }
+    /* 髋外侧（大转子）收窄：扫描人体在此处骨性突起明显，正面看像两块外凸。
+       只收躯干/胯部顶点（四肢已由各自逻辑处理），以 seatU 稍下方为峰，
+       横向内收最多 6%，z 不动，避免把臀部前后厚度压扁。 */
+    if (!limb) {
+      const trochanterY = ySeat - 0.035;
+      const wt = Math.exp(-0.5 * ((y - trochanterY) / 0.045) ** 2);
+      if (wt > 0.01) arr[i] = cx + x * (1 - 0.06 * wt);
+    }
     /* 双腿基本并拢：裆下起逐段内收，膝踝处收到约 78%；
        每腿对中线保留 1.1cm，防止两腿在中线穿插。 */
     if (col && col.getY(v) > 0.5) {

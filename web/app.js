@@ -77,7 +77,7 @@ const state = {
   model: null,                         // 建档后的模特参数
   brand: 'DG',                         // 当前品牌：DG 杜嘉班纳 / BL 巴尔曼
   category: 'dresses',
-  size: 'EU 42',
+  size: 'IT 46',
   sizeLocked: false,                   // 用户手动指定过尺码后，不再被自动推荐覆盖
   outfit: { tops: null, bottoms: null, dresses: null, outer: null },
   activeSlot: null,
@@ -376,7 +376,7 @@ function sizeFitFactors(item, size) {
   const model = state.model || DEFAULT_MODEL;
   const fitSize = fitSizeForModel(model);
   const gm = garmentMeasurements(item.id, size, model) || {};
-  const gmBase = garmentMeasurements(item.id, 'EU 38', model) || {};
+  const gmBase = garmentMeasurements(item.id, 'IT 42', model) || {};
   const key = (item && item.category === 'bottoms') ? 'hip' : 'bust';
   const denom = gmBase[key] || 1;
   const w = Math.min(1.22, Math.max(0.82, (gm[key] || denom) / denom));
@@ -636,6 +636,7 @@ function renderBrands() {
       els.wardrobeTitle.textContent = `${b.name}女装`;
       els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
       renderBrands(); renderCategories(); renderGarments();
+      renderSizes(); syncSizeControls();   // 品牌换了，官方码名（IT/FR）随之切换
     });
   });
 }
@@ -698,11 +699,20 @@ function renderColors() {
   });
 }
 
-/* 尺码显示：数字码 + 字母码并列（欧码成衣的标法就是两者同标） */
+/* Balmain 官方 FR↔IT 对照：IT36→FR32、IT38→FR34 … IT50→FR46 */
+const IT_TO_FR = { 36: 32, 38: 34, 40: 36, 42: 38, 44: 40, 46: 42, 48: 44, 50: 46 };
+
+/* 尺码显示：按当前品牌的官方码名标注。
+   DG 用意大利码 IT，Balmain 用法国码 FR（官方 FR↔IT 对照），
+   同一个 IT42 在 DG 显示「IT 42 · M」，在 Balmain 显示「FR 40 · M」。 */
 function sizeText(size) {
   const n = sizeNumber(size);
   const l = sizeLetter(size);
-  return l ? `${n} · ${l}` : String(n ?? size);
+  if (state.brand === 'BL') {
+    const fr = IT_TO_FR[n];
+    return fr != null ? `FR ${fr} · ${l}` : (l ? `${n} · ${l}` : String(n ?? size));
+  }
+  return l ? `IT ${n} · ${l}` : `IT ${n}`;
 }
 
 /** 把当前尺码回写到输入框与按钮态，不触发重建 */
@@ -762,7 +772,9 @@ function renderSizes() {
   });
   syncSizeControls();
   const m = state.model || {};
-  els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm，按最紧部位推荐 ${sizeText(rec)} · 圆点为推荐码`;
+  const bustW = m.bust != null && m.waist != null ? Math.round(m.bust - m.waist) : null;
+  const bodyType = bustW == null ? '' : bustW >= 17 ? 'Y型' : bustW >= 12 ? 'A型' : bustW >= 8 ? 'B型' : 'C型';
+  els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm${bodyType ? ` · ${bodyType}身材` : ''}，按胸臀厘米对标推荐 ${sizeText(rec)}${bodyType === 'B型' || bodyType === 'C型' ? '（腰围偏大，已按胸臀放宽一档）' : ''}`;
 }
 
 /* 手输尺码：不用 input 事件逐字符提交——输 "3" 会立刻被就近吸附成 34，

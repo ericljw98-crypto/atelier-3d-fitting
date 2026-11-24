@@ -17,7 +17,7 @@ import { SIZE_CHART, SIZES, DB_BY_ID } from './data.js';
 import { bodyProfile, radiusAt, shellVarying, topEdgeFn } from './smoothBody.js';
 
 const U = 1 / 50;
-const BASE_ROW = SIZE_CHART['EU 38'];
+const BASE_ROW = SIZE_CHART['IT 42'];
 const MIN_EASE = 0.004;          // 布料厚度 + 贴身压力（约 2mm）
 const CLOTH = 0.0035;            // 布料与皮肤的净间隙（约 1.75mm）
 
@@ -32,19 +32,9 @@ export function sizeScalePart(size, part) {
   return base ? row[part] / base : row.bust / BASE_ROW.bust;
 }
 
-export function recommendSize(model) {
-  if (!model) return 'EU 38';
-  const keys = ['bust', 'waist', 'hip'];
-  let pick = SIZES[0];
-  keys.forEach(k => {
-    const v = model[k];
-    if (!v) return;
-    let hit = SIZES[SIZES.length - 1];
-    for (const s of SIZES) { if (SIZE_CHART[s][k] >= v) { hit = s; break; } }
-    if (SIZES.indexOf(hit) > SIZES.indexOf(pick)) pick = hit;
-  });
-  return pick;
-}
+/* 推荐尺码统一走 fitEngine 的合身码逻辑（胸臀厘米对标、腰围作参考），
+   避免这里用旧「取最紧项」而页面显示另一套，导致两处推荐不一致。 */
+export { fitSizeForModel as recommendSize } from './fitEngine.js';
 
 /* 织物微纹理：程序化画一张平纹布，用作凹凸贴图。
    没有它，程序化服装就是一整块纯色塑料壳——同一个人体、同样的版型，
@@ -304,7 +294,7 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true, 
   if (!item) return null;
 
   const P = bodyProfile(model);
-  const sizeKey = size || 'EU 38';
+  const sizeKey = size || 'IT 42';
   const sc = sizeScale(sizeKey);
   const M = item.measurements || {};
   const sil = item.silhouette;
