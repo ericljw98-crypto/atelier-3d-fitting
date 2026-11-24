@@ -230,8 +230,10 @@ function fitEnsure() {
   return fitLoading;
 }
 
-/* 抠底：只抹掉与画布四边连通的浅色区域，衣服自身的米白、蕾丝不会被误伤 */
-function cutGarment(img) {
+/* 抠底：只抹掉与画布四边连通的浅色区域，衣服自身的米白、蕾丝不会被误伤。
+   uploaded=true 时额外做「人物照片→单件衣服」的清洗：去掉肤色（脸、脖子、
+   手、手臂）和头部上方的深色头发，只留中间那件衣服。 */
+function cutGarment(img, uploaded = false, item = null) {
   const w = img.naturalWidth, h = img.naturalHeight;
   if (!w || !h) return null;
   const c = document.createElement('canvas');
@@ -259,6 +261,65 @@ function cutGarment(img) {
     if (py > 0) seed(px, py - 1);
     if (py < h - 1) seed(px, py + 1);
   }
+
+  let py0 = h, py1 = -1;
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      if (seen[py * w + px]) continue;
+      if (py < py0) py0 = py;
+      if (py > py1) py1 = py;
+    }
+  }
+  if (py1 < 0) return null;
+
+  /* 上传的是真人照片：肤色区域和头顶深色头发不属于衣服，先删掉。
+     阴影很重的黑衣可能被肤色规则误伤，因此只在照片路径启用。 */
+  if (uploaded) {
+    const headBottom = py0 + (py1 - py0) * 0.30;
+    for (let py = py0; py <= py1; py++) {
+      for (let px = 0; px < w; px++) {
+        const i = py * w + px, j = i * 4;
+        if (seen[i]) continue;
+        const r = p[j], g = p[j + 1], b = p[j + 2];
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const skin = r > 95 && g > 40 && b > 20 && mx - mn > 15
+          && Math.abs(r - g) > 15 && r > g && r > b && r / Math.max(g, 1) > 1.08;
+        const hair = py < headBottom && r < 105 && g < 105 && b < 105;
+        if (skin || hair) { seen[i] = 1; p[j + 3] = 0; }
+      }
+    }
+    // 去掉孤立小碎块（头发丝、手指残片），保留画面中央的大块衣身
+    const lab = new Int32Array(w * h).fill(-1);
+    const comp = [];
+    for (let i = 0; i < w * h; i++) {
+      if (seen[i] || lab[i] >= 0) continue;
+      const id = comp.length, q = [i];
+      lab[i] = id; let n = 0, cx = 0, cy = 0;
+      while (q.length) {
+        const k = q.pop(), kx = k % w, ky = (k / w) | 0;
+        n++; cx += kx; cy += ky;
+        const nb = [kx > 0 ? k - 1 : -1, kx < w - 1 ? k + 1 : -1,
+                    ky > 0 ? k - w : -1, ky < h - 1 ? k + w : -1];
+        for (const kk of nb) {
+          if (kk < 0 || seen[kk] || lab[kk] >= 0) continue;
+          lab[kk] = id; q.push(kk);
+        }
+      }
+      comp.push({ id, n, cx: cx / n, cy: cy / n });
+    }
+    if (comp.length) {
+      comp.sort((a, b) => b.n - a.n);
+      const main = comp[0];
+      for (const k of comp) {
+        if (k.id === main.id) continue;
+        if (k.n > main.n * 0.05 && Math.abs(k.cx - main.cx) < w * 0.18) continue;
+        for (let i = 0; i < w * h; i++) {
+          if (lab[i] === k.id) { seen[i] = 1; p[i * 4 + 3] = 0; }
+        }
+      }
+    }
+  }
+
   let x0 = w, x1 = -1, y0 = h, y1 = -1;
   const prof = new Float32Array(h);
   const loA = new Int32Array(h).fill(-1), hiA = new Int32Array(h).fill(-1);
@@ -298,9 +359,41 @@ function cutGarment(img) {
       }
     }
   }
-  x.putImageData(data, 0, 0);
+
   const box = { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
   const shoulder = detectShoulder(loA, hiA, y0, y1, box.h);
+
+  /* 领口开洞：幽灵模特商品图里领口内侧是衬布/拉链，不是透明；
+     直接整块贴上去就会把穿者的脖子盖住。按肩线和品类关键词裁出
+     U / V / 方领，让底层真人皮肤的领口真正露出来。 */
+  if (item && item.category !== 'bottoms' && shoulder && !shoulder.strapless) {
+    const mid = (shoulder.lo + shoulder.hi + 1) / 2;
+    const nw = Math.max(18, 0.34 * shoulder.w);
+    const text = ((item.nameEn || '') + ' ' + (item.name || '')).toLowerCase();
+    let depthK = 0.16, shape = 'u';
+    if (/deep|plunge|v[-\s]?neck|vneck|d[eé]collet|dos[-\s]?nu|backless|halter|cowl/.test(text)) {
+      depthK = 0.30; shape = 'v';
+    } else if (/square|carr[eé]|carre/.test(text)) {
+      depthK = 0.18; shape = 'square';
+    } else if (/crew|round|high[-\s]?neck|turtle|mock|blouse|shirt|camisole|top/.test(text)) {
+      depthK = 0.14;
+    }
+    const topY = shoulder.y - 0.045 * shoulder.w;
+    const botY = shoulder.y + depthK * shoulder.w;
+    for (let py = Math.max(0, Math.floor(topY)); py <= Math.min(h - 1, Math.ceil(botY)); py++) {
+      for (let px = Math.max(0, Math.floor(mid - nw / 2)); px <= Math.min(w - 1, Math.ceil(mid + nw / 2)); px++) {
+        const u = (px - mid) / (nw / 2);
+        if (Math.abs(u) > 1) continue;
+        let yb;
+        if (shape === 'v') yb = topY + (botY - topY) * (1 - Math.abs(u));
+        else if (shape === 'square') yb = botY - (botY - topY) * 0.55 * Math.pow(Math.abs(u), 8);
+        else yb = topY + (botY - topY) * Math.sqrt(Math.max(0, 1 - u * u));
+        if (py <= yb) p[(py * w + px) * 4 + 3] = 0;
+      }
+    }
+  }
+
+  x.putImageData(data, 0, 0);
   /* 取某相对高度处的衣身宽（跳过袖口、吊带这类极窄行，也跳过被袖子撑开的顶行） */
   const widthAt = frac => {
     const y = Math.min(h - 1, Math.max(0, Math.round(y0 + frac * box.h)));
@@ -354,7 +447,9 @@ function cutFor(item) {
   if (!item || !item.image) return null;
   let job = fitCache.cuts.get(item.id);
   if (!job) {
-    job = loadImg(item.image).then(cutGarment).catch(() => null);
+    job = loadImg(item.image)
+      .then(img => cutGarment(img, item.id === '__upload__', item))
+      .catch(() => null);
     fitCache.cuts.set(item.id, job);
   }
   return job;

@@ -1,15 +1,15 @@
 {
-  "versionCode": 31,
-  "versionName": "2.20",
+  "versionCode": 32,
+  "versionName": "2.21",
   "releaseDate": "2026-11-24",
-  "size": 21361555,
-  "sha256": "2ff948227472912f7b85399a7933dd524f2f8bc4752ba83cab84f1fcecfeb248",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.20/ATELIER-3D-Fitting-v2.20.apk",
-  "notes": "尺码改用DG官方IT表与Balmain官方FR对照，不用中国区数据并统一两处推荐逻辑；删除14款无图档案商品；收窄3D髋外侧与腿部并拢；APK竖屏把尺码和合身诊断移到模特上方；新增file协议可用的单文件预览。",
+  "size": 37571701,
+  "sha256": "7e360db13beb023723834843f1393e9afdc4f3b9717db0c5a76d1ff739de9240",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.21/ATELIER-3D-Fitting-v2.21.apk",
+  "notes": "Balmain官网核对：补齐68款官方连衣裙、尺码表改为仅官方法国码对照；2D领口智能开洞露出皮肤；2D大转子再收紧；3D双腿进一步并拢；上传照片自动抠出衣服。",
   "apk": {
-    "size": 21361555,
-    "sha256": "2ff948227472912f7b85399a7933dd524f2f8bc4752ba83cab84f1fcecfeb248",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.20/ATELIER-3D-Fitting-v2.20.apk",
+    "size": 37571701,
+    "sha256": "7e360db13beb023723834843f1393e9afdc4f3b9717db0c5a76d1ff739de9240",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.21/ATELIER-3D-Fitting-v2.21.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }

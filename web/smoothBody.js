@@ -1046,14 +1046,17 @@ function reshapeFigure(geo, S) {
       const wt = Math.exp(-0.5 * ((y - trochanterY) / 0.045) ** 2);
       if (wt > 0.01) arr[i] = cx + x * (1 - 0.06 * wt);
     }
-    /* 双腿基本并拢：裆下起逐段内收，膝踝处收到约 78%；
-       每腿对中线保留 1.1cm，防止两腿在中线穿插。 */
+    /* 双腿基本并拢：裆下起逐段向中线收，膝踝收得更多。
+       旧版只收 22%，脚踝仍停在 ±14cm，正面看两腿明显分开；
+       这里把末端收到 45%，并把安全间距压到 0.8cm，仍不穿插。
+       关键是保留径向缩放：腿根与躯干共用顶点权重，平移中心线会在
+       胯下撕出台阶，缩放则处处连续。 */
     if (col && col.getY(v) > 0.5) {
       const t = Math.min(1, Math.max(0, (ySeat * 0.98 - y) / (ySeat * 0.86)));
       const side = col.getZ(v) > 0.5 ? 1 : -1;
-      const shrink = 1 - 0.22 * Math.pow(t, 0.8);
+      const shrink = 1 - 0.55 * Math.pow(t, 1.1);
       const absX = Math.abs(x) * shrink;
-      arr[i] = cx + side * Math.max(absX, 1.1 * CM);
+      arr[i] = cx + side * Math.max(absX, 0.8 * CM);
     }
     /* 手臂自然下垂：扫描姿态的两臂略向外撇，袖筒沿 armCx 走就会被撑开、袖山离肩。
        这里从肩峰往下逐步把手臂往中线收（腕部约 2.8cm），肩点不动，
