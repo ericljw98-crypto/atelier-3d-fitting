@@ -18,13 +18,13 @@ export const DB_META = {
   version: '1.2.0',
   basisSize: 'IT 42',
   unit: 'cm',
-  note: '尺码数值采用 Dolce & Gabbana 官方 IT 女装表（IT 38–50 / XS–3XL）；Balmain 按官方 FR↔IT 对照显示法码。款号为演示编码。',
+  note: '尺码数值采用 Dolce & Gabbana 官方 IT 女装表（IT 38–54 / XS–5XL）；Balmain 按官方 FR↔IT 对照显示法码。款号为演示编码。',
 };
 
 /* 女装尺码表 —— 数值逐字照抄 DOLCE & GABBANA 官方 Women's Clothing Size (IT)
    来源：sendegaro.com / sizechart.uk 收录的 DG 官方尺码指南。
    DG 用意大利码 IT；Balmain 用法国码 FR，两者的数字不能直接混用。
-   本表内部用统一档位键 IT 38…50，UI 按当前品牌显示各自的官方码名。
+   本表内部用统一档位键 IT 38…54，UI 按当前品牌显示各自的官方码名。
    bust/waist/hip 为官方人体净体尺寸（cm），未做任何推算或平移。 */
 export const SIZE_CHART = {
   'IT 38': { bust: 83,  waist: 65,  hip: 91,  height: [158, 172], label: 'XS'  },
@@ -34,19 +34,23 @@ export const SIZE_CHART = {
   'IT 46': { bust: 98,  waist: 80,  hip: 106, height: [162, 176], label: 'XL'  },
   'IT 48': { bust: 102, waist: 84,  hip: 110, height: [162, 176], label: 'XXL' },
   'IT 50': { bust: 106, waist: 88,  hip: 114, height: [162, 176], label: '3XL' },
+  'IT 52': { bust: 111, waist: 94,  hip: 118, height: [164, 178], label: '4XL' },
+  'IT 54': { bust: 116, waist: 100, hip: 124, height: [164, 178], label: '5XL' },
 };
 export const SIZES = Object.keys(SIZE_CHART);
 
 /* ---------------- 尺码的两种写法 ----------------
-   DG 女装以意大利码 IT 标注，并与国际字母码 XS–3XL 一一对应；
-   官方表里的 XXS 与 4XL 及以上已移除：本应用只面向固定档案的成年模特，
-   那些档位不会有合身结果，留着只会让推荐区间失真。
+   DG 女装以意大利码 IT 标注，并与国际字母码 XS–5XL 一一对应。
+   XXS(IT 36) 仍不保留：固定档案的成年模特不会穿这一档，留着只会让
+   推荐区间的下沿失真。4XL/5XL 保留——实测发现部分款目的官方平铺尺寸
+   偏小（同一款在 IT46 判「偏小/过紧」，需要更大档才合身），
+   把大码删掉会让这些款永远推荐不出可穿的码。
    Balmain 用法国码 FR，两者按官方对照表换算，不是同一套数字。
    必须按表查，不能按序号推。
 
    用户输入需要容错：'42' / 'it42' / 'IT 42' / 'M' / 'm' / '3XL' / 'XXXL'
    都应被识别；数字落在两档之间时（如 39）就近取档并回告。
-   带数字的字母码（3XL…）不能把数字抹掉，否则会和小码 XL 冲突。 */
+   带数字的字母码（3XL/4XL/5XL）不能把数字抹掉，否则会和小码 XL 冲突。 */
 const LABEL_TO_SIZE = (() => {
   const m = {}, alias = {};
   SIZES.forEach(k => {

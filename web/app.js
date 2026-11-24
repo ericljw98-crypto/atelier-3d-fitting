@@ -186,20 +186,56 @@ const FIT = {
 const fitCache = { model: null, mask: null, layer: null, cuts: new Map() };
 let fitReady = false, fitLoading = null, fitLeadId = null;
 
-/* 单文件预览：内联的 data URL 映射（preview.html 注入）。
-   data URL 图片不会污染画布，因此 file:// 下也能正常抠底与合成。 */
+/* ---------------- 商品图源 ----------------
+   三级策略，优先级从高到低：
+   ① INLINE_IMAGES —— 内联 data URL（--inline 预览用）。data URL 不会污染画布。
+   ② ASSET_BASE —— 远端基址（GitHub raw / jsDelivr）。服务端带
+      Access-Control-Allow-Origin: *，画到 canvas 上不会污染，file:// 下也能抠底。
+   ③ 相对路径 —— 同源 HTTP 下正常；file:// 下本地图片会污染画布，
+      getImageData 抛 SecurityError，抠底直接失败，衣服就完全不显示。
+
+   file:// 打开时自动切到远端基址：桌面 Chrome 对 file:// 图片一律污染画布，
+   这是「WorkBuddy 内置预览换衣不显示」的根因。
+   APP 用 android_asset:// 加载，本地图片不污染，所以 APK 打包时显式注入空基址
+   强制走本地，保证离线可用。 */
 const INLINE_IMAGES = (typeof window !== 'undefined' && window.__ATELIER_INLINE_IMAGES__) || null;
+const REMOTE_ASSET_BASE =
+  (typeof window !== 'undefined' && window.__ATELIER_ASSET_BASE__ !== undefined)
+    ? window.__ATELIER_ASSET_BASE__
+    : ((typeof location !== 'undefined' && location.protocol === 'file:')
+        ? 'https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/web/'
+        : '');
+const isRemote = src => /^https?:\/\//i.test(src);
 function assetURL(src) {
   if (INLINE_IMAGES && INLINE_IMAGES[src]) return INLINE_IMAGES[src];
+  if (REMOTE_ASSET_BASE && !isRemote(src) && !/^data:|^blob:/i.test(src)) {
+    return REMOTE_ASSET_BASE + src.replace(/^\.?\//, '');
+  }
   return src;
 }
 
+/* 加载商品图：远端优先，失败回退本地相对路径（网络不通时至少还能显示） */
 function loadImg(src) {
   return new Promise((res, rej) => {
     const im = new Image();
     im.decoding = 'async';
+    /* 跨域图片必须显式声明 crossOrigin，否则即使服务端返回
+       Access-Control-Allow-Origin: *，画到 canvas 上仍算「不透明来源」，
+       getImageData 会抛 SecurityError，抠底直接失败。 */
+    if (REMOTE_ASSET_BASE && !isRemote(src) && !/^data:|^blob:/i.test(src)) {
+      im.crossOrigin = 'anonymous';
+    }
     im.onload = () => res(im);
-    im.onerror = () => rej(new Error(src));
+    im.onerror = () => {
+      const local = REMOTE_ASSET_BASE ? src.replace(REMOTE_ASSET_BASE, '') : src;
+      if (REMOTE_ASSET_BASE && local !== src && !isRemote(local)) {
+        const im2 = new Image();
+        im2.decoding = 'async';
+        im2.onload = () => res(im2);
+        im2.onerror = () => rej(new Error(src));
+        im2.src = local;
+      } else rej(new Error(src));
+    };
     im.src = assetURL(src);
   });
 }
@@ -207,8 +243,10 @@ function loadImg(src) {
 function fitEnsure() {
   if (!fitLoading) {
     fitLoading = (async () => {
-      // file:// 下外部图片会污染画布；但若已内联为 data URL 则可正常合成
-      if (location.protocol === 'file:' && !INLINE_IMAGES) return false;
+      /* file:// 下本地图片会污染画布，抠底必然失败。
+         但只要图源带 CORS（远端 raw / jsDelivr），或已内联为 data URL，
+         画布就是干净的，2D 可以正常工作。
+         这里的判断交给实际取图结果，不再按协议一刀切。 */
       try {
         const [m, k] = await Promise.all([
           loadImg('images/model-2d-front.jpg'),
@@ -961,7 +999,7 @@ function renderGarments() {
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div class="db-thumb">
         ${item.image
-          ? `<img class="db-photo" src="${assetURL(item.image)}" alt="${item.nameEn}" loading="lazy" onerror="this.remove()"/>`
+          ? `<img class="db-photo" src="${assetURL(item.image)}" alt="${item.nameEn}" loading="lazy"${REMOTE_ASSET_BASE ? ' crossorigin="anonymous"' : ''} onerror="this.remove()"/>`
           : `<div class="db-thumb-fallback"><span>${item.archiveYear || 'ARCHIVE'}</span><b>${item.nameEn}</b><i>停产款 · 无官方图</i></div>`}
       </div>
       <div class="db-card-head">

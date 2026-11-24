@@ -1,15 +1,15 @@
 {
-  "versionCode": 35,
-  "versionName": "2.24",
+  "versionCode": 36,
+  "versionName": "2.25",
   "releaseDate": "2026-11-24",
-  "size": 109966422,
-  "sha256": "9758544f4677e39d589ea3f244139f342d7b52dff38083c04c611346117359d0",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk",
-  "notes": "往季精选扩充到4款：新增 DG F6ARQT-FJ1JO 浅蓝印花衬衫式连衣裙（kameron.ua 白底平铺图）、Balmain DF1R8029KG96 粉色 PB Labyrinth 提花长袖连衣裙（symbol.ua 白底平铺图）、DG 177772 花卉印花宽肩带A字迷你裙（domino.ua 透明底平铺图）；F68I2T-FSRJH 玫瑰饼干印花连衣裙主图换成 Pinterest 官方图库的白底平铺图，原模特穿着照无法用于试穿。2D领口开洞修正：新增几何判据（领高比=领顶到肩点距离/肩宽 >0.16 判为高领翻领款），高领针织与大翻领衬衫不再被挖出突兀肤色块；领口本来就敞开的款（抠底后已透明）也不再重复开挖。商品库2113款。",
+  "size": 109966798,
+  "sha256": "e4ace8e37b473f75f9ff3333ed4a22303686ca0c61444386e13c2ba517c6b57e",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk",
+  "notes": "修复 WorkBuddy 内置预览换衣不显示：根因是桌面 Chrome 的 file:// 协议下本地图片会污染 canvas，getImageData 抛 SecurityError 导致抠底整体失败、衣服完全不上身；同时内置预览只提供单个 HTML，images/ 目录不存在。改为三级图源策略——显式指定 > file:// 自动切远端 > 本地相对路径，远端走 GitHub raw（带 Access-Control-Allow-Origin:*）且 img 必须显式设 crossOrigin=anonymous 才不会污染画布；fitEnsure 去掉按协议一刀切的拦截。APK 打包时注入空基址强制走本地图，保证离线可用。尺码表加回 4XL(IT52)/5XL(IT54)，实测部分款官方平铺尺寸偏小需要更大档（同一连衣裙推荐码由 IT50 变为 IT52）。商品库 2113 款。",
   "apk": {
-    "size": 109966422,
-    "sha256": "9758544f4677e39d589ea3f244139f342d7b52dff38083c04c611346117359d0",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.24/ATELIER-3D-Fitting-v2.24.apk"
+    "size": 109966798,
+    "sha256": "e4ace8e37b473f75f9ff3333ed4a22303686ca0c61444386e13c2ba517c6b57e",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk"
   }
 }

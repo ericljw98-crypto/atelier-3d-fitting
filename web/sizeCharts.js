@@ -26,6 +26,8 @@ export const DG_CHART = [
   { code: 'IT 46', num: 46, letter: 'XL',  bust: 98,  waist: 80,  hip: 106 },
   { code: 'IT 48', num: 48, letter: 'XXL', bust: 102, waist: 84,  hip: 110 },
   { code: 'IT 50', num: 50, letter: '3XL', bust: 106, waist: 88,  hip: 114 },
+  { code: 'IT 52', num: 52, letter: '4XL', bust: 111, waist: 94,  hip: 118 },
+  { code: 'IT 54', num: 54, letter: '5XL', bust: 116, waist: 100, hip: 124 },
 ];
 
 /* Balmain 官方字母码↔FR/IT 对照（官方原表，逐字照抄） */
@@ -37,6 +39,8 @@ export const BALMAIN_CONVERSION = [
   { letter: 'XL',  fr: 42, it: 46, uk: 14, de: 40, us: 10, jp: 15, kr: 77 },
   { letter: '2XL', fr: 44, it: 48, uk: 16, de: 42, us: 12, jp: 17, kr: 77 },
   { letter: '3XL', fr: 46, it: 50, uk: 18, de: 44, us: 14, jp: 19, kr: 88 },
+  { letter: '4XL', fr: 48, it: 52, uk: 20, de: 46, us: 16, jp: 21, kr: 88 },
+  { letter: '5XL', fr: 50, it: 54, uk: 22, de: 48, us: 18, jp: 23, kr: 99 },
 ];
 
 /* Balmain 净体围度：官方不公开，不能标成「官方实测」。
