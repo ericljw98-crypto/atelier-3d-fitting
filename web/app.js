@@ -84,6 +84,9 @@ const state = {
   color: PALETTE.black.hex,
   colorName: PALETTE.black.name,
   customPhoto: null,                   // 上传照片直接上身：{ url, category }
+  query: '',                           // 商品搜索关键词：命中时跨品牌、跨品类全局搜索
+  filterColor: '',                     // 颜色筛选
+  filterStyle: '',                     // 款式（版型）筛选
 };
 
 function loadProfile() {
@@ -480,23 +483,15 @@ function sizeFitFactors(item, size) {
   return { w, h };
 }
 
-function fitDrawGarment(item) {
-  if (!fitReady || !item) return;
+/* 单件商品图合成：把裁好的商品图按人体标定贴到画布上。
+   只负责「画这一件」，不负责清屏——多件搭配（上衣+下装）由
+   fitDrawOutfit 统一编排：先画模特，再按下装→上衣→外套的顺序叠。 */
+function fitDrawGarment(item, ctx) {
+  if (!fitReady || !item) return Promise.resolve(false);
   const job = cutFor(item);
-  if (!job) return;
-  job.then(cut => {
-    if (fitLeadId !== item.id) return;
-    const ctx0 = flatEls.fit.getContext('2d');
-    if (!cut) {
-      // 抠底失败（背景不是浅色/图挂了）：只留底模，不拿纯色网格凑数
-      ctx0.clearRect(0, 0, FIT.W, FIT.H);
-      ctx0.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
-      return;
-    }
-    const ctx = flatEls.fit.getContext('2d');
-    ctx.clearRect(0, 0, FIT.W, FIT.H);
-    ctx.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
-
+  if (!job) return Promise.resolve(false);
+  return job.then(cut => {
+    if (!cut) return false;
     const cat = item.category;
     const lenCm = (item.measurements && item.measurements.length) || (cat === 'dresses' ? 100 : 62);
     /* 写实款（flat 图由网格离线烘出）自带肩部几何：肩线在哪一行、肩宽多少像素，
@@ -544,7 +539,31 @@ function fitDrawGarment(item) {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(cut.canvas, dx, dy, cut.canvas.width * kw, cut.canvas.height * kh);
     ctx.restore();
+    return true;
   });
+}
+
+/* 2D 整体编排：可同时穿上衣与下装。
+   层次按真实穿着顺序——下装在下、上衣压住下装腰头、外套最外层。
+   连衣裙自带一身，出现时独占整身，不再叠加其它件。 */
+function fitDrawOutfit(items) {
+  if (!fitReady || !flatEls.fit) return;
+  const ctx = flatEls.fit.getContext('2d');
+  ctx.clearRect(0, 0, FIT.W, FIT.H);
+  ctx.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
+  const list = items.filter(Boolean);
+  if (!list.length) return;
+  // 连衣裙独占；否则按下装 → 上衣 → 外套的顺序叠
+  const dress = list.find(i => i.category === 'dresses');
+  const order = dress
+    ? [dress]
+    : [
+        ...list.filter(i => i.category === 'bottoms'),
+        ...list.filter(i => i.category === 'tops'),
+        ...list.filter(i => i.category === 'outer'),
+      ];
+  fitLeadId = order.map(i => i.id).join('|');
+  order.forEach(i => fitDrawGarment(i, ctx));
 }
 
 function flatDraw() {
@@ -572,10 +591,14 @@ function flatDraw() {
      曾经给「没有商品图」的款兜底走 3D 网格投影，渲出来是一块纯色剪影，
      跟商品图的印花、质感完全对不上，用户看到的就是「又回退了」。
      现在没有商品图就只显示模特底图，并在下方说明原因。 */
-  const hasPhoto = !!(leadItem && leadItem.image);
+  /* 2D 支持同时穿上衣与下装：把所有已着装的成衣按层次合成。
+     只取真正带官方商品图的款；没有图的款不参与合成（不做纯色兜底）。 */
+  const photoItems = wornNow
+    .map(o => DB_BY_ID[o.id])
+    .filter(it => it && it.image);
+  const hasPhoto = photoItems.length > 0;
   if (hasPhoto) {
-    fitLeadId = leadItem.id;
-    fitDrawGarment(leadItem);
+    fitDrawOutfit(photoItems);
   } else {
     fitLeadId = null;
     fitDrawModelOnly();
@@ -587,17 +610,19 @@ function flatDraw() {
   if (flatEls.label) flatEls.label.textContent = custom ? '照片上身' : hasPhoto ? '正面合成' : (leadItem ? '无平铺图' : '模特底图');
   if (flatEls.caption) {
     const hcm = state.model ? state.model.height : 165;
-    const graded = hasPhoto ? garmentMeasurements(leadItem.id, state.size, state.model) : null;
-    const gradeText = graded
-      ? ` · 成衣${leadItem.category === 'bottoms' ? '臀围' : '胸围'} ${Math.round(graded[leadItem.category === 'bottoms' ? 'hip' : 'bust'])}cm`
-      : '';
+    const worn = wornNow.map(o => DB_BY_ID[o.id]).filter(Boolean);
+    const lines = worn.map(it => {
+      const g = garmentMeasurements(it.id, state.size, state.model);
+      const t = g ? ` · 成衣${it.category === 'bottoms' ? '臀围' : '胸围'} ${Math.round(g[it.category === 'bottoms' ? 'hip' : 'bust'])}cm` : '';
+      return `<b>${it.code}</b> ${it.name}${t}`;
+    });
     flatEls.caption.innerHTML = custom
       ? `上传照片 · 已按 ${state.size} 放码<br>2D 直接合成 · 模特 ${hcm}cm · 3D 不显示上传款`
-      : leadItem
-        ? (hasPhoto
-          ? `<b>${leadItem.code}</b> ${leadItem.name}<br>2D 合成 · 模特 ${hcm}cm · 尺码 ${state.size}${gradeText}`
-          : `<b>${leadItem.code}</b> ${leadItem.name}<br>该款没有平铺商品图，2D 不做纯色兜底 · 请切「3D 试衣」看版型`)
-        : `未着装 · 模特 ${hcm}cm · 2D 底模`;
+      : (hasPhoto
+        ? `${lines.join('<br>')}<br>2D 合成 · 模特 ${hcm}cm · 尺码 ${state.size}`
+        : leadItem
+          ? `<b>${leadItem.code}</b> ${leadItem.name}<br>该款没有平铺商品图，2D 不做纯色兜底 · 请切「3D 试衣」看版型`
+          : `未着装 · 模特 ${hcm}cm · 2D 底模`);
   }
 }
 /* ============================================================
@@ -617,10 +642,12 @@ function selectGarment(itemId, opt = {}) {
   // 选了库里的衣服就退出「上传照片直接上身」状态
   state.customPhoto = null;
   fitCache.cuts.delete('__upload__');
+  /* 槽位互斥规则：连衣裙与外套各自独占一身；
+     上衣与下装可以同时穿（2D 要能搭一套），所以只清同槽与冲突槽。 */
   const slot = slotOf(item);
   if (slot === 'dresses') { ['tops', 'bottoms', 'dresses'].forEach(clearSlot); }
-  else if (slot === 'tops' || slot === 'bottoms') { clearSlot('dresses'); clearSlot(slot); }
-  else clearSlot(slot);
+  else if (slot === 'outer') { ['outer'].forEach(clearSlot); }
+  else { clearSlot(slot); clearSlot('dresses'); }
 
   // 配色板已撤：每件成衣按自己的首个官方配色上场，风格差异靠花色而不是全局色块
   const own = (item.colors && item.colors[0]) || null;
@@ -684,7 +711,62 @@ const els = {
   modelChip: document.getElementById('model-chip'),
   fitVerdict: document.getElementById('fit-verdict'),
   fitReport: document.getElementById('fit-report'),
+  searchInput: document.getElementById('search-input'),
+  searchClear: document.getElementById('search-clear'),
+  filterColor: document.getElementById('filter-color'),
+  filterStyle: document.getElementById('filter-style'),
 };
+
+/* 搜索框：输入即跨品牌全局检索；Esc / 点 × 清空 */
+if (els.searchInput) {
+  els.searchInput.addEventListener('input', () => {
+    state.query = els.searchInput.value;
+    if (els.searchClear) els.searchClear.hidden = !state.query;
+    renderGarments();
+  });
+  els.searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { els.searchInput.value = ''; els.searchInput.dispatchEvent(new Event('input')); }
+  });
+}
+if (els.searchClear) {
+  els.searchClear.addEventListener('click', () => {
+    els.searchInput.value = '';
+    els.searchInput.dispatchEvent(new Event('input'));
+    els.searchInput.focus();
+  });
+}
+/* 颜色 / 款式筛选：与搜索叠加，三个条件同时生效 */
+function renderFilterOptions() {
+  const opts = filterOptions();
+  if (els.filterColor) {
+    const cur = state.filterColor;
+    els.filterColor.innerHTML = `<option value="">全部颜色</option>` +
+      opts.colors.map(([name, n]) => `<option value="${name}">${name} (${n})</option>`).join('');
+    els.filterColor.value = cur;
+    els.filterColor.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
+  }
+  if (els.filterStyle) {
+    const cur = state.filterStyle;
+    els.filterStyle.innerHTML = `<option value="">全部款式</option>` +
+      opts.styles.map(([name, n]) => `<option value="${name}">${name} (${n})</option>`).join('');
+    els.filterStyle.value = cur;
+    els.filterStyle.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
+  }
+}
+if (els.filterColor) {
+  els.filterColor.addEventListener('change', () => {
+    state.filterColor = els.filterColor.value;
+    renderFilterOptions();
+    renderGarments();
+  });
+}
+if (els.filterStyle) {
+  els.filterStyle.addEventListener('change', () => {
+    state.filterStyle = els.filterStyle.value;
+    renderFilterOptions();
+    renderGarments();
+  });
+}
 
 const SWATCHES = [
   PALETTE.black, PALETTE.ivory, PALETTE.red, PALETTE.wine,
@@ -717,6 +799,60 @@ function fabricTexOf(itemId) {
 
 function currentBrandItems() { return DB.filter(g => g.brand === state.brand); }
 
+function clearSearch() {
+  state.query = '';
+  if (els.searchInput) els.searchInput.value = '';
+  if (els.searchClear) els.searchClear.hidden = true;
+}
+/* 切品牌/分类时把筛选一并清掉：这两个下拉是全局口径，
+   留着会让用户以为当前分类只有几款。 */
+function clearFilters() {
+  state.filterColor = '';
+  state.filterStyle = '';
+  if (els.filterColor) { els.filterColor.value = ''; els.filterColor.closest('.filter-sel')?.classList.remove('has-value'); }
+  if (els.filterStyle) { els.filterStyle.value = ''; els.filterStyle.closest('.filter-sel')?.classList.remove('has-value'); }
+}
+
+/* 商品搜索：有关键词时跨品牌、跨品类全局检索；空关键词回到当前品牌+品类。
+   匹配字段覆盖中文名、英文名、款号、面料、版型、季节、品牌名与品类名，
+   并把多词用空格拆开做 AND，缩小范围更准（如「真丝 连衣裙」）。 */
+function matchingItems() {
+  const q = (state.query || '').trim().toLowerCase();
+  const fc = state.filterColor || '';
+  const fst = state.filterStyle || '';
+  if (!q && !fc && !fst) return currentBrandItems().filter(g => g.category === state.category);
+  const terms = q.split(/\s+/).filter(Boolean);
+  const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
+  const brandName = Object.fromEntries(BRANDS.map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
+  return DB.filter(g => {
+    if (fc && !(g.colors || []).some(c => c.name === fc)) return false;
+    if (fst && g.style !== fst) return false;
+    const hay = [
+      g.name, g.nameEn, g.code, g.fabric, g.style,
+      SILHOUETTE_NAMES[g.silhouette] || '', g.silhouette || '',
+      g.season || '', g.collection || '',
+      catName[g.category] || '', brandName[g.brand] || '',
+      (g.colors || []).map(c => c && c.name).join(' '),
+    ].join(' ').toLowerCase();
+    return terms.every(t => hay.includes(t));
+  });
+}
+
+/* 筛选项来源：始终用全库统计，用户能直接看到每个颜色/款式各有多少款，
+   不会因为当前品牌或分类不同而看到忽多忽少的选项。 */
+function filterOptions() {
+  const colors = new Map(), styles = new Map();
+  DB.forEach(g => {
+    (g.colors || []).forEach(c => {
+      if (!c || !c.name) return;
+      colors.set(c.name, (colors.get(c.name) || 0) + 1);
+    });
+    if (g.style) styles.set(g.style, (styles.get(g.style) || 0) + 1);
+  });
+  const top = (m, n) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+  return { colors: top(colors, 26), styles: top(styles, 40) };
+}
+
 function renderBrands() {
   if (!els.brands) return;
   els.brands.innerHTML = BRANDS.map(b =>
@@ -727,6 +863,7 @@ function renderBrands() {
   els.brands.querySelectorAll('.brand-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.brand = btn.dataset.brand;
+      clearSearch(); clearFilters();
       const b = BRANDS.find(x => x.id === state.brand);
       els.wardrobeTitle.textContent = `${b.name}女装`;
       els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
@@ -743,6 +880,7 @@ function renderCategories() {
   els.tabs.querySelectorAll('.category-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.category = btn.dataset.cat;
+      clearSearch(); clearFilters();
       renderCategories(); renderGarments();
     });
   });
@@ -757,9 +895,31 @@ function priceMarkup(item) {
 }
 
 function renderGarments() {
-  const items = currentBrandItems().filter(g => g.category === state.category);
+  const searching = !!(state.query || '').trim();
+  const filtering = !!(state.filterColor || state.filterStyle);
+  const items = matchingItems();
+  /* 副标题要说明当前看到的是「筛选后」还是「该品牌全部」，
+     否则 1922 款和筛选出的 463 款看起来像数据对不上。 */
+  const scope = () => {
+    const parts = [];
+    if (searching) parts.push(`搜索「${state.query.trim()}」`);
+    if (state.filterColor) parts.push(`颜色 ${state.filterColor}`);
+    if (state.filterStyle) parts.push(`款式 ${state.filterStyle}`);
+    return parts.join(' · ');
+  };
+  if (!items.length) {
+    els.list.innerHTML = `<div class="search-empty">没有找到匹配的商品。<br/>试试款号、中文名、英文名、面料或下拉筛选，例如「真丝」「jacquard」「SK0000000144」。</div>`;
+    if (els.wardrobeSub) {
+      els.wardrobeSub.textContent = (searching || filtering)
+        ? `${scope()} · 0 款`
+        : `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+    }
+    return;
+  }
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
+    const brand = BRANDS.find(b => b.id === item.brand);
+    const cat = DB_CATEGORIES.find(c => c.id === item.category);
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div class="db-thumb">
@@ -773,7 +933,7 @@ function renderGarments() {
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${item.fabric}</div>
+      <div class="db-meta">${item.fabric}${(searching || filtering) ? ` · ${brand ? brand.short : item.brand} · ${cat ? cat.name : item.category}` : ''}</div>
       <div class="db-price">${priceMarkup(item)}</div>
       <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
@@ -781,6 +941,11 @@ function renderGarments() {
   els.list.querySelectorAll('.garment-card').forEach(card => {
     card.addEventListener('click', () => selectGarment(card.dataset.id));
   });
+  if (els.wardrobeSub) {
+    els.wardrobeSub.textContent = (searching || filtering)
+      ? `${scope()} · ${items.length} 款（全品牌全品类）`
+      : `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+  }
 }
 
 function renderColors() {
@@ -1541,6 +1706,7 @@ state.size = recommendSize(state.model);
 rebuildAvatar();
 renderBrands();
 renderCategories();
+renderFilterOptions();
 renderColors();
 renderSizes();
 renderModelChip();

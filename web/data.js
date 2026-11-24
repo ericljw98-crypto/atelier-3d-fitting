@@ -1,4 +1,5 @@
 import { buildRealDB } from './realDB.js';
+import { DG_CATALOG } from './dgCatalog.js';
 
 /* ============================================================
    ATELIER · 杜嘉班纳（Dolce & Gabbana）女装参数数据库
@@ -16,16 +17,15 @@ export const DB_META = {
   version: '1.2.0',
   basisSize: 'IT 42',
   unit: 'cm',
-  note: '尺码数值采用 Dolce & Gabbana 官方 IT 女装表（IT 36–58 / XXS–7XL）；Balmain 按官方 FR↔IT 对照显示法码。款号为演示编码。',
+  note: '尺码数值采用 Dolce & Gabbana 官方 IT 女装表（IT 38–50 / XS–3XL）；Balmain 按官方 FR↔IT 对照显示法码。款号为演示编码。',
 };
 
 /* 女装尺码表 —— 数值逐字照抄 DOLCE & GABBANA 官方 Women's Clothing Size (IT)
    来源：sendegaro.com / sizechart.uk 收录的 DG 官方尺码指南。
    DG 用意大利码 IT；Balmain 用法国码 FR，两者的数字不能直接混用。
-   本表内部用统一档位键 IT 36…58，UI 按当前品牌显示各自的官方码名。
+   本表内部用统一档位键 IT 38…50，UI 按当前品牌显示各自的官方码名。
    bust/waist/hip 为官方人体净体尺寸（cm），未做任何推算或平移。 */
 export const SIZE_CHART = {
-  'IT 36': { bust: 80,  waist: 62,  hip: 88,  height: [158, 172], label: 'XXS' },
   'IT 38': { bust: 83,  waist: 65,  hip: 91,  height: [158, 172], label: 'XS'  },
   'IT 40': { bust: 86,  waist: 68,  hip: 94,  height: [158, 172], label: 'S'   },
   'IT 42': { bust: 90,  waist: 72,  hip: 98,  height: [160, 174], label: 'M'   },
@@ -33,21 +33,19 @@ export const SIZE_CHART = {
   'IT 46': { bust: 98,  waist: 80,  hip: 106, height: [162, 176], label: 'XL'  },
   'IT 48': { bust: 102, waist: 84,  hip: 110, height: [162, 176], label: 'XXL' },
   'IT 50': { bust: 106, waist: 88,  hip: 114, height: [162, 176], label: '3XL' },
-  'IT 52': { bust: 111, waist: 94,  hip: 118, height: [164, 178], label: '4XL' },
-  'IT 54': { bust: 116, waist: 100, hip: 124, height: [164, 178], label: '5XL' },
-  'IT 56': { bust: 121, waist: 105, hip: 130, height: [164, 178], label: '6XL' },
-  'IT 58': { bust: 126, waist: 110, hip: 136, height: [164, 178], label: '7XL' },
 };
 export const SIZES = Object.keys(SIZE_CHART);
 
 /* ---------------- 尺码的两种写法 ----------------
-   DG 女装以意大利码 IT 标注，并与国际字母码 XXS–7XL 一一对应；
+   DG 女装以意大利码 IT 标注，并与国际字母码 XS–3XL 一一对应；
+   官方表里的 XXS 与 4XL 及以上已移除：本应用只面向固定档案的成年模特，
+   那些档位不会有合身结果，留着只会让推荐区间失真。
    Balmain 用法国码 FR，两者按官方对照表换算，不是同一套数字。
    必须按表查，不能按序号推。
 
    用户输入需要容错：'42' / 'it42' / 'IT 42' / 'M' / 'm' / '3XL' / 'XXXL'
    都应被识别；数字落在两档之间时（如 39）就近取档并回告。
-   带数字的字母码（3XL/4XL…）不能把数字抹掉，否则会和小码 XL 冲突。 */
+   带数字的字母码（3XL…）不能把数字抹掉，否则会和小码 XL 冲突。 */
 const LABEL_TO_SIZE = (() => {
   const m = {}, alias = {};
   SIZES.forEach(k => {
@@ -189,9 +187,53 @@ const isWearable = it =>
     · CC0 非卖展示款、历史停产档案款均已移除：档案款没有官方商品图，
       2D 无法合成、价格也是估算，混进列表只会给出错误的参考。
     · 无图片的商品一律不入库（2D 主视图依赖商品图，纯色兜底已禁止）。 */
-export const DB = [...buildRealDB(PALETTE, ALL)]
+/* 款式（style）：官网官方品类的中文子类，供筛选下拉使用。
+   DG 目录抓取时已带官方品类；Balmain 早期条目没有，按名称归一补齐，
+   保证两个品牌的下拉筛选口径一致。 */
+const STYLE_FROM_NAME = [
+  [/连衣裙|长袍/, '连衣裙'],
+  [/晚礼服|礼服/, '晚礼服'],
+  [/半裙|短裙/, '半身裙'],
+  [/长裤|阔腿|紧身裤/, '长裤'],
+  [/短裤/, '短裤'],
+  [/牛仔/, '牛仔'],
+  [/大衣|风衣/, '大衣'],
+  [/夹克|外套|西装/, '夹克'],
+  [/斗篷/, '斗篷'],
+  [/衬衫/, '衬衫'],
+  [/开衫/, '开衫'],
+  [/针织衫|套头|毛衣/, '针织衫'],
+  [/T恤|Polo/, 'T恤'],
+  [/背心|马甲/, '背心'],
+  [/吊带|抹胸/, '吊带'],
+  [/泳/, '泳装'],
+  [/内衣|文胸/, '内衣'],
+];
+function inferStyle(it) {
+  if (it.style) return it.style;
+  const n = `${it.name || ''} ${it.nameEn || ''}`;
+  for (const [re, s] of STYLE_FROM_NAME) if (re.test(n)) return s;
+  return null;
+}
+
+const mergeById = (...lists) => {
+  const m = new Map();
+  lists.forEach(l => l.forEach(it => { if (!m.has(it.id)) m.set(it.id, it); }));
+  return [...m.values()];
+};
+
+export const DB = mergeById(
+  buildRealDB(PALETTE, ALL),
+  DG_CATALOG.map(it => ({
+    ...it,
+    nameEn: it.nameEn || it.name,
+    colors: [{ name: it.colorName, hex: it.colorHex }],
+    sizes: ALL,
+  })),
+)
   .filter(isWearable)
-  .filter(it => !!(it.image && it.image.trim()));
+  .filter(it => !!(it.image && it.image.trim()))
+  .map(it => ({ ...it, style: inferStyle(it) }));
 
 export const DB_BY_ID = {};
 DB.forEach(g => { DB_BY_ID[g.id] = g; });

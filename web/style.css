@@ -168,6 +168,92 @@ body {
   margin-top: 6px;
 }
 
+/* ---------- 商品搜索 ---------- */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 18px 14px;
+  padding: 9px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-faint);
+  transition: border-color 0.2s ease;
+}
+.search-box:focus-within { border-color: var(--accent); color: var(--accent); }
+.search-box > svg { width: 17px; height: 17px; flex: 0 0 17px; }
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.search-box input::placeholder { color: var(--text-faint); }
+.search-box input::-webkit-search-cancel-button { display: none; }
+.search-clear {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.search-clear:hover { color: var(--text); }
+.search-empty {
+  grid-column: 1 / -1;
+  padding: 40px 12px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* ---------- 颜色 / 款式 筛选 ---------- */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin: 0 18px 14px;
+}
+.filter-sel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  transition: border-color 0.2s ease;
+}
+.filter-sel:focus-within { border-color: var(--accent); }
+.filter-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  flex: 0 0 auto;
+  letter-spacing: 0.5px;
+}
+.filter-sel select {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.filter-sel select option { background: var(--panel); color: var(--text); }
+.filter-sel.has-value { border-color: var(--accent); }
+.filter-sel.has-value .filter-label { color: var(--accent); }
+
 /* ---------- 照片换衣入口 ---------- */
 .photo-entry {
   display: flex;

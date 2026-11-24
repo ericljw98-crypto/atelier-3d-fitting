@@ -1010,6 +1010,90 @@ function reshapeFigure(geo, S) {
   const cx = (bb.min.x + bb.max.x) * 0.5;
   const xc = 0.058;                       // 乳点距中线的横向位置（归一化）
 
+  /* 预扫描腿部内侧边：逐 y 切片量出腿最靠近中线的 |x|。
+     必须用原始顶点实测，不能用 legCx - legR：legR 含脚部前后深度，
+     会把脚踝内侧错算成 9cm，并拢量因此永远不够。
+     同时记录腿顶高度——腿与胯的交界就在这里，再往上属于躯干。 */
+  const LEG_BINS = 240;
+  const legInner = new Float32Array(LEG_BINS).fill(Infinity);
+  let legTopY = 0;
+  for (let i = 0; i < arr.length; i += 3) {
+    if (!col || col.getY(i / 3) <= 0.5) continue;
+    const bi = Math.floor(arr[i + 1] * LEG_BINS);
+    if (bi < 0 || bi >= LEG_BINS) continue;
+    const ax = Math.abs(arr[i] - cx);
+    if (ax < legInner[bi]) legInner[bi] = ax;
+    if (arr[i + 1] > legTopY) legTopY = arr[i + 1];
+  }
+  // 空切片用相邻有效值填补，再平滑，避免逐帧抖动
+  let last = Infinity;
+  for (let i = 0; i < LEG_BINS; i++) {
+    if (isFinite(legInner[i])) last = legInner[i];
+    else if (isFinite(last)) legInner[i] = last;
+  }
+  last = Infinity;
+  for (let i = LEG_BINS - 1; i >= 0; i--) {
+    if (isFinite(legInner[i])) last = legInner[i];
+    else if (isFinite(last)) legInner[i] = last;
+  }
+  for (let pass = 0; pass < 4; pass++) {
+    const src = legInner.slice();
+    for (let i = 1; i < LEG_BINS - 1; i++) legInner[i] = (src[i - 1] + src[i] * 2 + src[i + 1]) / 4;
+  }
+
+  /* ---- 并拢位移曲线 d(y)：每条腿横向内移多少 ----
+     上一版直接用「实测内侧边 − 目标缝」当位移，出了两处凹陷：
+       ① 胯部：实测内侧边在胯部先收窄再张开（那里的顶点已与躯干共享），
+          位移曲线非单调，腿根被拉出褶皱；
+       ② 脚踝：实测内侧边在脚踝处到峰值后回落，脚掌比脚踝少移，
+          踝部皮肤被硬扯出一道凹槽。
+     改为分段构造单调曲线：
+       · 裆点以上：实测内侧边已不可信（混入躯干），改用平滑收口，
+         位移从裆部值渐变到 0，腿顶完全不动，腿根与胯不会撕开；
+       · 裆点到脚踝：实测内侧边单调，用「目标内缝」反推位移，同样单调；
+       · 脚踝以下：位移锁定为脚踝处的值，整只脚掌与踝刚性同步，
+         不再出现踝部被拉扯的凹槽。 */
+  const GAP_TOP = 0.9 * CM;          // 裆部目标内缝
+  const GAP_ANKLE = 2.1 * CM;       // 脚踝目标内缝
+  const legShift = new Float32Array(LEG_BINS).fill(0);
+
+  // 裆点：内侧边最窄处（两条腿在此交汇）
+  let crotchBin = -1, crotchVal = Infinity;
+  for (let bi = Math.floor(0.38 * LEG_BINS); bi <= Math.floor(0.53 * LEG_BINS); bi++) {
+    if (legInner[bi] < crotchVal) { crotchVal = legInner[bi]; crotchBin = bi; }
+  }
+  // 脚踝：内侧边最宽处（往下就是脚掌，内侧边不再与腿同步）
+  let ankleBin = -1, ankleVal = -Infinity;
+  for (let bi = 0; bi <= Math.floor(0.13 * LEG_BINS); bi++) {
+    if (legInner[bi] > ankleVal) { ankleVal = legInner[bi]; ankleBin = bi; }
+  }
+  if (crotchBin >= 0 && ankleBin >= 0 && ankleBin < crotchBin) {
+    const crotchY = crotchBin / LEG_BINS, ankleY = ankleBin / LEG_BINS;
+    const shiftCrotch = Math.max(0, crotchVal - GAP_TOP);
+    const shiftAnkle = Math.max(0, ankleVal - GAP_ANKLE);
+    for (let bi = ankleBin; bi <= crotchBin; bi++) {
+      const y = bi / LEG_BINS;
+      const t = (crotchY - y) / Math.max(crotchY - ankleY, 1e-6);
+      const target = GAP_TOP + (GAP_ANKLE - GAP_TOP) * t;   // 目标内缝由裆到踝渐宽
+      legShift[bi] = Math.max(0, legInner[bi] - target);
+    }
+    // 裆点以下（脚掌）：锁定脚踝位移，整只脚与踝同步移动
+    for (let bi = 0; bi < ankleBin; bi++) legShift[bi] = shiftAnkle;
+    // 裆点以上（腿根→胯）：从裆部位移平滑收到 0，腿顶完全不动
+    for (let bi = crotchBin + 1; bi < LEG_BINS; bi++) {
+      const y = bi / LEG_BINS;
+      if (y > legTopY) { legShift[bi] = 0; continue; }
+      const t = Math.min(1, Math.max(0, (y - crotchY) / Math.max(legTopY - crotchY, 1e-6)));
+      const e = t * t * (3 - 2 * t);                          // smoothstep
+      legShift[bi] = shiftCrotch * (1 - e);
+    }
+    // 曲线再平滑一遍，去掉切片量化带来的台阶
+    for (let pass = 0; pass < 3; pass++) {
+      const src = legShift.slice();
+      for (let bi = 1; bi < LEG_BINS - 1; bi++) legShift[bi] = (src[bi - 1] + src[bi] * 2 + src[bi + 1]) / 4;
+    }
+  }
+
   const ampWide = 1.15 * CM, ampPeak = 0.55 * CM;
   for (let i = 0; i < arr.length; i += 3) {
     const x = arr[i] - cx, y = arr[i + 1], z = arr[i + 2];
@@ -1038,25 +1122,15 @@ function reshapeFigure(geo, S) {
         arr[i + 2] = z * f;
       }
     }
-    /* 髋外侧（大转子）收窄：扫描人体在此处骨性突起明显，正面看像两块外凸。
-       只收躯干/胯部顶点（四肢已由各自逻辑处理），以 seatU 稍下方为峰，
-       横向内收最多 6%，z 不动，避免把臀部前后厚度压扁。 */
-    if (!limb) {
-      const trochanterY = ySeat - 0.035;
-      const wt = Math.exp(-0.5 * ((y - trochanterY) / 0.045) ** 2);
-      if (wt > 0.01) arr[i] = cx + x * (1 - 0.06 * wt);
-    }
-    /* 双腿基本并拢：裆下起逐段向中线收，膝踝收得更多。
-       旧版只收 22%，脚踝仍停在 ±14cm，正面看两腿明显分开；
-       这里把末端收到 45%，并把安全间距压到 0.8cm，仍不穿插。
-       关键是保留径向缩放：腿根与躯干共用顶点权重，平移中心线会在
-       胯下撕出台阶，缩放则处处连续。 */
+    /* 双腿并拢：按预构造的单调位移曲线做横向平移，腿围完全不动。
+       旧版按比例缩 x，把腿压细却不缩小内侧间距——细腿依旧分开站。
+       现在 legShift(y) 已把裆部、脚踝两处凹陷处理成单调过渡：
+       裆点以上渐收到 0（腿根与胯连续），脚踝以下锁定为踝部位移
+       （整只脚与踝同步，不被拉扯）。 */
     if (col && col.getY(v) > 0.5) {
-      const t = Math.min(1, Math.max(0, (ySeat * 0.98 - y) / (ySeat * 0.86)));
       const side = col.getZ(v) > 0.5 ? 1 : -1;
-      const shrink = 1 - 0.55 * Math.pow(t, 1.1);
-      const absX = Math.abs(x) * shrink;
-      arr[i] = cx + side * Math.max(absX, 0.8 * CM);
+      const bi = Math.min(LEG_BINS - 1, Math.max(0, Math.floor(y * LEG_BINS)));
+      arr[i] = cx + x - side * legShift[bi];
     }
     /* 手臂自然下垂：扫描姿态的两臂略向外撇，袖筒沿 armCx 走就会被撑开、袖山离肩。
        这里从肩峰往下逐步把手臂往中线收（腕部约 2.8cm），肩点不动，

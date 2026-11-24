@@ -19,7 +19,6 @@
 
 /* DG 官方女装 IT 码 —— BUST / WAIST / HIP 为官方原值 */
 export const DG_CHART = [
-  { code: 'IT 36', num: 36, letter: 'XXS', bust: 80,  waist: 62,  hip: 88  },
   { code: 'IT 38', num: 38, letter: 'XS',  bust: 83,  waist: 65,  hip: 91  },
   { code: 'IT 40', num: 40, letter: 'S',   bust: 86,  waist: 68,  hip: 94  },
   { code: 'IT 42', num: 42, letter: 'M',   bust: 90,  waist: 72,  hip: 98  },
@@ -27,15 +26,10 @@ export const DG_CHART = [
   { code: 'IT 46', num: 46, letter: 'XL',  bust: 98,  waist: 80,  hip: 106 },
   { code: 'IT 48', num: 48, letter: 'XXL', bust: 102, waist: 84,  hip: 110 },
   { code: 'IT 50', num: 50, letter: '3XL', bust: 106, waist: 88,  hip: 114 },
-  { code: 'IT 52', num: 52, letter: '4XL', bust: 111, waist: 94,  hip: 118 },
-  { code: 'IT 54', num: 54, letter: '5XL', bust: 116, waist: 100, hip: 124 },
-  { code: 'IT 56', num: 56, letter: '6XL', bust: 121, waist: 105, hip: 130 },
-  { code: 'IT 58', num: 58, letter: '7XL', bust: 126, waist: 110, hip: 136 },
 ];
 
 /* Balmain 官方字母码↔FR/IT 对照（官方原表，逐字照抄） */
 export const BALMAIN_CONVERSION = [
-  { letter: '2XS', fr: 32, it: 36, uk: 4,  de: 30, us: 0,  jp: 5,  kr: 44 },
   { letter: 'XS',  fr: 34, it: 38, uk: 6,  de: 32, us: 2,  jp: 7,  kr: 55 },
   { letter: 'S',   fr: 36, it: 40, uk: 8,  de: 34, us: 4,  jp: 9,  kr: 55 },
   { letter: 'M',   fr: 38, it: 42, uk: 10, de: 36, us: 6,  jp: 11, kr: 66 },

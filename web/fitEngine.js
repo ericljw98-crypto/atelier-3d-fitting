@@ -1,16 +1,20 @@
 /* ============================================================
    合身判断引擎
    ------------------------------------------------------------
-   核心思想：先为模特建立一条「合身基准线」——即在三围净体尺寸上
-   加合理的穿着放松量，得到「这件衣服合身时应该量到多少」。
+   核心思想：先为模特建立一条「合身基准线」——即在模特净体三围上
+   加这件衣服的合身放松量，得到「这件衣服合身时应该量到多少」。
 
-   成衣尺寸与 2D 图样放缩，全都以这条基准线为唯一参照：
-     · 基准尺寸 = 模特净体 + 合身放松量（合身码，判定为合身）
-     · 选大码 → 成衣围度按尺码档差增大 → 偏松，图样同比放宽
-     · 选小码 → 成衣围度按尺码档差减小 → 偏紧，图样同比收窄
+   而「成衣实测尺寸」必须来自商品自身的平铺尺寸按官方尺码档差放缩，
+   两者相减才是真正的偏差：
+     · 基准线 = 模特净体 + 该款设计放松量
+     · 成衣   = 该款基准码平铺尺寸 × 官方尺码档差
+     · 偏差   = 成衣 − 基准线
 
-   这样诊断数字与 2D 上身图说的是同一件事，不会再出现
-   「数据显示过松、上身看着却偏紧」这种自相矛盾的结论。
+   旧版本把「成衣」直接写成了基准线本身，于是偏差恒为 0，
+   所有款式都判「非常合身 100 分」——那是循环论证，不是判断。
+   现在两者来源不同，偏差才有意义：
+     · 尺码小于该款设计尺码 → 成衣小于基准线 → 偏紧
+     · 尺码大于该款设计尺码 → 成衣大于基准线 → 偏松
    ============================================================ */
 import { SIZE_CHART, SIZES, DB_BY_ID } from './data.js';
 import { DEFAULT_MODEL } from './body.js';
@@ -58,6 +62,131 @@ export function fitBaseline(item, model) {
   return out;
 }
 
+/** 官方尺码档比：该尺码相对基准码，某个部位的围度是几倍。
+    直接用 DG 官方 IT 表的数值，不做任何推算或平移。 */
+function gradeRatio(size, part) {
+  const base = SIZE_CHART[BASE_SIZE] || {};
+  const cur = SIZE_CHART[size] || base;
+  const b = base[part], c = cur[part];
+  if (!b || !c) return 1;
+  return c / b;
+}
+
+/** 某款式某尺码的成衣实测尺寸：由该款基准码平铺尺寸按官方档比放缩。
+    这是「这件衣服实际有多少」，与基准线「应该有多少」相互独立。 */
+export function garmentMeasurements(itemId, size, model) {
+  const item = DB_BY_ID[itemId];
+  if (!item) return null;
+  const M = item.measurements || {};
+  const out = {};
+  ['bust', 'waist', 'hip', 'shoulder'].forEach(part => {
+    const base = M[part];
+    if (!base) return;
+    out[part] = Math.round(base * gradeRatio(size, part) * 10) / 10;
+  });
+  // 衣长等附属尺寸：按同档比的胸围比例缩放（与合身判断无关，但详情要显示）
+  const gr = gradeRatio(size, 'bust');
+  if (M.length != null) out.length = Math.round(M.length * gr * 10) / 10;
+  if (M.sleeve != null) out.sleeve = Math.round(M.sleeve * gr * 10) / 10;
+  if (M.opening != null) out.opening = M.opening;
+  return out;
+}
+
+/** 判断一个部位相对合身基准线的偏差，返回状态与分数 */
+function judgePart(delta, tol) {
+  if (delta < -tol - 5) return { status: 'tooTight', statusLabel: '过紧', score: 20 };
+  if (delta < -tol)     return { status: 'tight',    statusLabel: '偏紧', score: 60 };
+  if (delta > tol + 5)  return { status: 'tooLoose', statusLabel: '过松', score: 25 };
+  if (delta > tol)      return { status: 'loose',    statusLabel: '偏松', score: 65 };
+  return { status: 'good', statusLabel: '合身', score: 100 };
+}
+
+const PART_LABEL = { bust: '胸围', waist: '腰围', hip: '臀围', shoulder: '肩宽' };
+const TOL = { bust: 2.5, waist: 2.5, hip: 2.5, shoulder: 1.2 };
+
+/** 该部位参与合身判断的清单：上装没有臀围，外套不看臀围。 */
+function fitParts(item) {
+  const cat = (item && item.category) || 'tops';
+  if (cat === 'bottoms') return ['waist', 'hip'];
+  if (cat === 'outer') return ['bust', 'waist', 'shoulder'];
+  return ['bust', 'waist'];
+}
+
+/**
+ * 判断合身度（以合身基准线为参照）
+ */
+export function evaluateFit(itemId, size, model) {
+  const item = DB_BY_ID[itemId];
+  if (!item || !model) return null;
+  const gm = garmentMeasurements(itemId, size, model) || {};
+  const ease = fitEase(item);
+
+  const details = [];
+  let totalScore = 0;
+  fitParts(item).forEach(part => {
+    if (gm[part] == null || model[part] == null) return;
+    const baseline = Math.round((model[part] + (ease[part] || 0)) * 10) / 10;
+    const delta = Math.round((gm[part] - baseline) * 10) / 10;
+    const j = judgePart(delta, TOL[part] || 2.5);
+    details.push({
+      part, label: PART_LABEL[part] || part,
+      garment: gm[part],
+      body: model[part],
+      baseline,                                   // 合身基准围度
+      ease: Math.round((gm[part] - model[part]) * 10) / 10,   // 这件衣服的实际放松量
+      designEase: ease[part] || 0,                // 设计放松量
+      delta,                                      // 相对基准线的偏差
+      status: j.status, statusLabel: j.statusLabel,
+      score: j.score,
+    });
+    totalScore += j.score;
+  });
+
+  if (!details.length) return null;
+  const score = details.length ? Math.round(totalScore / details.length) : 0;
+  const has = s => details.some(d => d.status === s);
+  let level, verdict;
+  if (score >= 92) { level = 'perfect'; verdict = '非常合身'; }
+  else if (score >= 78 && !has('tight') && !has('loose')) { level = 'good'; verdict = '合身'; }
+  else if (score >= 70) { level = 'good'; verdict = '基本合身'; }
+  else if (has('tooTight')) { level = 'tooTight'; verdict = '偏小 / 过紧'; }
+  else if (has('tooLoose')) { level = 'tooLoose'; verdict = '偏大 / 过松'; }
+  else if (has('tight')) { level = 'tight'; verdict = '略紧'; }
+  else { level = 'loose'; verdict = '略松'; }
+
+  const recommendation = recommendSizeForItem(itemId, model);
+  const summary = buildSummary(verdict, details, recommendation);
+  return { score, level, verdict, parts: details, recommendation, summary, size, itemId };
+}
+
+/** 某尺码相对基准线的最大偏差（cm）：用于选码时比较「差多少」 */
+function maxDeviation(item, size, model) {
+  const gm = garmentMeasurements(item.id, size, model) || {};
+  const ease = fitEase(item);
+  let worst = 0;
+  fitParts(item).forEach(part => {
+    if (gm[part] == null || model[part] == null) return;
+    const baseline = model[part] + (ease[part] || 0);
+    worst = Math.max(worst, Math.abs(gm[part] - baseline));
+  });
+  return worst;
+}
+
+/** 推荐尺码：在该款可选尺码里，取相对合身基准线偏差最小的那一档。
+    这是逐款算的——同一品牌的裙子与连衣裙，因为平铺尺寸不同，
+    合身码可以不同。 */
+export function recommendSizeForItem(itemId, model) {
+  const item = DB_BY_ID[itemId];
+  if (!item || !model) return fitSizeForModel(model);
+  const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
+  let best = null, bestDev = Infinity;
+  sizes.forEach(s => {
+    const dev = maxDeviation(item, s, model);
+    if (dev < bestDev - 1e-6) { bestDev = dev; best = s; }
+  });
+  return best || fitSizeForModel(model);
+}
+
 /** 尺寸落档：某部位净体落在标准表的哪一码 */
 function sizeForMeasure(part, value) {
   if (!value) return null;
@@ -79,128 +208,6 @@ export function fitSizeForModel(model) {
   // 取中位数：既不被单一偏大的腰拉飞，也不会低估确实偏大的围度
   candidates.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b));
   return candidates[Math.floor(candidates.length / 2)] || byBust || SIZES[0];
-}
-
-/** 某尺码相对基准码的档差（cm），分部位按各自档差累计 */
-function gradeDelta(size, part, fitSize) {
-  const a = SIZE_CHART[fitSize] || SIZE_CHART[BASE_SIZE];
-  const b = SIZE_CHART[size] || a;
-  return (b[part] ?? b.bust) - (a[part] ?? a.bust);
-}
-
-/** 某款式某尺码的成衣实测尺寸：以合身基准线为零点 + 尺码档差 */
-export function garmentMeasurements(itemId, size, model) {
-  const item = DB_BY_ID[itemId];
-  if (!item) return null;
-  const baseline = fitBaseline(item, model);
-  const fitSize = fitSizeForModel(model);
-  const out = {};
-  Object.keys(baseline).forEach(part => {
-    out[part] = Math.round((baseline[part] + gradeDelta(size, part, fitSize)) * 10) / 10;
-  });
-  // 衣长等附属尺寸仍按原档差，与合身判断无关，但详情要显示
-  if (item.measurements) {
-    const len = item.measurements.length, sl = item.measurements.sleeve;
-    if (len != null) out.length = Math.round((len * ((SIZE_CHART[size] || SIZE_CHART[BASE_SIZE]).bust / SIZE_CHART[BASE_SIZE].bust)) * 10) / 10;
-    if (sl != null) out.sleeve = Math.round((sl * ((SIZE_CHART[size] || SIZE_CHART[BASE_SIZE]).bust / SIZE_CHART[BASE_SIZE].bust)) * 10) / 10;
-  }
-  return out;
-}
-
-/** 判断一个部位相对合身基准线的偏差，返回状态与分数 */
-function judgePart(delta, tol) {
-  if (delta < -tol - 5) return { status: 'tooTight', statusLabel: '过紧', score: 20 };
-  if (delta < -tol)     return { status: 'tight',    statusLabel: '偏紧', score: 60 };
-  if (delta > tol + 5)  return { status: 'tooLoose', statusLabel: '过松', score: 25 };
-  if (delta > tol)      return { status: 'loose',    statusLabel: '偏松', score: 65 };
-  return { status: 'good', statusLabel: '合身', score: 100 };
-}
-
-const PART_LABEL = { bust: '胸围', waist: '腰围', hip: '臀围', shoulder: '肩宽' };
-const TOL = { bust: 2.5, waist: 2.5, hip: 2.5, shoulder: 1.2 };
-
-/**
- * 判断合身度（以合身基准线为参照）
- */
-export function evaluateFit(itemId, size, model) {
-  const item = DB_BY_ID[itemId];
-  if (!item || !model) return null;
-  const gm = garmentMeasurements(itemId, size, model);
-  const ease = fitEase(item);
-
-  let parts;
-  if (item.category === 'bottoms') parts = ['waist', 'hip'];
-  else if (item.category === 'outer') parts = ['bust', 'waist', 'shoulder'];
-  else parts = ['bust', 'waist', 'hip'];
-
-  const details = [];
-  let totalScore = 0;
-  parts.forEach(part => {
-    if (gm[part] == null || model[part] == null) return;
-    const baseline = Math.round((model[part] + (ease[part] || 0)) * 10) / 10;
-    const delta = Math.round((gm[part] - baseline) * 10) / 10;
-    const j = judgePart(delta, TOL[part] || 2.5);
-    details.push({
-      part, label: PART_LABEL[part] || part,
-      garment: gm[part],
-      body: model[part],
-      baseline,                                   // 合身基准围度
-      ease: Math.round((gm[part] - model[part]) * 10) / 10,
-      designEase: ease[part] || 0,                // 合身放松量
-      delta,                                      // 相对基准线的偏差
-      status: j.status, statusLabel: j.statusLabel,
-      score: j.score,
-    });
-    totalScore += j.score;
-  });
-
-  const score = details.length ? Math.round(totalScore / details.length) : 0;
-  const has = s => details.some(d => d.status === s);
-  let level, verdict;
-  if (score >= 92) { level = 'perfect'; verdict = '非常合身'; }
-  else if (score >= 78 && !has('tight') && !has('loose')) { level = 'good'; verdict = '合身'; }
-  else if (score >= 70) { level = 'good'; verdict = '基本合身'; }
-  else if (has('tooTight')) { level = 'tooTight'; verdict = '偏小 / 过紧'; }
-  else if (has('tooLoose')) { level = 'tooLoose'; verdict = '偏大 / 过松'; }
-  else if (has('tight')) { level = 'tight'; verdict = '略紧'; }
-  else { level = 'loose'; verdict = '略松'; }
-
-  const recommendation = recommendSizeForItem(itemId, model);
-  const summary = buildSummary(verdict, details, recommendation);
-  return { score, level, verdict, parts: details, recommendation, summary, size, itemId };
-}
-
-/** 推荐尺码：让成衣围度最接近合身基准线的那一码 */
-export function recommendSizeForItem(itemId, model) {
-  const item = DB_BY_ID[itemId];
-  if (!item || !model) return fitSizeForModel(model);
-  const sizes = item.sizes || SIZES;
-  let best = fitSizeForModel(model), bestScore = -1;
-  sizes.forEach(s => {
-    const r = evaluateScoreOnly(itemId, s, model);
-    if (r > bestScore) { bestScore = r; best = s; }
-  });
-  return best;
-}
-
-function evaluateScoreOnly(itemId, size, model) {
-  const item = DB_BY_ID[itemId];
-  const gm = garmentMeasurements(itemId, size, model);
-  const ease = fitEase(item);
-  const parts = item.category === 'bottoms' ? ['waist', 'hip']
-    : item.category === 'outer' ? ['bust', 'waist', 'shoulder']
-    : ['bust', 'waist', 'hip'];
-  let sum = 0, n = 0;
-  parts.forEach(p => {
-    const baseline = model[p] + (ease[p] || 0);
-    const d = gm[p] - baseline;
-    const tol = TOL[p] || 2.5;
-    if (d < -tol - 5 || d > tol + 5) sum += 20;
-    else if (d < -tol || d > tol) sum += 60;
-    else sum += 100;
-    n++;
-  });
-  return n ? sum / n : 0;
 }
 
 function buildSummary(verdict, details, recommendation) {
