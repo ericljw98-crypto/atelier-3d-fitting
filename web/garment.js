@@ -211,9 +211,11 @@ function buildSleeve(P, s, { sleeveCm, ease, mat, nTheta = 26 }) {
     // 穹顶段：半径从 0 张到实臂半径，高度只占 domeH，做出圆肩而不是平口
     const domeT = Math.min(1, (yTopS - y) / domeH);
     const domeK = Math.sqrt(Math.max(1 - (1 - domeT) * (1 - domeT), 0));
-    const armR = radiusAt(P.arm, Math.min(y, P.topY)) * 0.88;
-    const taper = 1 - 0.16 * Math.max(0, (t - 0.5) / 0.5);      // 袖口略收
-    const r = Math.max((armR + ease) * taper, 0.014) * Math.max(domeK, 0.05);
+    /* armR 在肩部混进了三角肌，直接拿来当袖半径会做成泡泡袖。
+       上臂真实半径约 4cm，按 0.72 折算并封顶；袖口再收到 0.032。 */
+    const armR = Math.min(radiusAt(P.arm, Math.min(y, P.topY)) * 0.65, 0.042);
+    const taper = 1 - 0.24 * Math.max(0, (t - 0.35) / 0.65);
+    const r = Math.min(Math.max((armR + ease) * taper, 0.020), 0.060) * Math.max(domeK, 0.05);
     // 向外错开 3mm：袖山与衣身肩部曲面几乎共面，不错开会打架闪烁
     const cx = s * (armCxAt(Math.min(y, P.topY)) + 0.003);
     for (let it = 0; it <= nTheta; it++) {
@@ -357,9 +359,23 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true, 
       return { amt: 0.035, from: P.hipY };   // 修身款给一点点活动量
     })();
     const mulFn = (y, th) => {
-      if (flare.amt <= 0.01 || y >= flare.from) return 1;
-      const k = Math.min(1, (flare.from - y) / Math.max(flare.from - hemY, 0.02));
-      return 1 + flare.amt * k * k;
+      let m = 1;
+      if (flare.amt > 0.01 && y < flare.from) {
+        const k = Math.min(1, (flare.from - y) / Math.max(flare.from - hemY, 0.02));
+        m += flare.amt * k * k;
+      }
+      /* 袖窿补片：衣身侧缝在腋下是一条竖线，袖筒轴线却在手臂中心，
+         两者之间会露出一条打底衣。把肩下到腋下这一段的两侧角向外撑出，
+         让它搭到袖筒内侧，肩袖接缝才是连续的。 */
+      if (y >= spec.yArm - 0.035 && y <= spec.yShoulder + 0.01) {
+        const a = Math.abs(Math.atan2(Math.sin(th), Math.cos(th)));
+        const sd = Math.min(a, Math.abs(Math.PI - a));
+        if (sd < 0.62) {
+          const v = Math.max(0, 1 - (spec.yShoulder - y) / Math.max(spec.yShoulder - spec.yArm, 0.02));
+          m += 0.26 * (1 - sd / 0.62) * (0.35 + 0.65 * v);
+        }
+      }
+      return m;
     };
 
     const geo = shellVarying(P, {

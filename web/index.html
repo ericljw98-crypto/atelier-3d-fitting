@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ATELIER · 杜嘉班纳 3D 试衣间</title>
-  <link rel="stylesheet" href="style.css?v=26" />
+  <link rel="stylesheet" href="style.css?v=33" />
   <script type="importmap">
   {
     "imports": {
@@ -173,6 +173,7 @@
           <div class="scan-field">
             <span class="scan-label">匹配款式</span>
             <div class="scan-detected-spec" id="detected-spec">—</div>
+            <div class="scan-fallback-hint" id="scan-fallback-hint" hidden>未匹配到可靠款号，将把这张照片直接贴到模特身上</div>
             <select id="detected-match" class="match-select"></select>
           </div>
           <div class="scan-field">
@@ -212,6 +213,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script type="module" src="app.js?v=26"></script>
+  <script type="module" src="app.js?v=33"></script>
 </body>
 </html>

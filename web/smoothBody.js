@@ -1041,10 +1041,101 @@ function reshapeFigure(geo, S) {
       const t = Math.min(1, (ySeat * 0.96 - y) / (ySeat * 0.82));
       arr[i] = cx + x * (1 - 0.13 * t);
     }
+    /* 手臂自然下垂：扫描姿态的两臂略向外撇，袖筒沿 armCx 走就会被撑开、袖山离肩。
+       这里从肩峰往下逐步把手臂往中线收（腕部约 2.8cm），肩点不动，
+       改完重烘轮廓，袖轴和衣身会一起跟着收。 */
+    if (col && col.getX(v) > 0.5) {
+      const handU = (S.handU != null) ? S.handU : S.shoulderU - S.armLen / S.H;
+      const t = Math.min(1, Math.max(0, (S.shoulderU - y) / Math.max(0.05, S.shoulderU - handU)));
+      const side = col.getZ(v) > 0.5 ? 1 : -1;
+      arr[i] -= side * 0.030 * Math.pow(t, 0.7);
+    }
   }
   pos.needsUpdate = true;
   if (geo.index) geo.computeVertexNormals();
   geo.computeBoundingSphere();
+}
+
+/* 肉色紧身衣：直接穿在扫描人体上的一层贴身壳
+   ------------------------------------------------------------
+   复用人体网格的顶点与拓扑，沿法线外扩 1.6mm（局部 1 单位 = 身高），
+   再按高度/部件裁掉头、手、脚，只留躯干、手臂和小腿。这样它和身体
+   完全同形、不会出现松垮或穿插；试衣时露出的领口、裙摆下也不会是裸体。
+   材质比皮肤略深、略带光泽，读作一件肉色连体打底衣而不是第二层皮肤。 */
+const SUIT_MAT = new THREE.MeshPhysicalMaterial({
+  color: 0xd8a98f,
+  vertexColors: true,
+  roughness: 0.68,
+  metalness: 0,
+  sheen: 0.38,
+  sheenRoughness: 0.55,
+  sheenColor: new THREE.Color(0xf7d9c7),
+  clearcoat: 0.14,
+  clearcoatRoughness: 0.6,
+  side: THREE.FrontSide,
+});
+
+function makeBodysuit(bodyMesh, S) {
+  const src = bodyMesh.geometry;
+  const posA = src.attributes.position;
+  const norA = src.attributes.normal;
+  const colA = src.attributes.color;
+  if (!posA || !norA || !src.index) return null;
+  const g = src.clone();
+  const pa = g.attributes.position.array;
+  const na = norA.array;
+  const OFF = 0.0016;                  // ≈2.6mm，刚好盖住身体不穿模
+  for (let i = 0; i < pa.length; i += 3) {
+    pa[i] += na[i] * OFF;
+    pa[i + 1] += na[i + 1] * OFF;
+    pa[i + 2] += na[i + 2] * OFF;
+  }
+
+  /* 三角形整体在允许区间才保留，避免边界出现半张脸、半只手。
+     YMAX 取颈部以下，YMIN 取脚踝以上；手臂低于腕部（handU≈0.483）的整段去掉。 */
+  const idx = src.index.array, keep = [];
+  const YMIN = 0.030, YMAX = 0.882, WRIST = 0.545;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    let ymin = Infinity, ymax = -Infinity, hand = false;
+    for (const v of [a, b, c]) {
+      const y = posA.getY(v);
+      if (y < ymin) ymin = y;
+      if (y > ymax) ymax = y;
+      if (colA && colA.getX(v) > 0.5 && y < WRIST) hand = true;
+    }
+    if (ymin < YMIN || ymax > YMAX || hand) continue;
+    keep.push(a, b, c);
+  }
+  if (keep.length < 300) return null;
+  g.setIndex(keep);
+
+  /* 顶点色压出领口、腰封、腕口、踝口的缝线暗带，让它在肤色上读成
+     “一件连体打底衣”，而不是又长了一层皮。 */
+  const shades = new Float32Array(posA.count * 3);
+  const gauss = (y, c, s) => Math.exp(-0.5 * ((y - c) / s) ** 2);
+  for (let i = 0; i < posA.count; i++) {
+    const y = posA.getY(i);
+    const aw = colA ? colA.getX(i) : 0;
+    const lw = colA ? colA.getY(i) : 0;
+    let f = 1 - 0.14 * gauss(y, S.waistU, 0.013)
+              - 0.09 * gauss(y, S.bustU - 0.10, 0.010)
+              - 0.12 * gauss(y, 0.872, 0.010);
+    if (aw > 0.5) f -= 0.13 * gauss(y, 0.545, 0.011);
+    if (lw > 0.5) f -= 0.13 * gauss(y, 0.033, 0.010);
+    f = Math.max(0.64, f);
+    shades[i * 3] = shades[i * 3 + 1] = shades[i * 3 + 2] = f;
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(shades, 3));
+  g.attributes.position.needsUpdate = true;
+  g.computeVertexNormals();
+  g.computeBoundingSphere();
+
+  const suit = new THREE.Mesh(g, SUIT_MAT);
+  suit.name = 'nude-bodysuit';
+  suit.frustumCulled = false;
+  suit.userData.base = Float32Array.from(pa);   // 变形基准（已含法线外扩）
+  return suit;
 }
 
 export async function buildSmoothBody(model) {
@@ -1086,6 +1177,10 @@ export async function buildSmoothBody(model) {
     o.material = BODY_MAT;
   });
   figure.add(root);
+
+  // 肉色紧身衣挂在人体网格下，随根变换一起走；顶点在三围变化时同步更新
+  const suit = makeBodysuit(mesh, WL);
+  if (suit) mesh.add(suit);
 
   const hair = await loadHair();
   const hairRoot = hair.scene.clone(true);
@@ -1136,6 +1231,9 @@ export async function buildSmoothBody(model) {
   const G_WAIST = MEAS ? MEAS.waist * K_H : girthCm(U_WAIST);
   const G_HIP = MEAS ? MEAS.hip * K_H : girthCm(U_HIP);
 
+  const suitArr = suit ? suit.geometry.attributes.position.array : null;
+  const suitBase = suit ? suit.userData.base : null;
+
   let curKey = '';
   function applyProfile(model) {
     const m = { ...DEFAULT_MODEL, ...(model || {}) };
@@ -1165,10 +1263,20 @@ export async function buildSmoothBody(model) {
       arr[j] = basePos[j] * f;
       arr[j + 2] = basePos[j + 2] * f;
       arr[j + 1] = y;                    // 身高不动
+      if (suitArr) {
+        suitArr[j] = suitBase[j] * f;    // 肉色紧身衣用同一档径向系数，始终贴身
+        suitArr[j + 2] = suitBase[j + 2] * f;
+        suitArr[j + 1] = suitBase[j + 1];
+      }
     }
     pos.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
     mesh.geometry.computeBoundingSphere();
+    if (suitArr) {
+      suit.geometry.attributes.position.needsUpdate = true;
+      suit.geometry.computeVertexNormals();
+      suit.geometry.computeBoundingSphere();
+    }
 
     // 轮廓重烘焙：程序化服装读它生成，因此会跟着滑块一起变
     WL = bakeSilhouette(mesh, H, FOOT_Y);

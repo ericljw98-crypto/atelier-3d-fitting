@@ -1400,3 +1400,11 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .flat-clear.hidden { display: none; }
+
+.scan-fallback-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+.scan-fallback-hint.hidden, .scan-fallback-hint[hidden] { display: none; }
