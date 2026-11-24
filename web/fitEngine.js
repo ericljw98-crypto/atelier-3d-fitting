@@ -31,12 +31,6 @@ const CATEGORY_EASE = {
   tops:    { bust: 8,  waist: 8,  hip: 8  },
   bottoms: { waist: 4, hip: 6 },
 };
-/* 版型微调：修身收紧放松量，宽松款加大。 */
-const SILHOUETTE_EASE = {
-  fitted: -2, slim: -2, slip: -2, bodycon: -2,
-  loose: 4, oversize: 4, flared: 3, straight: 1,
-};
-
 /** 合身放松量：以商品自身声明的设计放松量为准（保留修身/宽松的差异），
     超出合理区间的历史脏数据按品类基准夹取。 */
 export function fitEase(item) {
