@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ATELIER · 杜嘉班纳 3D 试衣间</title>
-  <link rel="stylesheet" href="style.css?v=14" />
+  <link rel="stylesheet" href="style.css?v=26" />
   <script type="importmap">
   {
     "imports": {
@@ -40,7 +40,7 @@
       <aside class="wardrobe panel">
         <div class="panel-heading">
           <h2 id="wardrobe-title">杜嘉班纳女装</h2>
-          <p id="wardrobe-sub">官网真实款式 · 含价格 · 点击试穿判断合身</p>
+          <p id="wardrobe-sub">官网在售款 + 历史停产档案 · 点击试穿判断合身</p>
         </div>
         <div class="brand-tabs" id="brand-tabs"></div>
         <button class="photo-entry" id="btn-photo-upload">
@@ -52,24 +52,41 @@
         <div class="garment-list" id="garment-list"></div>
       </aside>
 
-      <section class="stage">
-        <div class="stage-canvas" id="canvas-container">
-          <div class="loading" id="loading">
-            <div class="loading-ring"></div>
-            <span>正在准备 3D 场景…</span>
+      <section class="stage" id="stage" data-mode="2d">
+        <div class="stage-tabs" id="stage-tabs">
+          <button data-mode="2d" class="active">2D 上身</button>
+          <button data-mode="3d">3D 试衣</button>
+        </div>
+        <div class="stage-3d">
+          <div class="stage-canvas" id="canvas-container">
+            <div class="loading" id="loading">
+              <div class="loading-ring"></div>
+              <span>正在准备 3D 场景…</span>
+            </div>
+          </div>
+          <div class="stage-overlay">
+            <div class="stage-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="8"/></svg>
+              拖拽旋转 · 滚轮缩放
+            </div>
+            <div class="stage-status" id="stage-status">未着装</div>
           </div>
         </div>
-        <div class="stage-overlay">
-          <div class="profile-tip" id="profile-tip">
-            <span>模特已按<b>实测尺寸</b>锁定 · 165cm / 62.5kg · 亚洲偏白肤色</span>
-            <button class="tip-close" id="tip-close" title="关闭提示">×</button>
+        <aside class="stage-2d" id="stage-2d">
+          <div class="flat-head">
+            <b>2D 上身图</b>
+            <div class="flat-head-right">
+              <span id="flat-view-label">正面</span>
+              <button class="flat-clear" id="flat-clear" type="button">清空上身</button>
+            </div>
           </div>
-          <div class="stage-hint">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="8"/></svg>
-            拖拽旋转 · 滚轮缩放
+          <div class="flat-canvas-wrap">
+            <canvas id="canvas-2d"></canvas>
+            <canvas id="canvas-2d-fit"></canvas>
+            <div class="flat-empty" id="flat-empty">正在准备模特…</div>
           </div>
-          <div class="stage-status" id="stage-status">未着装</div>
-        </div>
+          <div class="flat-caption" id="flat-caption">未着装</div>
+        </aside>
       </section>
 
       <aside class="controls panel">
@@ -82,13 +99,14 @@
 
         <div class="control-group">
           <h3>尺码</h3>
+          <div class="size-input-wrap">
+            <label for="size-input">输入你的码</label>
+            <input id="size-input" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="38 / M / EU 40" aria-describedby="size-input-note" />
+            <span class="size-input-note" id="size-input-note">数字码或字母码均可</span>
+          </div>
           <div class="size-buttons" id="size-buttons"></div>
           <p class="size-hint" id="size-hint"></p>
-        </div>
-
-        <div class="control-group">
-          <h3>服饰颜色</h3>
-          <div class="color-swatches" id="color-swatches"></div>
         </div>
 
         <div class="control-group">
@@ -157,6 +175,10 @@
             <div class="scan-detected-spec" id="detected-spec">—</div>
             <select id="detected-match" class="match-select"></select>
           </div>
+          <div class="scan-field">
+            <span class="scan-label">尺码（欧码）</span>
+            <div class="scan-size-row size-buttons" id="scan-size-row"></div>
+          </div>
         </div>
       </div>
 
@@ -190,6 +212,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=26"></script>
 </body>
 </html>

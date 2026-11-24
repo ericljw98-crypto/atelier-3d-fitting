@@ -8,8 +8,8 @@
    ============================================================ */
 import { SIZE_CHART, DB_BY_ID } from './data.js';
 
-const BASE_SIZE = 'IT 40';
-const BASE_BUST = SIZE_CHART[BASE_SIZE].bust;
+const BASE_SIZE = 'EU 38';
+const BASE_ROW = SIZE_CHART[BASE_SIZE];
 
 // 各部位的合身容差（cm）：设计 ease 基础上允许的下偏差/上偏差
 // 弹力/针织款容忍负值，梭织修身款容差小
@@ -26,18 +26,27 @@ const PART_LABEL = {
 };
 
 export function sizeScale(size) {
-  const row = SIZE_CHART[size] || SIZE_CHART[BASE_SIZE];
-  return row.bust / BASE_BUST;
+  const row = SIZE_CHART[size] || BASE_ROW;
+  return row.bust / BASE_ROW.bust;
+}
+
+/** 分部位放码比例：胸/腰/臀各按自己的档差缩放，符合欧洲放码惯例 */
+export function sizeScalePart(size, part) {
+  const row = SIZE_CHART[size] || BASE_ROW;
+  const base = BASE_ROW[part];
+  return base ? row[part] / base : row.bust / BASE_ROW.bust;
 }
 
 /** 计算某款式某尺码的成衣实测尺寸 */
 export function garmentMeasurements(itemId, size) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
-  const sc = sizeScale(size);
   const m = item.measurements;
   const out = {};
-  Object.keys(m).forEach(k => { out[k] = Math.round(m[k] * sc * 10) / 10; });
+  Object.keys(m).forEach(k => {
+    const sc = (k === 'bust' || k === 'waist' || k === 'hip') ? sizeScalePart(size, k) : sizeScale(size);
+    out[k] = Math.round(m[k] * sc * 10) / 10;
+  });
   return out;
 }
 

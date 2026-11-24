@@ -8,8 +8,9 @@
 const APP_VERSION_CODE = (typeof window !== 'undefined' && window.AtelierUpdate)
   ? 0 : 0; // 运行时由 APK 桥接返回真实版本
 const MANIFEST_URLS = [
-  'https://cdn.jsdelivr.net/gh/ericljw98-crypto/atelier-3d-fitting@main/version.json',
+  // raw 为主源：jsDelivr 对大 APK 不缓存且清单刷新滞后，网页版也应以 raw 为准
   'https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/version.json',
+  'https://cdn.jsdelivr.net/gh/ericljw98-crypto/atelier-3d-fitting@main/version.json',
 ];
 const LS_DISMISS_KEY = 'atelier_update_dismiss_code';
 

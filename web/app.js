@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf } from './data.js';
+import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
+import { buildRealGarment } from './realGarments.js';
 import { evaluateFit } from './fitEngine.js';
 import { initUpdate } from './update.js';
 
@@ -38,10 +39,15 @@ scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2118, 0.55));
 const key = new THREE.DirectionalLight(0xfff3e0, 2.1);
 key.position.set(3.5, 6, 5);
 key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
+key.shadow.mapSize.set(2048, 2048);
 key.shadow.camera.left = -3; key.shadow.camera.right = 3;
 key.shadow.camera.top = 4; key.shadow.camera.bottom = -3;
-key.shadow.bias = -0.0008;
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 20;
+// normalBias 按法线方向偏移阴影采样点，消除曲面自阴影（shadow acne）。
+// 但不能过大：3.5cm 在 1.75m 的人体上会让腋窝、背沟这种凹处的阴影整体错位，
+// 表现为一块块深色斑（用户看到的"黑点"）。按身高量级取 1cm 级才正确。
+key.shadow.normalBias = 0.012;
+key.shadow.bias = -0.0005;
 scene.add(key);
 const fill = new THREE.DirectionalLight(0xa8c0ff, 0.8);
 fill.position.set(-4, 2, -3); scene.add(fill);
@@ -72,7 +78,8 @@ const state = {
   model: null,                         // 建档后的模特参数
   brand: 'DG',                         // 当前品牌：DG 杜嘉班纳 / BL 巴尔曼
   category: 'dresses',
-  size: 'IT 40',
+  size: 'EU 42',
+  sizeLocked: false,                   // 用户手动指定过尺码后，不再被自动推荐覆盖
   outfit: { tops: null, bottoms: null, dresses: null, outer: null },
   activeSlot: null,
   color: PALETTE.black.hex,
@@ -107,7 +114,9 @@ function ensureBody() {
     avatarGroup.add(garmentGroup);
     return body;
   }).catch(err => {
+    // 静默回退会让"模型怎么还是最初那个"变得无从判断，这里明确提示出来
     console.error('写实人体加载失败，回退参数化人体', err);
+    toast('写实人体加载失败，已回退简化人台（' + ((err && err.message) || err) + '）');
     currentAvatarMesh = buildBody(state.model);
     avatarGroup.add(currentAvatarMesh);
     avatarGroup.add(garmentGroup);
@@ -130,13 +139,403 @@ function applyBodyScale() {
 }
 
 /* ============================================================
+   2D 平面视图（与 3D 同时试穿）
+   ------------------------------------------------------------
+   右边的 2D 不是另建一套模型，而是同一场景、同一台模特、同一件衣服，
+   换一台「正交相机」再渲染一遍：正交投影没有近大远小，画出来就是服装
+   制图里的平立面图——肩线、袖长、下摆到哪里，都能直接和 3D 对照看。
+   换色、换码、换款只改一处状态，两边同一个数据源，不会各说各话。
+   ============================================================ */
+const flatEls = {
+  canvas: document.getElementById('canvas-2d'),
+  fit: document.getElementById('canvas-2d-fit'),
+  label: document.getElementById('flat-view-label'),
+  caption: document.getElementById('flat-caption'),
+  empty: document.getElementById('flat-empty'),
+  clear: document.getElementById('flat-clear'),
+};
+const flat = { dirty: true, view: 'front', w: 0, h: 0 };
+function flatMark() { flat.dirty = true; }
+
+let flatRenderer = null, flatCam = null;
+if (flatEls.canvas) {
+  flatRenderer = new THREE.WebGLRenderer({ canvas: flatEls.canvas, antialias: true, alpha: true });
+  flatRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  flatRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  flatRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  flatRenderer.toneMappingExposure = 1.05;
+  flatCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 60);
+}
+
+const FLAT_VIEW = {
+  front: { pos: [0, 0, 12], label: '正面' },
+  side: { pos: [12, 0, 0], label: '侧面' },
+  back: { pos: [0, 0, -12], label: '背面' },
+};
+
+/* 2D 里不要地面与灯环：正交投影下圆盘会横切过脚踝，只剩一条脏线 */
+const FLAT_HIDE = [];
+function flatInitHideList() {
+  FLAT_HIDE.length = 0;
+  scene.children.forEach(o => {
+    if (o === avatarGroup) return;
+    if (o.isLight || o.isCamera) return;
+    FLAT_HIDE.push(o);
+  });
+}
+
+/* ---------------- 2D 上身合成 ----------------
+   底图是一张按档案尺寸（165cm / 94.5-87-100）生成的正面站姿人像，
+   商品图抠掉浅色背景后按「胸宽 / 臀宽」等比贴合上去，再用人体剪影遮罩
+   把溢出体外的部分裁掉——这样袖子和下摆不会像贴纸一样浮在背景上。
+   标定点全部落在像素坐标上：1420px 对应 165cm，故 1cm ≈ 8.61px。 */
+/* 人手标定的像素参数（底图 1024×1536，头顶 y=56 到脚底 y=1476 对应 165cm，
+   故 1cm = 1420/165 = 8.606px）。这些数值是把标定线画回原图逐条核对过的，
+   不是按比例估的：
+     肩峰 y=340，左右外缘 343..686 → 343px = 39.9cm（档案肩宽 40cm）
+     腋下 y=412
+     胸围线 y=470
+     腰线 y=620，躯干 380..640 → 260px = 30.2cm（对应围度 ≈86cm，档案 87cm）
+     胯线 y=780，345..672 → 332px = 38.6cm（对应围度 ≈104cm，比档案 100cm 宽 4%）
+     裆点 y=825，脚底 y=1476 */
+const FIT = {
+  W: 1024, H: 1536, pxPerCm: 8.606,
+  top: 56, feet: 1476, cx: 510,
+  shoulderY: 340, shoulderW: 343,
+  armpitY: 412,
+  bustY: 470, chestW: 302,
+  waistY: 620, waistW: 279,
+  hipY: 780, hipW: 319,
+  crotchY: 825,
+};
+const fitCache = { model: null, mask: null, layer: null, cuts: new Map() };
+let fitReady = false, fitLoading = null, fitLeadId = null;
+
+function loadImg(src) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.decoding = 'async';
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error(src));
+    im.src = src;
+  });
+}
+
+function fitEnsure() {
+  if (!fitLoading) {
+    fitLoading = (async () => {
+      // file:// 下画布被跨源图片污染，取不到像素，直接放弃合成
+      if (location.protocol === 'file:') return false;
+      try {
+        const [m, k] = await Promise.all([
+          loadImg('images/model-2d-front.jpg'),
+          loadImg('images/model-2d-mask.png'),
+        ]);
+        fitCache.model = m;
+        const mk = document.createElement('canvas');
+        mk.width = FIT.W; mk.height = FIT.H;
+        mk.getContext('2d').drawImage(k, 0, 0, FIT.W, FIT.H);
+        fitCache.mask = mk;
+        const ly = document.createElement('canvas');
+        ly.width = FIT.W; ly.height = FIT.H;
+        fitCache.layer = ly;
+        fitReady = true;
+        return true;
+      } catch (err) {
+        console.warn('2D 模特底图加载失败', err);
+        return false;
+      }
+    })();
+  }
+  return fitLoading;
+}
+
+/* 抠底：只抹掉与画布四边连通的浅色区域，衣服自身的米白、蕾丝不会被误伤 */
+function cutGarment(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) return null;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  let data;
+  try { data = x.getImageData(0, 0, w, h); } catch (e) { return null; }
+  const p = data.data;
+  const isBg = i => p[i] >= 200 && p[i + 1] >= 200 && p[i + 2] >= 200
+    && Math.abs(p[i] - p[i + 2]) < 16;
+  const seen = new Uint8Array(w * h);
+  const stack = [];
+  const seed = (px, py) => {
+    const i = py * w + px;
+    if (seen[i] || !isBg(i * 4)) return;
+    seen[i] = 1; stack.push(i);
+  };
+  for (let px = 0; px < w; px++) { seed(px, 0); seed(px, h - 1); }
+  for (let py = 0; py < h; py++) { seed(0, py); seed(w - 1, py); }
+  while (stack.length) {
+    const i = stack.pop(), px = i % w, py = (i / w) | 0;
+    if (px > 0) seed(px - 1, py);
+    if (px < w - 1) seed(px + 1, py);
+    if (py > 0) seed(px, py - 1);
+    if (py < h - 1) seed(px, py + 1);
+  }
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  const prof = new Float32Array(h);
+  const loA = new Int32Array(h).fill(-1), hiA = new Int32Array(h).fill(-1);
+  for (let py = 0; py < h; py++) {
+    let lo = -1, hi = -1;
+    for (let px = 0; px < w; px++) {
+      const i = py * w + px;
+      if (seen[i]) { p[i * 4 + 3] = 0; continue; }
+      if (lo < 0) lo = px;
+      hi = px;
+    }
+    loA[py] = lo; hiA[py] = hi;
+    if (lo >= 0) {
+      prof[py] = hi - lo + 1;
+      if (lo < x0) x0 = lo;
+      if (hi > x1) x1 = hi;
+      if (py < y0) y0 = py;
+      if (py > y1) y1 = py;
+    }
+  }
+  if (x1 < 0) return null;
+  /* 商品图是白底棚拍，边缘有一圈半透明的抗锯齿像素，直接贴到人像上会
+     留一道发白的描边。这里把 alpha 往内收 1px，描边就没了。 */
+  {
+    const a0 = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) a0[i] = seen[i] ? 0 : p[i * 4 + 3];
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const i = py * w + px;
+        if (!a0[i]) continue;
+        if ((px > 0 && !a0[i - 1]) || (px < w - 1 && !a0[i + 1]) ||
+            (py > 0 && !a0[i - w]) || (py < h - 1 && !a0[i + w])) {
+          p[i * 4 + 3] = 0;
+        } else {
+          p[i * 4 + 3] = a0[i];
+        }
+      }
+    }
+  }
+  x.putImageData(data, 0, 0);
+  const box = { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  const shoulder = detectShoulder(loA, hiA, y0, y1, box.h);
+  /* 取某相对高度处的衣身宽（跳过袖口、吊带这类极窄行，也跳过被袖子撑开的顶行） */
+  const widthAt = frac => {
+    const y = Math.min(h - 1, Math.max(0, Math.round(y0 + frac * box.h)));
+    const lo = Math.max(y0, y - 4), hi = Math.min(y1, y + 4);
+    let acc = 0, n = 0;
+    for (let yy = lo; yy <= hi; yy++) { if (prof[yy] > 0) { acc += prof[yy]; n++; } }
+    return n ? acc / n : box.w;
+  };
+  return { canvas: c, box, widthAt, shoulder };
+}
+
+/* 找衣肩线（肩点所在的那一行）
+   ------------------------------------------------------------
+   商品图是幽灵模特平铺图，上缘轮廓从领口向两侧下坡，到肩点处坡度骤停、
+   往下变成近乎垂直的袖筒。所以「外缘向外扩张的速度第一次掉下来」的位置
+   就是肩线：
+     · 取上 34% 高度做搜索带，用 ±2% 高度的窗口斜率抵消锯齿；
+     · 左右取平均，抗单侧被袖子撑开；
+     · 加两道闸：该行宽度至少要达到带内最大宽度的 55%，避免停在领口尖上。
+   找不到拐点时退回「宽度首次到 90%」的经验值。 */
+function detectShoulder(lo, hi, y0, y1, H) {
+  const band = Math.min(y1, y0 + Math.round(H * 0.34));
+  const k = Math.max(2, Math.round(H * 0.022));
+  const rows = [];
+  let mx = 0, maxw = 0;
+  for (let y = y0; y <= band; y++) {
+    const ya = Math.min(y1, y + k), yb = Math.max(y0, y - k);
+    const dl = ya === yb ? 0 : (lo[ya] - lo[yb]) / (ya - yb);
+    const dr = ya === yb ? 0 : (hi[ya] - hi[yb]) / (ya - yb);
+    const s = (-dl + dr) / 2;
+    rows.push({ y, s });
+    if (s > mx) mx = s;
+    const wd = hi[y] - lo[y] + 1;
+    if (wd > maxw) maxw = wd;
+  }
+  let ys = -1;
+  for (const r of rows) {
+    if (r.y - y0 < H * 0.02) continue;
+    if (r.s < mx * 0.25 && (hi[r.y] - lo[r.y] + 1) >= maxw * 0.55) { ys = r.y; break; }
+  }
+  if (ys < 0) for (const r of rows) {
+    if (hi[r.y] - lo[r.y] + 1 >= maxw * 0.9) { ys = r.y; break; }
+  }
+  if (ys < 0) ys = y0 + Math.round(H * 0.1);
+  const wSh = hi[ys] - lo[ys] + 1;
+  return { y: ys, lo: lo[ys], hi: hi[ys], w: wSh,
+           maxw, strapless: wSh < maxw * 0.45 };
+}
+
+function cutFor(item) {
+  if (!item || (!item.image && !item.flat)) return null;
+  let job = fitCache.cuts.get(item.id);
+  if (!job) {
+    /* flat 是离线烘好的白底平面图（写实网格款用它）。
+       写实款的官方商品图是「人台穿着」的渲染图，直接抠会把头、手臂、腿一起抠进来，
+       所以另外渲一张只有衣服的图，2D 与卡片各用各的。 */
+    job = loadImg(item.flat || item.image).then(cutGarment).catch(() => null);
+    fitCache.cuts.set(item.id, job);
+  }
+  return job;
+}
+
+function fitDrawModelOnly() {
+  const ctx = flatEls.fit.getContext('2d');
+  ctx.clearRect(0, 0, FIT.W, FIT.H);
+  ctx.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
+}
+
+/* 尺码 → 横向倍率
+   ------------------------------------------------------------
+   商品图是一张图，没有分码，要让它跟着尺码变，只能按该码的围度放码：
+   以 EU 38 为基准，取 √(胸围比) 作为线性倍率（围度是周长，换算到宽度要开方）。
+   下装按臀围。真实放码是「宽度吃掉档差、衣长几乎不动」，所以这里只放大
+   横向，纵向仍由衣长约束——否则 EU46 的裙子会比 EU38 长出近 10cm。 */
+function sizeWidthScale(item, size) {
+  const base = SIZE_CHART['EU 38'] || { bust: 88, hip: 96 };
+  const row = SIZE_CHART[size] || base;
+  const key = (item && item.category === 'bottoms') ? 'hip' : 'bust';
+  const g = (row[key] || base[key]) / base[key];
+  return Math.min(1.14, Math.max(0.88, Math.sqrt(g)));
+}
+
+function fitDrawGarment(item) {
+  if (!fitReady || !item) return;
+  const job = cutFor(item);
+  if (!job) return;
+  job.then(cut => {
+    if (fitLeadId !== item.id) return;
+    const ctx0 = flatEls.fit.getContext('2d');
+    if (!cut) {
+      // 抠底失败（背景不是浅色/图挂了）：只留底模，不拿纯色网格凑数
+      ctx0.clearRect(0, 0, FIT.W, FIT.H);
+      ctx0.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
+      return;
+    }
+    const ctx = flatEls.fit.getContext('2d');
+    ctx.clearRect(0, 0, FIT.W, FIT.H);
+    ctx.drawImage(fitCache.model, 0, 0, FIT.W, FIT.H);
+
+    const cat = item.category;
+    const lenCm = (item.measurements && item.measurements.length) || (cat === 'dresses' ? 100 : 62);
+    /* 写实款（flat 图由网格离线烘出）自带肩部几何：肩线在哪一行、肩宽多少像素，
+       是渲染时从顶点直接算的，比在图上做轮廓检测可靠——渲染图肩侧有袖山外扩，
+       检测会把肩宽多算 10cm，衣服就被压得又宽又短。 */
+    const fm = item.flatMeta;
+    const sh = fm
+      ? { y: fm.shoulderY, w: fm.shoulderW, lo: FIT.cx - fm.shoulderW / 2, hi: FIT.cx + fm.shoulderW / 2 }
+      : cut.shoulder;
+    /* 比例：① 衣肩 → 人体肩宽（343px）；② 衣长 → 衣长×8.606px。
+       取小值，单用任一条都会被袖子或长摆骗偏。 */
+    const kSh = cat === 'bottoms'
+      ? (FIT.hipW * 1.02) / Math.max(cut.widthAt(0.35), 1)
+      : (sh && sh.w > 6)
+        ? (FIT.shoulderW * 0.99) / sh.w
+        : FIT.shoulderW / Math.max(cut.widthAt(0.06), 1);
+    const kLen = (lenCm * FIT.pxPerCm) / Math.max(cut.box.h, 1);
+    let k = Math.min(kSh, kLen);
+    k = Math.min(Math.max(k, 0.5), 3.5);
+    // 尺码只在横向生效：同一件裙 EU34 到 EU46 宽度差约 14%，长度基本一致
+    const szK = sizeWidthScale(item, state.size);
+    const kw = Math.min(Math.max(k * szK, 0.5), 3.5);
+
+    /* 贴合：把手绘的「衣肩线」对到人体肩点所在的 y，横向按肩线中点对中线。
+       这就是之前衣肩往下坠的原因——原来锚的是外框顶（领口最高点），
+       高领、立领款一差就是 5–8cm。 */
+    let anchorY, srcY, midX;
+    if (cat === 'bottoms') {
+      anchorY = FIT.waistY - 4; srcY = cut.box.y0;
+      midX = cut.box.x0 + cut.box.w / 2;
+    } else if (sh) {
+      anchorY = FIT.shoulderY; srcY = sh.y;
+      midX = (sh.lo + sh.hi + 1) / 2;
+    } else {
+      anchorY = FIT.shoulderY - 4; srcY = cut.box.y0;
+      midX = cut.box.x0 + cut.box.w / 2;
+    }
+    const dx = FIT.cx - midX * kw;
+    const dy = anchorY - srcY * k;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cut.canvas, dx, dy, cut.canvas.width * kw, cut.canvas.height * k);
+    ctx.restore();
+  });
+}
+
+function flatResize() {
+  const c = flatEls.canvas;
+  if (!c || !flatRenderer) return false;
+  const w = c.clientWidth | 0, h = c.clientHeight | 0;
+  if (w < 24 || h < 24) return false;
+  if (flat.w !== w || flat.h !== h) {
+    flatRenderer.setSize(w, h, false);
+    flat.w = w; flat.h = h;
+  }
+  return true;
+}
+
+function flatDraw() {
+  if (!flatEls.canvas) return;
+
+  /* 2D 只有一条路：照片模特 + 商品图合成。
+     曾经在底图没就绪时退回「3D 正交投影」，结果界面会突然跳回旧人台，
+     两种模型来回切看着像出错。现在旧视图整段删除，只剩这个人。 */
+  const wornNow = Object.values(state.outfit).filter(Boolean);
+  const lead = wornNow[wornNow.length - 1] || null;
+  const leadItem = lead ? DB_BY_ID[lead.id] : null;
+
+  if (!fitReady) fitEnsure().then(ok => { if (ok) flatMark(); });
+  if (!fitReady || !flatEls.fit) {
+    flatEls.empty.classList.remove('hidden');
+    flatEls.empty.textContent = '正在准备模特…';
+    return;
+  }
+
+  const cv = flatEls.fit;
+  if (cv.width !== FIT.W) cv.width = FIT.W;
+  if (cv.height !== FIT.H) cv.height = FIT.H;
+
+  /* 2D 只认真实平铺商品图，不做纯色渲染。
+     曾经给「没有商品图」的款兜底走 3D 网格投影，渲出来是一块纯色剪影，
+     跟商品图的印花、质感完全对不上，用户看到的就是「又回退了」。
+     现在没有商品图就只显示模特底图，并在下方说明原因。 */
+  const hasPhoto = !!(leadItem && (leadItem.flat || (leadItem.image && !leadItem.realistic)));
+  if (hasPhoto) {
+    fitLeadId = leadItem.id;
+    fitDrawGarment(leadItem);
+  } else {
+    fitLeadId = null;
+    fitDrawModelOnly();
+  }
+
+  cv.classList.add('on');
+  flatEls.empty.classList.add('hidden');
+  if (flatEls.clear) flatEls.clear.classList.toggle('hidden', wornNow.length === 0);
+  if (flatEls.label) flatEls.label.textContent = hasPhoto ? '正面合成' : (leadItem ? '无平铺图' : '模特底图');
+  if (flatEls.caption) {
+    const hcm = state.model ? state.model.height : 165;
+    flatEls.caption.innerHTML = leadItem
+      ? (hasPhoto
+        ? `<b>${leadItem.code}</b> ${leadItem.name}<br>2D 合成 · 模特 ${hcm}cm · 尺码 ${state.size}`
+        : `<b>${leadItem.code}</b> ${leadItem.name}<br>该款没有平铺商品图，2D 不做纯色兜底 · 请切「3D 试衣」看版型`)
+      : `未着装 · 模特 ${hcm}cm · 2D 底模`;
+  }
+}
+/* ============================================================
    着装逻辑
    ============================================================ */
+let realLoadToken = 0;   // 防止快速切换时旧异步请求覆盖新选择
 function clearSlot(slot) {
   const item = state.outfit[slot];
   if (!item) return;
   garmentGroup.remove(item.group);
-  item.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+  item.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose?.(); } });
   state.outfit[slot] = null;
 }
 function selectGarment(itemId, opt = {}) {
@@ -147,13 +546,41 @@ function selectGarment(itemId, opt = {}) {
   else if (slot === 'tops' || slot === 'bottoms') { clearSlot('dresses'); clearSlot(slot); }
   else clearSlot(slot);
 
+  // 配色板已撤：每件成衣按自己的首个官方配色上场，风格差异靠花色而不是全局色块
+  const own = (item.colors && item.colors[0]) || null;
+  const color = opt.color ?? (own ? own.hex : state.color);
+  const colorName = opt.colorName ?? (own ? own.name : state.colorName);
+
+  // 写实成衣：异步加载 GLB（固定版型，尺码用于合身诊断）
+  if (item.model3d) {
+    const token = ++realLoadToken;
+    const H = state.model.height * (1 / 50);
+    // 写实成衣保留官方贴图花色，不做整体染色（染色会把印花糊成纯色）
+    buildRealGarment(item, H, 0xffffff)
+      .then(group => {
+        if (token !== realLoadToken) {           // 已被更新的选择取代，丢弃
+          group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose?.(); } });
+          return;
+        }
+        garmentGroup.add(group);
+        state.outfit[slot] = { id: itemId, slot, group, color: 0xffffff, colorName: '官方花色' };
+        state.activeSlot = slot;
+        renderGarments(); renderSummary(); updateStatus(); renderColors(); renderFitReport();
+        toast(`已试穿：${item.name}（写实成衣）`);
+      })
+      .catch(err => { console.error(err); toast('写实成衣加载失败'); });
+    return;
+  }
+
+  // 程序化服装（含完整尺码放码）
+  ++realLoadToken;
   if (!bodyReady()) {
     ensureBody().then(() => { if (bodyReady()) selectGarment(itemId, opt); });
     return;
   }
-  const color = opt.color ?? state.color;
-  const colorName = opt.colorName ?? state.colorName;
-  const group = buildGarment(itemId, state.size, state.model, color, true);
+  /* 面料贴图：直接取卡片上已经解码好的商品图，不额外发请求。
+     取不到（图片未就绪 / 该款无图）就退回纯色。 */
+  const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId));
   if (!group) return;
   garmentGroup.add(group);
   state.outfit[slot] = { id: itemId, slot, group, color, colorName };
@@ -171,9 +598,15 @@ function setColor(hex, name) {
   state.color = hex; state.colorName = name;
   if (state.activeSlot && state.outfit[state.activeSlot]) {
     const entry = state.outfit[state.activeSlot];
+    if (entry.group.userData.realistic) {
+      toast('写实成衣为官方固定花色，不支持换色');
+      renderColors();
+      return;
+    }
     entry.group.userData.dyeMaterials?.forEach(m => m.color.setHex(hex));
     entry.color = hex; entry.colorName = name;
     renderSummary();
+    flatMark();
   } else toast('请先选择一件服饰');
   renderColors();
 }
@@ -190,6 +623,8 @@ const els = {
   colors: document.getElementById('color-swatches'),
   sizes: document.getElementById('size-buttons'),
   sizeHint: document.getElementById('size-hint'),
+  sizeInput: document.getElementById('size-input'),
+  sizeNote: document.getElementById('size-input-note'),
   views: document.getElementById('view-buttons'),
   summary: document.getElementById('outfit-summary'),
   status: document.getElementById('stage-status'),
@@ -204,6 +639,30 @@ const SWATCHES = [
   PALETTE.navy, PALETTE.emerald, PALETTE.camel, PALETTE.gold,
   PALETTE.powder, PALETTE.leopard, PALETTE.olive, PALETTE.chocolate,
 ];
+
+
+/* ---------------- 面料贴图 ---------------- */
+const _texCache = new Map();
+function fabricTexOf(itemId) {
+  if (_texCache.has(itemId)) return _texCache.get(itemId);
+  // file:// 下本地图片被当作跨源资源，上传成 WebGL 贴图会抛安全错误，
+  // 此时退回纯色，宁可不贴图也不能让衣服变黑。
+  if (location.protocol === 'file:') { _texCache.set(itemId, null); return null; }
+  const item = DB_BY_ID[itemId];
+  const src = item && item.image;
+  let tex = null;
+  if (src) {
+    const img = document.querySelector(`.garment-card[data-id="${itemId}"] .db-photo`);
+    if (img && img.complete && img.naturalWidth > 0) {
+      tex = new THREE.Texture(img);
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+    }
+  }
+  _texCache.set(itemId, tex);
+  return tex;
+}
 
 function currentBrandItems() { return DB.filter(g => g.brand === state.brand); }
 
@@ -237,20 +696,38 @@ function renderCategories() {
   });
 }
 
+/** 价格区块：在售款给欧元与原价；写实展示款不标价，写清「非卖品」；
+    停产档案款标当年零售价并注明不可购。 */
+function priceMarkup(item) {
+  if (item.nonCommercial) {
+    return `<span class="price-eur price-none">非卖品</span><span class="price-cny">CC0 开放模型 · 无定价</span>`;
+  }
+  if (item.discontinued) {
+    return `<span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">${item.archiveYear || ''} 年零售价 · 已停产</span>`;
+  }
+  return `<span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">约 ¥${item.priceCNY.toLocaleString()}</span>`;
+}
+
 function renderGarments() {
   const items = currentBrandItems().filter(g => g.category === state.category);
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div class="db-thumb"><img src="${item.image}" alt="${item.nameEn}" loading="lazy" onerror="this.style.display='none'"/></div>
+      <div class="db-thumb">
+        ${item.image
+          ? `<img class="db-photo" src="${item.image}" alt="${item.nameEn}" loading="lazy" onerror="this.remove()"/>`
+          : `<div class="db-thumb-fallback"><span>${item.archiveYear || 'ARCHIVE'}</span><b>${item.nameEn}</b><i>停产款 · 无官方图</i></div>`}
+      </div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
+        ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
+        ${item.nonCommercial ? '<span class="db-tag demo">展示款</span>' : ''}
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
       <div class="db-meta">${item.fabric}</div>
-      <div class="db-price"><span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">约 ¥${item.priceCNY.toLocaleString()}</span></div>
+      <div class="db-price">${priceMarkup(item)}</div>
       <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
   }).join('');
@@ -260,6 +737,8 @@ function renderGarments() {
 }
 
 function renderColors() {
+  // 成衣按官方花色呈现，配色板已撤掉；这里保留空实现以兼容旧调用
+  if (!els.colors) return;
   els.colors.innerHTML = SWATCHES.map(c =>
     `<div class="swatch ${c.hex === state.color ? 'active' : ''}" data-hex="${c.hex}" data-name="${c.name}" title="${c.name}" style="background:#${c.hex.toString(16).padStart(6, '0')}"></div>`
   ).join('');
@@ -268,18 +747,85 @@ function renderColors() {
   });
 }
 
+/* 尺码显示：数字码 + 字母码并列（欧码成衣的标法就是两者同标） */
+function sizeText(size) {
+  const n = sizeNumber(size);
+  const l = sizeLetter(size);
+  return l ? `${n} · ${l}` : String(n ?? size);
+}
+
+/** 把当前尺码回写到输入框与按钮态，不触发重建 */
+function syncSizeControls() {
+  if (els.sizeInput) els.sizeInput.value = sizeText(state.size);
+  if (els.sizes) {
+    els.sizes.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.size === state.size);
+    });
+  }
+}
+
+/**
+ * 应用用户手输的尺码。
+ * 支持 38 / eu38 / M / S / L / XL / M-L 等写法；无法识别时给出可选项而不静默失败。
+ */
+function applySizeInput(raw) {
+  const hit = normalizeSize(raw);
+  if (!hit) {
+    if (els.sizeNote) {
+      els.sizeNote.textContent = '没有这个码，可输 34–46 或 XS / S / M / L / XL / XXL';
+      els.sizeNote.className = 'size-input-note bad';
+    }
+    return false;
+  }
+  state.size = hit.size;
+  state.sizeLocked = true;
+  if (els.sizeNote) {
+    els.sizeNote.textContent = hit.snapped
+      ? `没有 ${String(raw).trim()}，已就近取 ${sizeText(hit.size)}`
+      : `已按 ${sizeText(hit.size)} 试穿`;
+    els.sizeNote.className = 'size-input-note ok';
+  }
+  syncSizeControls();
+  renderGarments();
+  recomputeOutfitForSize();
+  updateStatus();
+  return true;
+}
+
 function renderSizes() {
   const rec = recommendSize(state.model || DEFAULT_MODEL);
   els.sizes.innerHTML = SIZES.map(s =>
-    `<button class="${s === state.size ? 'active' : ''}" data-size="${s}">${s}${s === rec ? '<i class="rec-dot"></i>' : ''}</button>`
+    `<button class="${s === state.size ? 'active' : ''}" data-size="${s}" title="${SIZE_CHART[s].label}">${sizeText(s)}${s === rec ? '<i class="rec-dot"></i>' : ''}</button>`
   ).join('');
   els.sizes.querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => {
       state.size = b.dataset.size;
-      renderSizes(); renderGarments(); recomputeOutfitForSize();
+      state.sizeLocked = true;           // 手选后不再被推荐覆盖
+      if (els.sizeNote) {
+        els.sizeNote.textContent = `已按 ${sizeText(state.size)} 试穿`;
+        els.sizeNote.className = 'size-input-note ok';
+      }
+      syncSizeControls();
+      renderGarments(); recomputeOutfitForSize(); updateStatus();
     });
   });
-  els.sizeHint.textContent = `按胸围 ${state.model?.bust ?? 90}cm 推荐 ${rec} · 圆点为推荐码`;
+  syncSizeControls();
+  const m = state.model || {};
+  els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm，按最紧部位推荐 ${sizeText(rec)} · 圆点为推荐码`;
+}
+
+/* 手输尺码：不用 input 事件逐字符提交——输 "3" 会立刻被就近吸附成 34，
+   体验很怪。改为回车 / 失焦提交。 */
+if (els.sizeInput) {
+  const commit = () => {
+    const v = els.sizeInput.value.trim();
+    if (v) applySizeInput(v);
+  };
+  els.sizeInput.addEventListener('change', commit);
+  els.sizeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); els.sizeInput.blur(); }
+  });
+  els.sizeInput.addEventListener('focus', () => els.sizeInput.select());
 }
 
 /* 换尺码后，用新尺码重建已穿服装 */
@@ -305,8 +851,7 @@ function renderSummary() {
   }
   els.summary.innerHTML = worn.map(o => {
     const item = DB_BY_ID[o.id];
-    const hex = '#' + (o.color >>> 0).toString(16).padStart(6, '0');
-    return `<div class="outfit-row"><span class="label">${item.name}<small>${state.size}</small></span><span class="value"><span class="dot" style="background:${hex}"></span>${o.colorName || ''}</span></div>`;
+    return `<div class="outfit-row"><span class="label">${item.name}<small>${state.size}</small></span><span class="value">${item.fabric || ''}</span></div>`;
   }).join('');
 }
 /* 合身诊断：按成衣固定尺寸 vs 模特身体尺寸判断 */
@@ -354,6 +899,7 @@ function updateStatus() {
   const n = Object.values(state.outfit).filter(Boolean).length;
   els.status.textContent = n ? `已搭配 ${n} 件 · ${state.size}` : '未着装';
   els.status.classList.toggle('has-outfit', n > 0);
+  flatMark();          // 2D 与 3D 同一处状态源：这里刷新，两边一起变
 }
 function renderModelChip() {
   els.modelChip.textContent = modelSummary(state.model) + ' · 已锁定';
@@ -384,13 +930,13 @@ function openProfileModal(isEdit) {
   document.getElementById('profile-save').textContent = isEdit ? '保存并更新' : '创建模特并开始';
   renderProfileForm();
   profileModal.classList.add('open');
-  profileTip.classList.add('hidden');
 }
 const profileTip = document.getElementById('profile-tip');
 function closeProfileModal() { profileModal.classList.remove('open'); }
 const tipEditEl = document.getElementById('tip-edit');
 if (tipEditEl) tipEditEl.addEventListener('click', () => toast('模特尺寸已按实测数据锁定，不可调整'));
-document.getElementById('tip-close').addEventListener('click', () => profileTip.classList.add('hidden'));
+const tipCloseEl = document.getElementById('tip-close');
+if (tipCloseEl) tipCloseEl.addEventListener('click', () => profileTip && profileTip.classList.add('hidden'));
 
 function renderProfileForm() {
   const groups = [
@@ -424,6 +970,7 @@ function renderProfileForm() {
       profileForm.querySelector(`#pf-${key}`).value = profileDraft[key];
       updateRangeFill(r);
       updateProfilePreview();
+      liveApplyProfile();          // 拖动即变形，不必等确认
     });
   });
   profileForm.querySelectorAll('input[type=number]').forEach(n => {
@@ -437,10 +984,25 @@ function renderProfileForm() {
       const range = profileForm.querySelector(`#pf-range-${key}`);
       range.value = v; updateRangeFill(range);
       updateProfilePreview();
+      liveApplyProfile();
     });
   });
   profileForm.querySelectorAll('input[type=range]').forEach(updateRangeFill);
   updateProfilePreview();
+}
+/* 滑块实时塑形：拖动时逐帧重算人体顶点代价高（5 万顶点），
+   用 90ms 节流；服装几何重建也一并跟进，否则布料会留在旧体形上。 */
+let _liveTimer = null, _livePending = false;
+function liveApplyProfile() {
+  if (_liveTimer) { _livePending = true; return; }
+  _liveTimer = setTimeout(() => {
+    _liveTimer = null;
+    if (currentRealBody) {
+      currentRealBody.applyProfile(profileDraft);
+      renderGarments();
+    }
+    if (_livePending) { _livePending = false; liveApplyProfile(); }
+  }, 90);
 }
 function updateRangeFill(el) {
   const min = parseFloat(el.min), max = parseFloat(el.max);
@@ -459,7 +1021,7 @@ document.getElementById('profile-save').addEventListener('click', () => {
   state.model = { ...profileDraft };
   saveProfile(state.model);
   const rec = recommendSize(state.model);
-  state.size = rec;
+  if (!state.sizeLocked) state.size = rec;      // 手选过就尊重用户选择
   rebuildAvatar();
   renderSizes(); renderModelChip(); renderGarments(); renderSummary(); updateStatus(); renderFitReport();
   closeProfileModal();
@@ -490,9 +1052,12 @@ els.views.querySelectorAll('button').forEach(b => {
     els.views.querySelectorAll('button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     moveCameraTo(VIEWS[b.dataset.view]);
+    flat.view = b.dataset.view;      // 2D 同步到同一视角
+    flatMark();
   });
 });
 document.getElementById('btn-clear').addEventListener('click', clearAll);
+if (flatEls.clear) flatEls.clear.addEventListener('click', clearAll);
 
 /* ============================================================
    渲染循环
@@ -506,11 +1071,50 @@ function resize() {
   if (Math.abs(camera.fov - targetFov) > 0.1) camera.fov = targetFov;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
+  flatMark();
 }
 new ResizeObserver(resize).observe(container);
 window.addEventListener('resize', resize);
+if (flatEls.canvas && flatEls.canvas.parentElement) {
+  new ResizeObserver(() => flatMark()).observe(flatEls.canvas.parentElement);
+}
+/* ============================================================
+   舞台模式：默认 2D 上身，3D 作为独立标签按需开启
+   ------------------------------------------------------------
+   2D 是「看得懂版型」的主视图，3D 用来转着看侧面和背面。两套渲染不
+   同时跑：留在 2D 时 3D 一次都不渲，省掉整个 WebGL 主循环的功耗。 */
+let stageMode = '2d';
+function setStageMode(m) {
+  stageMode = m === '3d' ? '3d' : '2d';
+  const st = document.getElementById('stage');
+  if (st) st.dataset.mode = stageMode;
+  document.querySelectorAll('#stage-tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === stageMode);
+  });
+  if (stageMode === '3d') {
+    // 刚从隐藏切回来时容器尺寸是 0，下一帧再量
+    requestAnimationFrame(() => { try { resize(); } catch (e) {} });
+  } else {
+    flatMark();
+  }
+}
+{
+  const tabs = document.getElementById('stage-tabs');
+  if (tabs) tabs.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && b.dataset.mode) setStageMode(b.dataset.mode);
+  });
+  setStageMode('2d');
+}
+/* 2D 是主视图，底模启动就载入，不必等选中衣服 */
+fitEnsure().then(ok => { if (ok) flatMark(); });
+
 function animate() {
   requestAnimationFrame(animate);
+  if (stageMode !== '3d') {
+    if (flat.dirty) { flat.dirty = false; try { flatDraw(); } catch (err) { console.warn('2D 视图绘制失败', err); } }
+    return;
+  }
   if (camAnim) {
     camAnim.t += 0.06;
     const e = 1 - Math.pow(1 - camAnim.t, 3);
@@ -519,6 +1123,13 @@ function animate() {
   }
   controls.update();
   renderer.render(scene, camera);
+
+  /* 2D：只在状态或尺寸变化时重绘一次。同一份场景用正交相机再渲一遍，
+     不进每帧循环，手机上不会多烧一倍 GPU。 */
+  if (flat.dirty) {
+    flat.dirty = false;
+    try { flatDraw(); } catch (err) { console.warn('2D 平面视图绘制失败', err); }
+  }
 }
 
 /* ============================================================
@@ -542,6 +1153,7 @@ const detectedSpec = document.getElementById('detected-spec');
 const matchSelect = document.getElementById('detected-match');
 const applyBtn = document.getElementById('photo-apply');
 let detected = null;
+let detectedSize = null;
 
 function openPhotoModal() {
   if (!state.model) { toast('请先建立模特档案'); return; }
@@ -627,6 +1239,8 @@ function analyzePhoto(url) {
       matchSelect.appendChild(og);
     });
     detected = { hex: color.hex, colorName: color.name, garmentId: guess.item.id };
+    detectedSize = recommendSize(state.model);
+    renderScanSizes();
     dropZone.style.display = 'none';
     scanResult.hidden = false;
     applyBtn.disabled = false;
@@ -773,10 +1387,24 @@ function hslToRgb(h, s, l) {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
+function renderScanSizes() {
+  const row = document.getElementById('scan-size-row');
+  if (!row) return;
+  const rec = recommendSize(state.model);
+  row.innerHTML = SIZES.map(sz =>
+    `<button type="button" class="${sz === detectedSize ? 'active' : ''}" data-size="${sz}">${sz.replace('EU ', '')}${sz === rec ? '<i class="rec-dot"></i>' : ''}</button>`
+  ).join('');
+  row.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => { detectedSize = b.dataset.size; renderScanSizes(); });
+  });
+}
+
 document.getElementById('photo-reselect').addEventListener('click', resetScanUI);
 applyBtn.addEventListener('click', () => {
   if (!detected) return;
-  selectGarment(matchSelect.value || detected.garmentId, { color: detected.hex, colorName: detected.colorName });
+  // 识别换衣同样要先选尺码：先落到全局尺码，再按该码建版
+  if (detectedSize) { state.size = detectedSize; renderSizes(); }
+  selectGarment(matchSelect.value || detected.garmentId);
   closePhotoModal(); resetScanUI();
   toast('照片识别换衣完成');
 });
@@ -824,10 +1452,13 @@ window.__atelier = {
   },
   applyProfile(p) {
     state.model = { ...DEFAULT_MODEL, ...p };
-    state.size = recommendSize(state.model);
+    if (!state.sizeLocked) state.size = recommendSize(state.model);
     saveProfile(state.model);
     rebuildAvatar(); renderSizes(); renderModelChip(); renderGarments();
     profileModal.classList.remove('open');
     return state.model;
   },
 };
+
+// TEMP DEBUG
+window.__A = { state, garmentGroup, avatarGroup };

@@ -42,7 +42,8 @@ body {
   flex: 0 0 68px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 16px;
   padding: 0 28px;
   background: linear-gradient(180deg, #151922 0%, #11141b 100%);
   border-bottom: 1px solid var(--border);
@@ -339,8 +340,120 @@ body {
   flex: 1;
   position: relative;
   min-width: 0;
+  display: flex;
   background:
     radial-gradient(ellipse at 50% 38%, #1d222c 0%, #12151c 55%, #0b0d12 100%);
+}
+
+/* 3D 视口：占据剩余宽度，2D 面板贴在右侧 */
+.stage-3d {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-2d {
+  width: 318px;
+  flex: 0 0 318px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  border-left: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(20, 24, 32, .92), rgba(11, 14, 19, .96));
+  min-height: 0;
+}
+
+.flat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flat-head b {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--text-dim);
+}
+
+.flat-head span {
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+.flat-canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255,255,255,.014) 1px, transparent 1px) 0 0 / 100% 26px,
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px) 0 0 / 26px 100%,
+    radial-gradient(ellipse at 50% 30%, #1a1f28 0%, #0e1116 78%);
+  overflow: hidden;
+}
+
+/* 旧的 2D 正交人台已废弃：这张画布只当离屏缓冲用（渲写实款网格），
+   永远不显示。 */
+#canvas-2d {
+  display: none;
+}
+
+/* 2D 上身图：把人像与服装合成在同一张画布上。
+   画布属性固定 1024×1536（与模特底图一致），CSS 靠 max-width/max-height
+   等比缩放并居中，这样合成时的像素坐标与底图一一对应，不需要做额外换算。 */
+.flat-canvas-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#canvas-2d-fit {
+  display: none;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+#canvas-2d-fit.on { display: block; }
+#canvas-2d-fit.on ~ .flat-empty { display: none; }
+#canvas-2d.hidden, #canvas-2d.off { display: none; }
+
+.flat-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.flat-empty.hidden { display: none; }
+
+.flat-caption {
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  min-height: 16px;
+  max-height: 46px;
+  overflow: hidden;
+}
+
+.flat-caption b {
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .stage::before {
@@ -815,9 +928,14 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ---------- 响应式 ---------- */
+@media (max-width: 1260px) {
+  .stage-2d { width: 268px; flex-basis: 268px; }
+}
+
 @media (max-width: 1080px) {
   .panel { width: 240px; flex-basis: 240px; }
   .garment-list { grid-template-columns: 1fr; }
+  .stage-2d { width: 232px; flex-basis: 232px; padding: 10px; }
 }
 
 @media (max-width: 820px) {
@@ -828,7 +946,14 @@ input[type="range"]::-moz-range-thumb {
   .wardrobe { border-right: none; border-bottom: 1px solid var(--border); }
   .garment-list { grid-template-columns: repeat(2, 1fr); max-height: 420px; }
   /* 关键：flex:1 的 basis:0 会覆盖 height，导致手机端舞台高度塌成 0，3D 模特完全不可见 */
-  .stage { flex: 0 0 460px; height: 460px; min-height: 460px; order: -1; }
+  .stage { flex: 0 0 560px; height: 560px; min-height: 560px; order: -1; flex-direction: column; }
+  .stage-3d { flex: 1 1 auto; min-height: 0; }
+  .stage-2d {
+    width: 100%; flex: 0 0 156px;
+    border-left: none; border-top: 1px solid var(--border);
+    padding: 8px 12px 10px; gap: 6px;
+  }
+  .flat-caption { max-height: 30px; }
   .controls { border-left: none; border-top: 1px solid var(--border); }
   .topbar { height: auto; min-height: 60px; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
   .topbar-actions { width: 100%; justify-content: space-between; gap: 6px; }
@@ -867,10 +992,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* 商品实拍图 */
-.db-thumb { width: 100%; height: 132px; flex: 0 0 132px; min-height: 132px; overflow: hidden; border-radius: 6px; background: #f4f1ec; }
+.db-thumb {
+  width: 100%; height: 132px; flex: 0 0 132px; min-height: 132px;
+  overflow: hidden; border-radius: 6px; background: #f4f1ec;
+}
 .db-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .garment-card.db-card {
-  padding: 8px 10px 10px; min-height: 286px;
+  padding: 8px 10px 10px; min-height: 250px;
   display: flex; flex-direction: column; gap: 5px;
 }
 .db-card-head { display: flex; justify-content: space-between; align-items: center; }
@@ -891,7 +1019,24 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid rgba(255,255,255,.18);
 }
 .db-spec { font-size: 9.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.db-price { display: flex; align-items: baseline; gap: 6px; }
+.db-thumb-fallback {
+  width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; padding: 12px;
+  background: linear-gradient(160deg, rgba(201,163,92,.10), rgba(255,255,255,.02));
+  border: 1px dashed rgba(201,163,92,.28); border-radius: 6px; text-align: center;
+}
+.db-thumb-fallback span { font-size: 15px; letter-spacing: .12em; color: #c9a35c; font-variant-numeric: tabular-nums; }
+.db-thumb-fallback b { font-size: 10.5px; font-weight: 500; color: var(--text-dim); line-height: 1.35; }
+.db-thumb-fallback i { font-size: 9px; font-style: normal; color: var(--text-faint); }
+
+.db-tag {
+  font-size: 8.5px; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px;
+  border: 1px solid currentColor; opacity: .85; white-space: nowrap;
+}
+.db-tag.archive { color: #c9a35c; }
+.db-tag.demo { color: #8fa3b8; }
+.price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
+.db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .price-eur { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
 .price-cny { font-size: 9.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 
@@ -906,12 +1051,35 @@ input[type="range"]::-moz-range-thumb {
 }
 .size-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
 .size-buttons button {
-  position: relative; flex: 1 0 auto; min-width: 46px;
-  padding: 7px 4px; font-size: 11px; font-family: inherit;
+  position: relative; flex: 1 0 auto; min-width: 58px;
+  padding: 7px 4px; font-size: 10.5px; font-family: inherit;
   background: var(--panel-2); color: var(--text-dim);
   border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
   transition: all .18s;
 }
+
+/* 手输尺码：欧码成衣同时标数字码与字母码，用户可能只记得其中一个 */
+.size-input-wrap {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px; padding: 6px 8px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px;
+}
+.size-input-wrap label {
+  flex: none; font-size: 10px; letter-spacing: .06em;
+  color: var(--text-faint); text-transform: uppercase;
+}
+#size-input {
+  flex: 1 1 auto; min-width: 0; width: 100%;
+  padding: 4px 2px; font-size: 12.5px; font-family: inherit;
+  background: transparent; border: none; outline: none;
+  color: var(--text); letter-spacing: .02em;
+}
+#size-input::placeholder { color: var(--text-faint); }
+.size-input-note {
+  flex: none; font-size: 10px; color: var(--text-faint); white-space: nowrap;
+}
+.size-input-note.ok { color: var(--accent); }
+.size-input-note.bad { color: #d4756a; white-space: normal; }
 .size-buttons button:hover { color: var(--text); border-color: var(--accent); }
 .size-buttons button.active {
   background: var(--accent); color: #14161c; font-weight: 600;
@@ -1138,3 +1306,97 @@ input[type="range"]::-moz-range-thumb {
   .profile-group:first-child .profile-field { display: block; width: 100%; margin-right: 0; }
   .profile-modal { max-height: 92vh; }
 }
+
+/* ---------- 舞台模式：2D 主视图 / 3D 独立标签 ----------
+   2D 是默认视图，占满整个舞台；3D 只在切到「3D 试衣」标签时才出现，
+   且此时 3D 渲染循环才启动（见 app.js 的 stageMode）。 */
+.stage-tabs {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(13, 16, 22, .8);
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(10px);
+}
+
+.stage-tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  padding: 5px 15px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color .16s, background .16s;
+}
+
+.stage-tabs button:hover { color: var(--text); }
+
+.stage-tabs button.active {
+  background: rgba(201, 163, 92, .16);
+  color: var(--accent);
+}
+
+#stage[data-mode="2d"] .stage-3d { display: none; }
+
+#stage[data-mode="2d"] .stage-2d {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  border-left: 0;
+  padding: 14px 16px 16px;
+}
+
+#stage[data-mode="3d"] .stage-2d { display: none; }
+
+/* 2D 占满舞台时，人像按高度撑满，横向留白居中；底部说明只留一行 */
+#stage[data-mode="2d"] .flat-canvas-wrap { border-radius: 10px; }
+
+#stage[data-mode="2d"] #canvas-2d-fit {
+  max-height: 100%;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
+}
+
+#stage[data-mode="2d"] .flat-head b { font-size: 12px; }
+
+/* 2D 模式下顶部要让出标签条的位置 */
+#stage[data-mode="2d"] .stage-2d { padding-top: 48px; }
+
+/* 2D 面板右上角的清空上身：衣服会分槽位叠着穿，
+   不在这里给一个出口，用户只能在右下角找「清空着装」。 */
+.flat-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flat-clear {
+  appearance: none;
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: color .16s, border-color .16s, background .16s;
+}
+
+.flat-clear:hover {
+  color: var(--text);
+  border-color: rgba(201, 163, 92, .5);
+  background: rgba(201, 163, 92, .12);
+}
+
+.flat-clear.hidden { display: none; }
