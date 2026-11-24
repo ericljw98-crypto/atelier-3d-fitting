@@ -176,6 +176,7 @@ const ALL = SIZES;
 export const BRANDS = [
   { id: 'DG', name: '杜嘉班纳', en: 'Dolce & Gabbana', short: 'DG' },
   { id: 'BL', name: '巴尔曼', en: 'Balmain',          short: 'BL' },
+  { id: 'SL', name: '圣罗兰', en: 'Saint Laurent',   short: 'SL' },
 ];
 
 /* 往季款（vintage）：官网当前目录已下架、但仍可购买的旧季单品。

@@ -1,15 +1,15 @@
 {
-  "versionCode": 36,
-  "versionName": "2.25",
+  "versionCode": 37,
+  "versionName": "2.26",
   "releaseDate": "2026-11-24",
-  "size": 109966798,
-  "sha256": "e4ace8e37b473f75f9ff3333ed4a22303686ca0c61444386e13c2ba517c6b57e",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk",
-  "notes": "修复 WorkBuddy 内置预览换衣不显示：根因是桌面 Chrome 的 file:// 协议下本地图片会污染 canvas，getImageData 抛 SecurityError 导致抠底整体失败、衣服完全不上身；同时内置预览只提供单个 HTML，images/ 目录不存在。改为三级图源策略——显式指定 > file:// 自动切远端 > 本地相对路径，远端走 GitHub raw（带 Access-Control-Allow-Origin:*）且 img 必须显式设 crossOrigin=anonymous 才不会污染画布；fitEnsure 去掉按协议一刀切的拦截。APK 打包时注入空基址强制走本地图，保证离线可用。尺码表加回 4XL(IT52)/5XL(IT54)，实测部分款官方平铺尺寸偏小需要更大档（同一连衣裙推荐码由 IT50 变为 IT52）。商品库 2113 款。",
+  "size": 110410081,
+  "sha256": "b916a36505201a127a56754df96d7a492471425402b6186da1bead01ddebe64f",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk",
+  "notes": "往季库扩充：新增 10 款真实在售往季款（来源均为授权经销商/寄卖平台的商品页，款号价格面料尺码取自页面原始数据）——DG TLC-121341 黑色刺绣波点薄纱裙、1STD-27411072 真丝玫瑰印花裹身衬衫、LP 条纹玫瑰印花半裙 IT46、DR281131-40 百合印花迷你裙、F0Z73TGDU47 官网在售欧根纱丛林印花风衣、F9R41T-G7K6T 白针织套装、FX153ZJASHE 浅米丝质亮片上衣、F6F3MT/FSRLJ 浅粉百合印花 cady 裙、PIN 亮片花卉贴花 cady 裙、PSH 寄卖连衣裙。新增 composite 标记：实拍图或浅色主体（抠底会被误判为背景）的款不参与 2D 合成，卡片标「仅浏览」并提示改看 3D。往季库 14 款，商品库 2123 款。",
   "apk": {
-    "size": 109966798,
-    "sha256": "e4ace8e37b473f75f9ff3333ed4a22303686ca0c61444386e13c2ba517c6b57e",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.25/ATELIER-3D-Fitting-v2.25.apk"
+    "size": 110410081,
+    "sha256": "b916a36505201a127a56754df96d7a492471425402b6186da1bead01ddebe64f",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk"
   }
 }

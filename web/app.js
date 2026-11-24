@@ -659,9 +659,11 @@ function flatDraw() {
      现在没有商品图就只显示模特底图，并在下方说明原因。 */
   /* 2D 支持同时穿上衣与下装：把所有已着装的成衣按层次合成。
      只取真正带官方商品图的款；没有图的款不参与合成（不做纯色兜底）。 */
+  /* composite:false = 该款只有实拍/杂志图，或主体颜色太浅会被抠底算法误判为背景，
+     这类款在 2D 里合成出来是错的，直接不参与合成（列表里会标注「仅浏览」）。 */
   const photoItems = wornNow
     .map(o => DB_BY_ID[o.id])
-    .filter(it => it && it.image);
+    .filter(it => it && it.image && it.composite !== false);
   const hasPhoto = photoItems.length > 0;
   if (hasPhoto) {
     fitDrawOutfit(photoItems);
@@ -682,13 +684,18 @@ function flatDraw() {
       const t = g ? ` · 成衣${it.category === 'bottoms' ? '臀围' : '胸围'} ${Math.round(g[it.category === 'bottoms' ? 'hip' : 'bust'])}cm` : '';
       return `<b>${it.code}</b> ${it.name}${t}`;
     });
+    /* 该款只有实拍/杂志图（或主体太浅、抠底会误伤）时，2D 合成结果必然是错的，
+       明确告诉用户「没有平铺图可用」，而不是让画面看起来像点了没反应。 */
+    const noFlat = leadItem && leadItem.composite === false;
     flatEls.caption.innerHTML = custom
       ? `上传照片 · 已按 ${state.size} 放码<br>2D 直接合成 · 模特 ${hcm}cm · 3D 不显示上传款`
       : (hasPhoto
         ? `${lines.join('<br>')}<br>2D 合成 · 模特 ${hcm}cm · 尺码 ${state.size}`
-        : leadItem
-          ? `<b>${leadItem.code}</b> ${leadItem.name}<br>该款没有平铺商品图，2D 不做纯色兜底 · 请切「3D 试衣」看版型`
-          : `未着装 · 模特 ${hcm}cm · 2D 底模`);
+        : noFlat
+          ? `<b>${leadItem.code}</b> ${leadItem.name}<br>该款只有实拍图，没有可用平铺图，2D 无法合成<br>请切「3D 试衣」看版型`
+          : leadItem
+            ? `<b>${leadItem.code}</b> ${leadItem.name}<br>该款没有平铺商品图，2D 不做纯色兜底 · 请切「3D 试衣」看版型`
+            : `未着装 · 模特 ${hcm}cm · 2D 底模`);
   }
 }
 /* ============================================================
@@ -1005,6 +1012,7 @@ function renderGarments() {
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ''}
+        ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ''}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
         <span class="db-fit">${item.fit}</span>
       </div>

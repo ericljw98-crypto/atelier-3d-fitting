@@ -1140,6 +1140,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .db-tag.archive { color: #c9a35c; }
 .db-tag.vintage { color: #b08c5a; }
+.db-tag.nofit { color: #8fa3b8; }
 .db-tag.demo { color: #8fa3b8; }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
 .db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
