@@ -1,15 +1,15 @@
 {
-  "versionCode": 27,
-  "versionName": "2.16",
+  "versionCode": 28,
+  "versionName": "2.17",
   "releaseDate": "2026-11-24",
-  "size": 21361273,
-  "sha256": "7968cc41ec5c4de694221a9c58e9e056f6fb745f1c31ddadb1da8e65586ce59d",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.16/ATELIER-3D-Fitting-v2.16.apk",
-  "notes": "按实测围度收窄2D模特臀腿段；按标注照收窄两侧下颌角，肩线与身体像素标定保持不变。",
+  "size": 21361581,
+  "sha256": "7c91f63ca741bc9edd7704c672c26b22e6f20ce1218656e5ff677e2bc439e6fa",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.17/ATELIER-3D-Fitting-v2.17.apk",
+  "notes": "依据两张真人参考照精修下巴与下颌线，脸型更修长；颈围数据核对无误（领围17cm对应颈围34cm）。",
   "apk": {
-    "size": 21361273,
-    "sha256": "7968cc41ec5c4de694221a9c58e9e056f6fb745f1c31ddadb1da8e65586ce59d",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.16/ATELIER-3D-Fitting-v2.16.apk",
+    "size": 21361581,
+    "sha256": "7c91f63ca741bc9edd7704c672c26b22e6f20ce1218656e5ff677e2bc439e6fa",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.17/ATELIER-3D-Fitting-v2.17.apk",
     "fallbackUrl": "https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/apk/ATELIER-3D-Fitting.apk"
   }
 }
