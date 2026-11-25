@@ -1,15 +1,15 @@
 {
-  "versionCode": 43,
-  "versionName": "3.2",
+  "versionCode": 44,
+  "versionName": "3.3",
   "releaseDate": "2026-11-25",
-  "size": 121188309,
-  "sha256": "68b350ffea450e7c49e69ae23930dfc4a09c1e7d9a05bad040df17b66d88384c",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk",
-  "notes": "v3.2：平台商品改用与杜嘉班纳库同一个 fitEngine 评分，删除独立的 platformFit 评分判据。measurements 由官方净体基准档+版型余量构造，尺码只取详情页真实在售码；星级阈值统一 78/70/60。80 分以上纳入 HIGH 库（本引擎离散档位下为 87 款三星）。",
+  "size": 121176468,
+  "sha256": "4251eb9ccb91efa24807d3b8397fe3635d275b185f847ba934eb30e3d65c64d6",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk",
+  "notes": "v3.3：修复「部位不合身却 100 分」——评分按最差部位封顶（过紧/过松≤59、偏紧/偏松≤77），三星额外要求所有参与部位合身。连衣裙强制纳入腰围判定（此前 47 件连衣裙因 hangWaist 只判胸围），腰围不合身即降级；模特胸腰差与欧码表冲突，本版连衣裙全部未达入库门槛。剔除 2 件真人模特照商品（无法当衣服图试穿）。高分库 39 款，全部三星、图片本地化。",
   "apk": {
-    "size": 121188309,
-    "sha256": "68b350ffea450e7c49e69ae23930dfc4a09c1e7d9a05bad040df17b66d88384c",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk"
+    "size": 121176468,
+    "sha256": "4251eb9ccb91efa24807d3b8397fe3635d275b185f847ba934eb30e3d65c64d6",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk"
   }
 }
