@@ -1,15 +1,15 @@
 {
-  "versionCode": 38,
-  "versionName": "2.27",
+  "versionCode": 39,
+  "versionName": "2.28",
   "releaseDate": "2026-11-25",
-  "size": 110413605,
-  "sha256": "5cdbb107a3e26b56b040d99190b6dd600f8ac8f10d370b97d24489da558995ba",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk",
-  "notes": "合身评分排序与三星满分标记（新增等级筛选）；修复3D肩袖贴合：衣身壳体法线朝内导致整体发暗、袖窿补片把袖子吞进衣身、袖山改为与肩线连续的圆弧、袖子改用同匹面料贴图；移除无商品的圣罗兰品牌页；删除往季浅粉 cady 连衣裙（图片与商品不符）",
+  "size": 110413053,
+  "sha256": "d95b4bf9aa8d1f4a57ea0643b346339708a99761710e16f69876ba4bbabcc0cb",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk",
+  "notes": "删除全部无法试穿的往季商品（仅浏览 4 款），往季页现存 9 款均可试穿；修复 WorkBuddy 预览页 3D 面料贴图不生效（file:// 判定改为按图片地址，不再整页禁用）；合身评分排序与三星满分标记；修复 3D 肩袖贴合；移除圣罗兰品牌页",
   "apk": {
-    "size": 110413605,
-    "sha256": "5cdbb107a3e26b56b040d99190b6dd600f8ac8f10d370b97d24489da558995ba",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk"
+    "size": 110413053,
+    "sha256": "d95b4bf9aa8d1f4a57ea0643b346339708a99761710e16f69876ba4bbabcc0cb",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk"
   }
 }

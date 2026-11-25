@@ -970,14 +970,22 @@ const _flatCache = new Map();
 const _texCache = new Map();
 function fabricTexOf(itemId) {
   if (_texCache.has(itemId)) return _texCache.get(itemId);
-  // file:// 下外部图片上传 WebGL 会抛安全错误；内联 data URL 不受此限制
-  if (location.protocol === 'file:' && !INLINE_IMAGES) { _texCache.set(itemId, null); return null; }
   const item = DB_BY_ID[itemId];
   const src = item && item.image;
   let tex = null;
   if (src) {
+    const url = assetURL(src);
+    /* 本地 file:// 图片画进 canvas 会污染画布，getImageData 直接抛安全错误，
+       贴图就整个做不出来。远端图（预览页统一走 raw.githubusercontent，带 CORS
+       头）不会污染，可以正常用——所以这里只看图片本身是不是本地文件，
+       不再按页面协议一刀切。 */
+    if (url.startsWith('file:') && !INLINE_IMAGES) { _texCache.set(itemId, null); return null; }
+    // 已经取到并压平过的图（可能是异步补到的），直接用
+    const ready = _flatCache.get(itemId);
     const img = document.querySelector(`.garment-card[data-id="${itemId}"] .db-photo`);
-    if (img && img.complete && img.naturalWidth > 0) {
+    if (ready) {
+      tex = new THREE.Texture(ready.canvas);
+    } else if (img && img.complete && img.naturalWidth > 0) {
       const flat = flattenShading(img);
       if (flat) {
         _flatCache.set(itemId, flat);
@@ -985,20 +993,25 @@ function fabricTexOf(itemId) {
       } else {
         tex = new THREE.Texture(img);
       }
-      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.needsUpdate = true;
     } else if (img) {
-      /* 卡片图还没解码完（懒加载刚进视口）：自己再取一次，
-         到位后重建当前这件，衣服才不会是没花色的纯色壳。 */
+      /* 卡片图还没解码完（懒加载刚进视口，或远端图还在排队）：
+         自己再取一次，带 CORS；到位后重建当前这件，
+         衣服才不会是没花色的纯色壳。 */
       const pending = new Image();
       if (REMOTE_ASSET_BASE) pending.crossOrigin = 'anonymous';
       pending.onload = () => {
-        _texCache.delete(itemId); _flatCache.delete(itemId); _solidTexCache.delete(itemId);
+        const flat = flattenShading(pending);
+        if (flat) _flatCache.set(itemId, flat);
+        _texCache.delete(itemId); _solidTexCache.delete(itemId);
         fabricTexOf(itemId);
         refreshGarmentTexture(itemId);
       };
       pending.src = assetURL(src);
+    }
+    if (tex) {
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
     }
   }
   _texCache.set(itemId, tex);
