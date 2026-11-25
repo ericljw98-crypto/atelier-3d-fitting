@@ -1096,6 +1096,13 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(176, 140, 90, .16); border-color: #b08c5a; color: #cfa96f;
 }
 
+/* 高分服饰页：奢侈品牌里合身 90 分以上的款，用冷金描边区分 */
+.brand-tab.high { color: #9db4c8; }
+.brand-tab.high b { font-size: 10px; letter-spacing: .04em; }
+.brand-tab.high.active {
+  background: rgba(157, 180, 200, .14); border-color: #9db4c8; color: #cfe0ef;
+}
+
 /* 商品实拍图 */
 .db-thumb {
   width: 100%; height: 132px; flex: 0 0 132px; min-height: 132px;

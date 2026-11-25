@@ -1103,6 +1103,13 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(176, 140, 90, .16); border-color: #b08c5a; color: #cfa96f;
 }
 
+/* 高分服饰页：奢侈品牌里合身 90 分以上的款，用冷金描边区分 */
+.brand-tab.high { color: #9db4c8; }
+.brand-tab.high b { font-size: 10px; letter-spacing: .04em; }
+.brand-tab.high.active {
+  background: rgba(157, 180, 200, .14); border-color: #9db4c8; color: #cfe0ef;
+}
+
 /* 商品实拍图 */
 .db-thumb {
   width: 100%; height: 132px; flex: 0 0 132px; min-height: 132px;
@@ -1606,6 +1613,10 @@ input[type="range"]::-moz-range-thumb {
             <select id="filter-grade" aria-label="按合身等级筛选">
               <option value="">全部</option>
             </select>
+          </label>
+          <label class="filter-sel" id="filter-pbrand-wrap" hidden>
+            <span class="filter-label">品牌</span>
+            <select id="filter-pbrand" aria-label="按品牌筛选"></select>
           </label>
         </div>
         <button class="photo-entry" id="btn-photo-upload">
@@ -32349,6 +32360,177 @@ input[type="range"]::-moz-range-thumb {
     { id: "dg-F0Z73TGDU47HN1RK", code: "F0Z73TGDU47_HN1RK", name: "欧根纱丛林印花风衣", nameEn: "Organza trench coat with jungle forest print", brand: "DG", category: "outer", style: "风衣", silhouette: "oversize", fit: "宽松", season: "Past Season", collection: "Vintage", fabric: "欧根纱", colorName: "多色", colorHex: "#4b5340", measurements: { "bust": 98, "waist": 78, "hip": 104, "shoulder": 42, "sleeve": 62, "length": 130 }, ease: { "bust": 12, "waist": 12, "hip": 12, "shoulder": 1 }, priceEUR: 3800, priceCNY: 29400, priceNote: "官网在售 · 32500 HKD（≈€3800）", image: "images/dg-F0Z73TGDU47HN1RK.jpg", images: ["images/dg-F0Z73TGDU47HN1RK.jpg"], url: "https://www.dolcegabbana.com/zh-hk/collection-1/organza-trench-coat-with-jungle-forest-print-158057155067503.html", source: "Dolce & Gabbana 官方网站", vintage: true, composite: true }
   ];
 
+  // 3d-fitting-room/premiumCatalog.js
+  var PREMIUM_CATALOG = [
+    {
+      "id": "px-HE-H001132E03S",
+      "code": "H001132E 03S",
+      "name": "Cavale zipped sweatshirt",
+      "nameEn": "Cavale Zipped Sweatshirt H001132Ev03S",
+      "brand": "HE",
+      "category": "tops",
+      "style": "衬衫",
+      "silhouette": "straight",
+      "fit": "直筒",
+      "season": "Current",
+      "collection": "High Fit",
+      "fabric": "官方商品页",
+      "colorName": "官方配色",
+      "colorHex": "#8b8b8b",
+      "measurements": {
+        "bust": 98,
+        "waist": 94,
+        "shoulder": 41,
+        "cat": "tops",
+        "length": 66,
+        "sleeve": 20
+      },
+      "ease": {
+        "bust": 8,
+        "waist": 22,
+        "shoulder": 0
+      },
+      "priceEUR": 1991,
+      "priceCNY": 15530,
+      "priceNote": "官网 CZK 52 400",
+      "image": "https://assets.hermes.com/is/image/hermesproduct/001132E%2003_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$",
+      "images": [
+        "https://assets.hermes.com/is/image/hermesproduct/001132E%2003_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$"
+      ],
+      "url": "https://www.hermes.com/cz/en/product/cavale-zipped-sweatshirt-H001132Ev03S/",
+      "source": "爱马仕 官方网站",
+      "premium": true,
+      "photoCut": true,
+      "composite": true,
+      "fitScore": 63,
+      "fitSize": "IT 46",
+      "recSize": "IT 46"
+    },
+    {
+      "id": "px-HE-H072025HA01XS",
+      "code": "H072025HA01XS",
+      "name": '"H" embroidered T-shirt',
+      "nameEn": "H Embroidered T Shirt H072025HA01",
+      "brand": "HE",
+      "category": "tops",
+      "style": "衬衫",
+      "silhouette": "straight",
+      "fit": "直筒",
+      "season": "Current",
+      "collection": "High Fit",
+      "fabric": "官方商品页",
+      "colorName": "官方配色",
+      "colorHex": "#8b8b8b",
+      "measurements": {
+        "bust": 98,
+        "waist": 94,
+        "shoulder": 41,
+        "cat": "tops",
+        "length": 66,
+        "sleeve": 20
+      },
+      "ease": {
+        "bust": 8,
+        "waist": 22,
+        "shoulder": 0
+      },
+      "priceEUR": 353,
+      "priceCNY": 2753,
+      "priceNote": "官网 CZK 9 300",
+      "image": "https://assets.hermes.com/is/image/hermesproduct/072025HA01_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$",
+      "images": [
+        "https://assets.hermes.com/is/image/hermesproduct/072025HA01_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$"
+      ],
+      "url": "https://www.hermes.com/cz/en/product/h-embroidered-t-shirt-H072025HA01/",
+      "source": "爱马仕 官方网站",
+      "premium": true,
+      "photoCut": true,
+      "composite": true,
+      "fitScore": 63,
+      "fitSize": "IT 46",
+      "recSize": "IT 46"
+    },
+    {
+      "id": "px-HE-H661140H30148",
+      "code": "H661140H30148",
+      "name": "Emile cashmere coat with leather details",
+      "nameEn": "Emile Cashmere Coat With Leather Details H661140H301",
+      "brand": "HE",
+      "category": "outer",
+      "style": "大衣",
+      "silhouette": "straight",
+      "fit": "直筒",
+      "season": "Current",
+      "collection": "High Fit",
+      "fabric": "官方商品页",
+      "colorName": "官方配色",
+      "colorHex": "#8b8b8b",
+      "measurements": {
+        "bust": 104,
+        "waist": 100,
+        "shoulder": 44,
+        "cat": "outer",
+        "length": 118,
+        "sleeve": 20
+      },
+      "ease": {
+        "bust": 14,
+        "waist": 28,
+        "shoulder": 0
+      },
+      "priceEUR": 5966,
+      "priceCNY": 46535,
+      "priceNote": "官网 CZK 157 000",
+      "image": "https://assets.hermes.com/is/image/hermesproduct/661140H301_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$",
+      "images": [
+        "https://assets.hermes.com/is/image/hermesproduct/661140H301_worn_101?wid=240&hei=320&fit=fit&$product_default_bg$"
+      ],
+      "url": "https://www.hermes.com/cz/en/product/emile-cashmere-coat-with-leather-details-H661140H301/",
+      "source": "爱马仕 官方网站",
+      "premium": true,
+      "photoCut": true,
+      "composite": true,
+      "fitScore": 77,
+      "fitSize": "IT 46",
+      "recSize": "IT 46"
+    }
+  ];
+
+  // 3d-fitting-room/premiumBrands.js
+  var PREMIUM_BRANDS = [
+    { id: "CH", name: "香奈儿", en: "Chanel", short: "CH", scheme: "fr" },
+    { id: "DI", name: "迪奥", en: "Dior", short: "DI", scheme: "fr" },
+    { id: "GI", name: "纪梵希", en: "Givenchy", short: "GI", scheme: "fr" },
+    { id: "YS", name: "圣罗兰", en: "Saint Laurent", short: "YS", scheme: "fr" },
+    { id: "GU", name: "古驰", en: "Gucci", short: "GU", scheme: "it" },
+    { id: "PR", name: "普拉达", en: "Prada", short: "PR", scheme: "it" },
+    { id: "LV", name: "路易威登", en: "Louis Vuitton", short: "LV", scheme: "it" },
+    { id: "BU", name: "博柏利", en: "Burberry", short: "BU", scheme: "it" },
+    { id: "VA", name: "华伦天奴", en: "Valentino", short: "VA", scheme: "it" },
+    { id: "VS", name: "范思哲", en: "Versace", short: "VS", scheme: "it" },
+    { id: "FE", name: "芬迪", en: "Fendi", short: "FE", scheme: "it" },
+    { id: "ZE", name: "杰尼亚", en: "Zegna", short: "ZE", scheme: "it" },
+    { id: "LO", name: "罗意威", en: "Loewe", short: "LO", scheme: "it" },
+    { id: "BV", name: "葆蝶家", en: "Bottega Veneta", short: "BV", scheme: "it" },
+    { id: "HE", name: "爱马仕", en: "Hermès", short: "HE", scheme: "hermes" }
+  ];
+  var PREMIUM_TAB = {
+    id: "HI",
+    name: "高分服饰",
+    en: "High Fit",
+    short: "HIGH",
+    isPremium: true
+  };
+  var FR_OF_IT = { 38: 34, 40: 36, 42: 38, 44: 40, 46: 42, 48: 44, 50: 46, 52: 48, 54: 50 };
+  var HERMES_OF_IT = { 38: 34, 40: 35, 42: 36, 44: 37, 46: 38, 48: 39, 50: 40, 52: 42, 54: 44 };
+  function premiumSizeLabel(brandId, itNum) {
+    const b = PREMIUM_BRANDS.find((x) => x.id === brandId);
+    const scheme = b ? b.scheme : "it";
+    if (scheme === "fr") return "FR " + (FR_OF_IT[itNum] || itNum);
+    if (scheme === "hermes") return String(HERMES_OF_IT[itNum] || itNum);
+    return "IT " + itNum;
+  }
+
   // 3d-fitting-room/data.js
   var SIZE_CHART = {
     "IT 38": { bust: 83, waist: 65, hip: 91, height: [158, 172], label: "XS" },
@@ -32438,9 +32620,9 @@ input[type="range"]::-moz-range-thumb {
   ];
   var VINTAGE_BRAND = {
     id: "VT",
-    name: "往季精选",
-    en: "Vintage",
-    short: "VINTAGE",
+    name: "vintage",
+    en: "vintage",
+    short: "vintage",
     isVintage: true
   };
   var NON_APPAREL = /\b(handbag|bag|tote|clutch|pouch|backpack|wallet|card holder|belt bag|perfume|parfum|eau de|fragrance|candle|sunglasses|eyewear|eyeglasses|sneakers?|sandals?|boots?|loafers?|pumps?|heels?|necklace|earrings?|bracelet|ring|watch|scarf|shawl|gloves?|tights|socks?)\b/i;
@@ -32479,6 +32661,12 @@ input[type="range"]::-moz-range-thumb {
   };
   var DB = mergeById(
     buildRealDB(PALETTE, ALL),
+    PREMIUM_CATALOG.map((it) => ({
+      ...it,
+      nameEn: it.nameEn || it.name,
+      colors: [{ name: it.colorName, hex: it.colorHex }],
+      sizes: ALL
+    })),
     DG_CATALOG.map((it) => ({
       ...it,
       nameEn: it.nameEn || it.name,
@@ -36185,7 +36373,7 @@ input[type="range"]::-moz-range-thumb {
         const handU = S.handU != null ? S.handU : S.shoulderU - S.armLen / S.H;
         const t = Math.min(1, Math.max(0, (S.shoulderU - y) / Math.max(0.05, S.shoulderU - handU)));
         const side = col.getZ(v) > 0.5 ? 1 : -1;
-        arr[i] -= side * 0.03 * Math.pow(t, 0.7);
+        arr[i] -= side * 0.012 * Math.pow(t, 0.7);
       }
     }
     pos.needsUpdate = true;
@@ -36334,6 +36522,10 @@ input[type="range"]::-moz-range-thumb {
   function garmentMeasurements(itemId, size, model) {
     const item = DB_BY_ID[itemId];
     if (!item) return null;
+    return garmentMeasurementsOf(item, size, model);
+  }
+  function garmentMeasurementsOf(item, size, model) {
+    if (!item) return null;
     const M = item.measurements || {};
     const out = {};
     ["bust", "waist", "hip", "shoulder"].forEach((part) => {
@@ -36365,7 +36557,11 @@ input[type="range"]::-moz-range-thumb {
   function evaluateFit(itemId, size, model) {
     const item = DB_BY_ID[itemId];
     if (!item || !model) return null;
-    const gm = garmentMeasurements(itemId, size, model) || {};
+    return evaluateItem(item, size, model);
+  }
+  function evaluateItem(item, size, model) {
+    if (!item || !model) return null;
+    const gm = garmentMeasurementsOf(item, size, model) || {};
     const ease = fitEase(item);
     const details = [];
     let totalScore = 0;
@@ -36419,12 +36615,12 @@ input[type="range"]::-moz-range-thumb {
       level = "loose";
       verdict = "略松";
     }
-    const recommendation = recommendSizeForItem(itemId, model);
+    const recommendation = recommendSizeForItem(item.id, model);
     const summary = buildSummary(verdict, details, recommendation);
-    return { score, level, verdict, parts: details, recommendation, summary, size, itemId };
+    return { score, level, verdict, parts: details, recommendation, summary, size, itemId: item.id };
   }
   function maxDeviation(item, size, model) {
-    const gm = garmentMeasurements(item.id, size, model) || {};
+    const gm = garmentMeasurementsOf(item, size, model) || {};
     const ease = fitEase(item);
     let worst = 0;
     fitParts(item).forEach((part) => {
@@ -36438,12 +36634,16 @@ input[type="range"]::-moz-range-thumb {
   function bestFitForItem(itemId, model) {
     const item = DB_BY_ID[itemId];
     if (!item) return null;
+    return bestFitOf(item, model);
+  }
+  function bestFitOf(item, model) {
+    if (!item) return null;
     const key2 = `${item.category}|${JSON.stringify(item.measurements || {})}|${JSON.stringify(item.ease || null)}`;
     if (_bestFitCache.has(key2)) return _bestFitCache.get(key2);
     const sizes = item.sizes && item.sizes.length ? item.sizes : SIZES;
     let best = null;
     sizes.forEach((size) => {
-      const r = evaluateFit(itemId, size, model);
+      const r = evaluateItem(item, size, model);
       if (r && (!best || r.score > best.score)) best = r;
     });
     _bestFitCache.set(key2, best);
@@ -36467,6 +36667,10 @@ input[type="range"]::-moz-range-thumb {
   }
   function recommendSizeForItem(itemId, model) {
     const item = DB_BY_ID[itemId];
+    if (!item || !model) return fitSizeForModel(model);
+    return recommendSizeOf(item, model);
+  }
+  function recommendSizeOf(item, model) {
     if (!item || !model) return fitSizeForModel(model);
     const sizes = item.sizes && item.sizes.length ? item.sizes : SIZES;
     let best = null, bestDev = Infinity;
@@ -37285,8 +37489,10 @@ input[type="range"]::-moz-range-thumb {
     // 颜色筛选
     filterStyle: "",
     // 款式（版型）筛选
-    filterGrade: ""
+    filterGrade: "",
     // 合身等级筛选（3/2/1 星）
+    filterPBrand: ""
+    // 高分服饰页里的品牌筛选
   };
   function saveProfile(p) {
     try {
@@ -37422,6 +37628,64 @@ input[type="range"]::-moz-range-thumb {
     }
     return fitLoading;
   }
+  function backgroundModel(p, w, h) {
+    const buckets = /* @__PURE__ */ new Map();
+    const ring2 = [];
+    const push = (x, y) => {
+      const i = (y * w + x) * 4;
+      const key2 = p[i] >> 4 << 8 | p[i + 1] >> 4 << 4 | p[i + 2] >> 4;
+      let b = buckets.get(key2);
+      if (!b) {
+        b = [0, 0, 0, 0];
+        buckets.set(key2, b);
+      }
+      b[0] += p[i];
+      b[1] += p[i + 1];
+      b[2] += p[i + 2];
+      b[3]++;
+      ring2.push(i);
+    };
+    for (let x = 0; x < w; x++) {
+      push(x, 0);
+      push(x, 1);
+      push(x, h - 1);
+      push(x, h - 2);
+    }
+    for (let y = 2; y < h - 2; y++) {
+      push(0, y);
+      push(1, y);
+      push(w - 1, y);
+      push(w - 2, y);
+    }
+    if (!ring2.length) return null;
+    const sorted = [...buckets.entries()].sort((a, b) => b[1][3] - a[1][3]);
+    const total = ring2.length;
+    const bg = [];
+    let acc = 0;
+    for (const [, b] of sorted) {
+      bg.push([b[0] / b[3], b[1] / b[3], b[2] / b[3]]);
+      acc += b[3];
+      if (acc >= total * 0.65) break;
+    }
+    let dev = 0, n = 0;
+    for (const i of ring2) {
+      let best = 1e9;
+      for (const c of bg) {
+        const d = Math.abs(p[i] - c[0]) + Math.abs(p[i + 1] - c[1]) + Math.abs(p[i + 2] - c[2]);
+        if (d < best) best = d;
+      }
+      dev += best;
+      n++;
+    }
+    const mean = n ? dev / n : 20;
+    return { bg, tol: Math.max(24, Math.min(72, mean * 2.2 + 16)) };
+  }
+  function isSkinPixel(r, g, b) {
+    const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const Cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+    const Cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+    return Y > 55 && Cb >= 76 && Cb <= 128 && Cr >= 132 && Cr <= 178 && r > g && g >= b - 6;
+  }
   function cutGarment(img, uploaded = false, item = null) {
     const w = img.naturalWidth, h = img.naturalHeight;
     if (!w || !h) return null;
@@ -37437,29 +37701,46 @@ input[type="range"]::-moz-range-thumb {
       return null;
     }
     const p = data.data;
-    const isBg = (i) => p[i] >= 200 && p[i + 1] >= 200 && p[i + 2] >= 200 && Math.abs(p[i] - p[i + 2]) < 16;
     const seen = new Uint8Array(w * h);
-    const stack = [];
-    const seed = (px, py) => {
-      const i = py * w + px;
-      if (seen[i] || !isBg(i * 4)) return;
-      seen[i] = 1;
-      stack.push(i);
-    };
-    for (let px = 0; px < w; px++) {
-      seed(px, 0);
-      seed(px, h - 1);
-    }
-    for (let py = 0; py < h; py++) {
-      seed(0, py);
-      seed(w - 1, py);
-    }
-    while (stack.length) {
-      const i = stack.pop(), px = i % w, py = i / w | 0;
-      if (px > 0) seed(px - 1, py);
-      if (px < w - 1) seed(px + 1, py);
-      if (py > 0) seed(px, py - 1);
-      if (py < h - 1) seed(px, py + 1);
+    {
+      const model = backgroundModel(p, w, h);
+      const stack = [];
+      const isLightBg = (j) => p[j] >= 200 && p[j + 1] >= 200 && p[j + 2] >= 200 && Math.abs(p[j] - p[j + 2]) < 16;
+      const nearBg = (j) => {
+        if (!model) return false;
+        for (const c2 of model.bg) {
+          const d = Math.abs(p[j] - c2[0]) + Math.abs(p[j + 1] - c2[1]) + Math.abs(p[j + 2] - c2[2]);
+          if (d <= model.tol) return true;
+        }
+        return false;
+      };
+      const seed = (px, py) => {
+        const i = py * w + px;
+        if (seen[i]) return;
+        const j = i * 4;
+        if (!isLightBg(j) && !nearBg(j)) return;
+        seen[i] = 1;
+        stack.push(i);
+      };
+      for (let px = 0; px < w; px++) {
+        seed(px, 0);
+        seed(px, 1);
+        seed(px, h - 1);
+        seed(px, h - 2);
+      }
+      for (let py = 2; py < h - 2; py++) {
+        seed(0, py);
+        seed(1, py);
+        seed(w - 1, py);
+        seed(w - 2, py);
+      }
+      while (stack.length) {
+        const i = stack.pop(), px = i % w, py = i / w | 0;
+        if (px > 0) seed(px - 1, py);
+        if (px < w - 1) seed(px + 1, py);
+        if (py > 0) seed(px, py - w);
+        if (py < h - 1) seed(px, py + w);
+      }
     }
     let py0 = h, py1 = -1;
     for (let py = 0; py < h; py++) {
@@ -37471,16 +37752,97 @@ input[type="range"]::-moz-range-thumb {
     }
     if (py1 < 0) return null;
     if (uploaded) {
-      const headBottom = py0 + (py1 - py0) * 0.3;
+      const darkMask = new Uint8Array(w * h);
+      {
+        const stack = [];
+        const isDark = (j) => {
+          const l = 0.299 * p[j] + 0.587 * p[j + 1] + 0.114 * p[j + 2];
+          return l < 108;
+        };
+        let fx0 = w, fx1 = -1, fy0 = h, fy1 = -1;
+        for (let py = 0; py < h; py++) {
+          let lo = -1, hi = -1;
+          for (let px = 0; px < w; px++) {
+            if (seen[py * w + px]) continue;
+            if (lo < 0) lo = px;
+            hi = px;
+          }
+          if (lo < 0) continue;
+          if (fy0 === h) {
+            fy0 = py;
+            fx0 = lo;
+            fx1 = hi;
+          }
+          fy1 = py;
+        }
+        let maxW = 0;
+        for (let py = fy0; py <= fy1; py++) {
+          let lo = -1, hi = -1;
+          for (let px = 0; px < w; px++) {
+            if (seen[py * w + px]) continue;
+            if (lo < 0) lo = px;
+            hi = px;
+          }
+          if (lo >= 0 && hi - lo + 1 > maxW) maxW = hi - lo + 1;
+        }
+        const topW = fx1 - fx0 + 1;
+        const headLike = maxW > 0 && topW < maxW * 0.62;
+        let zoneBot = fy0;
+        for (let py = fy0; py <= fy1; py++) {
+          let lo = -1, hi = -1;
+          for (let px = 0; px < w; px++) {
+            if (seen[py * w + px]) continue;
+            if (lo < 0) lo = px;
+            hi = px;
+          }
+          if (lo >= 0 && hi - lo + 1 > maxW * 0.45) {
+            zoneBot = py;
+            break;
+          }
+          zoneBot = py;
+        }
+        if (headLike) {
+          for (let py = fy0; py <= zoneBot; py++) {
+            for (let px = 0; px < w; px++) {
+              const i = py * w + px, j = i * 4;
+              if (seen[i] || darkMask[i] || !isDark(j)) continue;
+              darkMask[i] = 1;
+              stack.push(i);
+            }
+          }
+          while (stack.length) {
+            const i = stack.pop(), px = i % w, py = i / w | 0;
+            const nb = [
+              px > 0 ? i - 1 : -1,
+              px < w - 1 ? i + 1 : -1,
+              py > 0 ? i - w : -1,
+              py < h - 1 ? i + w : -1
+            ];
+            for (const kk of nb) {
+              if (kk < 0 || seen[kk] || darkMask[kk] || !isDark(kk * 4)) continue;
+              darkMask[kk] = 1;
+              stack.push(kk);
+            }
+          }
+          let over = 0;
+          for (let py = zoneBot + 1; py < h; py++) {
+            for (let px = 0; px < w; px++) if (darkMask[py * w + px]) {
+              over = 1;
+              break;
+            }
+            if (over) break;
+          }
+          let dm2 = 0;
+          for (let i2 = 0; i2 < darkMask.length; i2++) dm2 += darkMask[i2];
+          if (over) darkMask.fill(0);
+        }
+      }
       for (let py = py0; py <= py1; py++) {
         for (let px = 0; px < w; px++) {
           const i = py * w + px, j = i * 4;
           if (seen[i]) continue;
           const r = p[j], g = p[j + 1], b = p[j + 2];
-          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-          const skin = r > 95 && g > 40 && b > 20 && mx - mn > 15 && Math.abs(r - g) > 15 && r > g && r > b && r / Math.max(g, 1) > 1.08;
-          const hair = py < headBottom && r < 105 && g < 105 && b < 105;
-          if (skin || hair) {
+          if (isSkinPixel(r, g, b) || darkMask[i]) {
             seen[i] = 1;
             p[j + 3] = 0;
           }
@@ -37670,7 +38032,7 @@ input[type="range"]::-moz-range-thumb {
     if (!item || !item.image) return null;
     let job = fitCache.cuts.get(item.id);
     if (!job) {
-      job = loadImg(item.image).then((img) => cutGarment(img, item.id === "__upload__", item)).catch(() => null);
+      job = loadImg(item.image).then((img) => cutGarment(img, item.id === "__upload__" || item.photoCut, item)).catch(() => null);
       fitCache.cuts.set(item.id, job);
     }
     return job;
@@ -37890,7 +38252,9 @@ input[type="range"]::-moz-range-thumb {
     searchClear: document.getElementById("search-clear"),
     filterColor: document.getElementById("filter-color"),
     filterStyle: document.getElementById("filter-style"),
-    filterGrade: document.getElementById("filter-grade")
+    filterGrade: document.getElementById("filter-grade"),
+    filterPBrand: document.getElementById("filter-pbrand"),
+    filterPBrandWrap: document.getElementById("filter-pbrand-wrap")
   };
   if (els2.searchInput) {
     els2.searchInput.addEventListener("input", () => {
@@ -37913,7 +38277,7 @@ input[type="range"]::-moz-range-thumb {
     });
   }
   function renderFilterOptions() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const opts = filterOptions();
     if (els2.filterColor) {
       const cur = state.filterColor;
@@ -37927,12 +38291,24 @@ input[type="range"]::-moz-range-thumb {
       els2.filterStyle.value = cur;
       (_b = els2.filterStyle.closest(".filter-sel")) == null ? void 0 : _b.classList.toggle("has-value", !!cur);
     }
+    if (els2.filterPBrand) {
+      const cur = state.filterPBrand;
+      const counts = /* @__PURE__ */ new Map();
+      DB.forEach((g) => {
+        if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1);
+      });
+      const list = PREMIUM_BRANDS.filter((b) => counts.get(b.id));
+      els2.filterPBrand.innerHTML = `<option value="">全部品牌</option>` + list.map((b) => `<option value="${b.id}">${b.name} (${counts.get(b.id)})</option>`).join("");
+      els2.filterPBrand.value = cur;
+      (_c = els2.filterPBrand.closest(".filter-sel")) == null ? void 0 : _c.classList.toggle("has-value", !!cur);
+      if (els2.filterPBrandWrap) els2.filterPBrandWrap.hidden = state.brand !== PREMIUM_TAB.id;
+    }
     if (els2.filterGrade) {
       const cur = state.filterGrade;
       const c = opts.grades;
       els2.filterGrade.innerHTML = `<option value="">全部等级</option>` + [3, 2, 1].map((s) => `<option value="${s}">${STAR_TEXT[s]} (${c[s] || 0})</option>`).join("");
       els2.filterGrade.value = cur;
-      (_c = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _c.classList.toggle("has-value", !!cur);
+      (_d = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _d.classList.toggle("has-value", !!cur);
     }
   }
   if (els2.filterColor) {
@@ -37952,6 +38328,13 @@ input[type="range"]::-moz-range-thumb {
   if (els2.filterGrade) {
     els2.filterGrade.addEventListener("change", () => {
       state.filterGrade = els2.filterGrade.value;
+      renderFilterOptions();
+      renderGarments();
+    });
+  }
+  if (els2.filterPBrand) {
+    els2.filterPBrand.addEventListener("change", () => {
+      state.filterPBrand = els2.filterPBrand.value;
       renderFilterOptions();
       renderGarments();
     });
@@ -38129,6 +38512,9 @@ input[type="range"]::-moz-range-thumb {
   }
   function currentBrandItems() {
     if (state.brand === VINTAGE_BRAND.id) return DB.filter((g) => g.vintage);
+    if (state.brand === PREMIUM_TAB.id) {
+      return DB.filter((g) => g.premium);
+    }
     return DB.filter((g) => g.brand === state.brand && !g.vintage);
   }
   function clearSearch() {
@@ -38137,21 +38523,26 @@ input[type="range"]::-moz-range-thumb {
     if (els2.searchClear) els2.searchClear.hidden = true;
   }
   function clearFilters() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     state.filterColor = "";
     state.filterStyle = "";
     state.filterGrade = "";
+    state.filterPBrand = "";
+    if (els2.filterPBrand) {
+      els2.filterPBrand.value = "";
+      (_a = els2.filterPBrand.closest(".filter-sel")) == null ? void 0 : _a.classList.remove("has-value");
+    }
     if (els2.filterColor) {
       els2.filterColor.value = "";
-      (_a = els2.filterColor.closest(".filter-sel")) == null ? void 0 : _a.classList.remove("has-value");
+      (_b = els2.filterColor.closest(".filter-sel")) == null ? void 0 : _b.classList.remove("has-value");
     }
     if (els2.filterStyle) {
       els2.filterStyle.value = "";
-      (_b = els2.filterStyle.closest(".filter-sel")) == null ? void 0 : _b.classList.remove("has-value");
+      (_c = els2.filterStyle.closest(".filter-sel")) == null ? void 0 : _c.classList.remove("has-value");
     }
     if (els2.filterGrade) {
       els2.filterGrade.value = "";
-      (_c = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _c.classList.remove("has-value");
+      (_d = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _d.classList.remove("has-value");
     }
   }
   var _gradeCache = /* @__PURE__ */ new Map();
@@ -38176,14 +38567,16 @@ input[type="range"]::-moz-range-thumb {
     const fc = state.filterColor || "";
     const fst = state.filterStyle || "";
     const fg = state.filterGrade || "";
-    if (!q && !fc && !fst && !fg) return currentBrandItems().filter((g) => g.category === state.category);
+    const fb = state.filterPBrand || "";
+    if (!q && !fc && !fst && !fg && !fb) return currentBrandItems().filter((g) => g.category === state.category);
     const terms = q.split(/\s+/).filter(Boolean);
     const catName = Object.fromEntries(DB_CATEGORIES.map((c) => [c.id, c.name + " " + c.en]));
-    const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map((b) => [b.id, `${b.name} ${b.en} ${b.short}`]));
+    const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND, ...PREMIUM_BRANDS].map((b) => [b.id, `${b.name} ${b.en} ${b.short}`]));
     return DB.filter((g) => {
       if (fc && !(g.colors || []).some((c) => c.name === fc)) return false;
       if (fst && g.style !== fst) return false;
       if (fg && String(gradeOf(g).stars) !== fg) return false;
+      if (fb && g.brand !== fb) return false;
       const hay = [
         g.name,
         g.nameEn,
@@ -38220,23 +38613,31 @@ input[type="range"]::-moz-range-thumb {
   }
   function renderBrands() {
     if (!els2.brands) return;
-    const all = [...BRANDS, VINTAGE_BRAND];
-    els2.brands.innerHTML = all.map(
-      (b) => `<button class="brand-tab ${b.id === state.brand ? "active" : ""}${b.isVintage ? " vintage" : ""}" data-brand="${b.id}">
-       <b>${b.short}</b><span>${b.name}</span>
-     </button>`
-    ).join("");
+    const all = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND];
+    els2.brands.innerHTML = all.map((b) => {
+      const cls = `brand-tab ${b.id === state.brand ? "active" : ""}${b.isVintage ? " vintage" : ""}${b.isPremium ? " high" : ""}`;
+      const inner = `<b>${b.short}</b>`;
+      return `<button class="${cls}" data-brand="${b.id}">${inner}</button>`;
+    }).join("");
     els2.brands.querySelectorAll(".brand-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.brand = btn.dataset.brand;
         clearSearch();
         clearFilters();
-        const b = [...BRANDS, VINTAGE_BRAND].find((x) => x.id === state.brand);
-        els2.wardrobeTitle.textContent = b.isVintage ? b.name : `${b.name}女装`;
+        const b = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND].find((x) => x.id === state.brand);
+        if (b.isPremium) {
+          const counts = DB_CATEGORIES.map((c) => ({ id: c.id, n: DB.filter((g) => g.premium && g.category === c.id).length }));
+          if (!counts.some((c) => c.id === state.category && c.n > 0)) {
+            const best = counts.sort((a, b2) => b2.n - a.n)[0];
+            if (best && best.n > 0) state.category = best.id;
+          }
+        }
+        els2.wardrobeTitle.textContent = b.isVintage ? b.name : b.isPremium ? b.name : `${b.name}女装`;
         els2.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
         renderBrands();
         renderCategories();
         renderGarments();
+        renderFilterOptions();
         renderSizes();
         syncSizeControls();
       });
@@ -38285,7 +38686,7 @@ input[type="range"]::-moz-range-thumb {
     }
     els2.list.innerHTML = items.map((item) => {
       const chosen = Object.values(state.outfit).some((o) => o && o.id === item.id);
-      const brand = [...BRANDS, VINTAGE_BRAND].find((b) => b.id === item.brand) || (item.vintage ? { short: "VINTAGE", name: "往季" } : null);
+      const brand = [...BRANDS, VINTAGE_BRAND].find((b) => b.id === item.brand) || (item.vintage ? { short: "VINTAGE", name: "vintage" } : null);
       const cat = DB_CATEGORIES.find((c) => c.id === item.category);
       return `<div class="garment-card db-card ${chosen ? "selected" : ""} ${gradeOf(item).stars === 3 ? "is-perfect" : ""}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -38295,13 +38696,13 @@ input[type="range"]::-moz-range-thumb {
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         ${starBadge(item)}
-        ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ""}
+        ${item.vintage ? `<span class="db-tag vintage">Vintage</span>` : ""}
         ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ""}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ""}</span>` : ""}
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${item.fabric}${searching || filtering ? ` · ${brand ? brand.short : item.brand} · ${cat ? cat.name : item.category}` : ""}</div>
+      <div class="db-meta">${item.fabric}${searching || filtering || item.premium ? ` · ${item.premium ? (PREMIUM_BRANDS.find((b) => b.id === item.brand) || { short: item.brand }).name : brand ? brand.short : item.brand} · ${cat ? cat.name : item.category}` : ""}</div>
       <div class="db-price">${priceMarkup(item)}</div>
       <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
@@ -38310,7 +38711,13 @@ input[type="range"]::-moz-range-thumb {
       card.addEventListener("click", () => selectGarment(card.dataset.id));
     });
     if (els2.wardrobeSub) {
-      els2.wardrobeSub.textContent = searching || filtering ? `${scope()} · ${items.length} 款（全品牌全品类）` : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
+      if (state.brand === PREMIUM_TAB.id && !filtering) {
+        const over90 = matched.filter((i) => gradeOf(i).score >= 90).length;
+        const best = matched.reduce((m, i) => Math.max(m, gradeOf(i).score), 0);
+        els2.wardrobeSub.textContent = `${matched.length} 款 · 奢侈品牌女装 · 90 分以上 ${over90} 款 · 当前最高 ${best} 分`;
+      } else {
+        els2.wardrobeSub.textContent = searching || filtering ? `${scope()} · ${items.length} 款（全品牌全品类）` : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
+      }
     }
   }
   function renderColors() {
@@ -38326,6 +38733,12 @@ input[type="range"]::-moz-range-thumb {
   function sizeText(size) {
     const n = sizeNumber(size);
     const l = sizeLetter(size);
+    const wornIds = Object.values(state.outfit).filter(Boolean).map((o) => o.id);
+    const worn = wornIds.map((id) => DB_BY_ID[id]).find((it) => it && it.premium);
+    if (worn) {
+      const lab = premiumSizeLabel(worn.brand, n);
+      return l ? `${lab} · ${l}` : lab;
+    }
     if (state.brand === "BL") {
       const fr = IT_TO_FR[n];
       return fr != null ? `FR ${fr} · ${l}` : l ? `${n} · ${l}` : String(n ?? size);

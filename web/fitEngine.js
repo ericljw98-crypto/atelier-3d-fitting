@@ -77,6 +77,14 @@ function gradeRatio(size, part) {
 export function garmentMeasurements(itemId, size, model) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
+  return garmentMeasurementsOf(item, size, model);
+}
+
+/** 同一套计算，但接受一个「脱离数据库的商品对象」——
+    高分服饰库在入库前要独立打分（先筛出 90 分以上的再入库），
+    那时它们还不在 DB_BY_ID 里。 */
+export function garmentMeasurementsOf(item, size, model) {
+  if (!item) return null;
   const M = item.measurements || {};
   const out = {};
   ['bust', 'waist', 'hip', 'shoulder'].forEach(part => {
@@ -118,7 +126,13 @@ function fitParts(item) {
 export function evaluateFit(itemId, size, model) {
   const item = DB_BY_ID[itemId];
   if (!item || !model) return null;
-  const gm = garmentMeasurements(itemId, size, model) || {};
+  return evaluateItem(item, size, model);
+}
+
+/** 同上，但接受脱离数据库的商品对象 */
+export function evaluateItem(item, size, model) {
+  if (!item || !model) return null;
+  const gm = garmentMeasurementsOf(item, size, model) || {};
   const ease = fitEase(item);
 
   const details = [];
@@ -154,14 +168,14 @@ export function evaluateFit(itemId, size, model) {
   else if (has('tight')) { level = 'tight'; verdict = '略紧'; }
   else { level = 'loose'; verdict = '略松'; }
 
-  const recommendation = recommendSizeForItem(itemId, model);
+  const recommendation = recommendSizeForItem(item.id, model);
   const summary = buildSummary(verdict, details, recommendation);
-  return { score, level, verdict, parts: details, recommendation, summary, size, itemId };
+  return { score, level, verdict, parts: details, recommendation, summary, size, itemId: item.id };
 }
 
 /** 某尺码相对基准线的最大偏差（cm）：用于选码时比较「差多少」 */
 function maxDeviation(item, size, model) {
-  const gm = garmentMeasurements(item.id, size, model) || {};
+  const gm = garmentMeasurementsOf(item, size, model) || {};
   const ease = fitEase(item);
   let worst = 0;
   fitParts(item).forEach(part => {
@@ -201,12 +215,18 @@ const _bestFitCache = new Map();
 export function bestFitForItem(itemId, model) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
+  return bestFitOf(item, model);
+}
+
+/** 接受脱离数据库的商品对象 */
+export function bestFitOf(item, model) {
+  if (!item) return null;
   const key = `${item.category}|${JSON.stringify(item.measurements || {})}|${JSON.stringify(item.ease || null)}`;
   if (_bestFitCache.has(key)) return _bestFitCache.get(key);
   const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
   let best = null;
   sizes.forEach(size => {
-    const r = evaluateFit(itemId, size, model);
+    const r = evaluateItem(item, size, model);
     if (r && (!best || r.score > best.score)) best = r;
   });
   _bestFitCache.set(key, best);
@@ -241,6 +261,12 @@ export function fitGrade(itemId, model) {
     合身码可以不同。 */
 export function recommendSizeForItem(itemId, model) {
   const item = DB_BY_ID[itemId];
+  if (!item || !model) return fitSizeForModel(model);
+  return recommendSizeOf(item, model);
+}
+
+/** 接受脱离数据库的商品对象 */
+export function recommendSizeOf(item, model) {
   if (!item || !model) return fitSizeForModel(model);
   const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
   let best = null, bestDev = Infinity;

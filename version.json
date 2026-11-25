@@ -1,15 +1,15 @@
 {
-  "versionCode": 39,
-  "versionName": "2.28",
+  "versionCode": 40,
+  "versionName": "2.29",
   "releaseDate": "2026-11-25",
-  "size": 110413053,
-  "sha256": "d95b4bf9aa8d1f4a57ea0643b346339708a99761710e16f69876ba4bbabcc0cb",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk",
-  "notes": "删除全部无法试穿的往季商品（仅浏览 4 款），往季页现存 9 款均可试穿；修复 WorkBuddy 预览页 3D 面料贴图不生效（file:// 判定改为按图片地址，不再整页禁用）；合身评分排序与三星满分标记；修复 3D 肩袖贴合；移除圣罗兰品牌页",
+  "size": 110436535,
+  "sha256": "db322745b2cec5b0a9d9ab0ab2ea1e461230c5a0687dc554576bcf512dc83908",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk",
+  "notes": "上传照片自动抠图（背景自适应泛洪 + 肤色/头发清理，衣身整块抠出）；2D 模特脸部按真人照片重生成，脸型更窄更圆；3D 手臂外挪 1.8cm；品牌标签只留英文（DG / BL / HIGH / vintage）；新增 HIGH 高分服饰页（奢侈品牌女装按合身评分排序，带品牌筛选）；删除无法试穿的往季商品",
   "apk": {
-    "size": 110413053,
-    "sha256": "d95b4bf9aa8d1f4a57ea0643b346339708a99761710e16f69876ba4bbabcc0cb",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.28/ATELIER-3D-Fitting-v2.28.apk"
+    "size": 110436535,
+    "sha256": "db322745b2cec5b0a9d9ab0ab2ea1e461230c5a0687dc554576bcf512dc83908",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk"
   }
 }

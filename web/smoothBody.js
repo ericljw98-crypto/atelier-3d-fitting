@@ -1157,13 +1157,15 @@ function reshapeFigure(geo, S) {
       arr[i] = cx + x - side * legShift[bi];
     }
     /* 手臂自然下垂：扫描姿态的两臂略向外撇，袖筒沿 armCx 走就会被撑开、袖山离肩。
-       这里从肩峰往下逐步把手臂往中线收（腕部约 2.8cm），肩点不动，
-       改完重烘轮廓，袖轴和衣身会一起跟着收。 */
+       这里从肩峰往下把手臂往中线收，肩点不动。
+       内收量原来给到 3cm，双臂贴着躯干、抬不起手，袖筒也挤在身侧；
+       现在收到 1.2cm，手臂与身体之间留出一道自然间隙，
+       袖山不再插进腋下。改完自动重烘轮廓，袖轴与衣身一起跟着走。 */
     if (col && col.getX(v) > 0.5) {
       const handU = (S.handU != null) ? S.handU : S.shoulderU - S.armLen / S.H;
       const t = Math.min(1, Math.max(0, (S.shoulderU - y) / Math.max(0.05, S.shoulderU - handU)));
       const side = col.getZ(v) > 0.5 ? 1 : -1;
-      arr[i] -= side * 0.030 * Math.pow(t, 0.7);
+      arr[i] -= side * 0.012 * Math.pow(t, 0.7);
     }
   }
   pos.needsUpdate = true;

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, VINTAGE_BRAND, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
+import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, VINTAGE_BRAND, PREMIUM_BRANDS, PREMIUM_TAB, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
 import { evaluateFit, garmentMeasurements, fitSizeForModel, fitGrade } from './fitEngine.js';
+import { premiumSizeLabel } from './premiumBrands.js';
 import { initUpdate } from './update.js';
 
 /* ============================================================
@@ -88,6 +89,7 @@ const state = {
   filterColor: '',                     // 颜色筛选
   filterStyle: '',                     // 款式（版型）筛选
   filterGrade: '',                     // 合身等级筛选（3/2/1 星）
+  filterPBrand: '',                    // 高分服饰页里的品牌筛选
 };
 
 function loadProfile() {
@@ -272,9 +274,71 @@ function fitEnsure() {
   return fitLoading;
 }
 
-/* 抠底：只抹掉与画布四边连通的浅色区域，衣服自身的米白、蕾丝不会被误伤。
+/* ============================================================
+   抠图：把一张图里的「衣服」整块抠出来
+   ------------------------------------------------------------
+   旧逻辑只抹「与画布四边连通的浅色像素」（RGB ≥200），
+   白底棚拍的商品图能用；换成真实场景的照片（背景是墙、街景、房间）
+   就一片都抹不掉，抠出来的是「人 + 整幅背景」，贴到模特身上根本没法看。
+
+   新逻辑四步：
+     ① 背景建模：取画布四周一圈的像素，统计出「背景色集合」
+        （覆盖四边 60% 以上的量化色桶）。
+     ② 自适应泛洪：从四边往里扩散，颜色落在背景色集合附近就算背景；
+        容差由四边颜色自身的离散度决定，浅灰墙、米色布景都能抠。
+     ③ 人像清理（仅上传照片）：肤色用 YCbCr 判据去掉；头发取
+        「与画面上边缘连通的暗色块」，深色衣服的肩膀不会被误删。
+     ④ 连通域：只保留画面中央那件衣服。
+   ============================================================ */
+
+/** 四边颜色的量化统计：背景色集合 + 容差 */
+function backgroundModel(p, w, h) {
+  const buckets = new Map();
+  const ring = [];
+  const push = (x, y) => {
+    const i = (y * w + x) * 4;
+    const key = ((p[i] >> 4) << 8) | ((p[i + 1] >> 4) << 4) | (p[i + 2] >> 4);
+    let b = buckets.get(key);
+    if (!b) { b = [0, 0, 0, 0]; buckets.set(key, b); }
+    b[0] += p[i]; b[1] += p[i + 1]; b[2] += p[i + 2]; b[3]++;
+    ring.push(i);
+  };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, 1); push(x, h - 1); push(x, h - 2); }
+  for (let y = 2; y < h - 2; y++) { push(0, y); push(1, y); push(w - 1, y); push(w - 2, y); }
+  if (!ring.length) return null;
+  const sorted = [...buckets.entries()].sort((a, b) => b[1][3] - a[1][3]);
+  const total = ring.length;
+  const bg = [];
+  let acc = 0;
+  for (const [, b] of sorted) {
+    bg.push([b[0] / b[3], b[1] / b[3], b[2] / b[3]]);
+    acc += b[3];
+    if (acc >= total * 0.65) break;
+  }
+  let dev = 0, n = 0;
+  for (const i of ring) {
+    let best = 1e9;
+    for (const c of bg) {
+      const d = Math.abs(p[i] - c[0]) + Math.abs(p[i + 1] - c[1]) + Math.abs(p[i + 2] - c[2]);
+      if (d < best) best = d;
+    }
+    dev += best; n++;
+  }
+  const mean = n ? dev / n : 20;
+  return { bg, tol: Math.max(24, Math.min(72, mean * 2.2 + 16)) };
+}
+
+/** 肤色判据（YCbCr）：比 RGB 启发式稳，不会把米色/浅杏色衣服整片删掉 */
+function isSkinPixel(r, g, b) {
+  const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+  const Cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+  const Cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+  return Y > 55 && Cb >= 76 && Cb <= 128 && Cr >= 132 && Cr <= 178 && r > g && g >= b - 6;
+}
+
+/* 抠底：先把背景整块抹掉，再按品类需要处理领口。
    uploaded=true 时额外做「人物照片→单件衣服」的清洗：去掉肤色（脸、脖子、
-   手、手臂）和头部上方的深色头发，只留中间那件衣服。 */
+   手、手臂）和头顶的深色头发，只留中间那件衣服。 */
 function cutGarment(img, uploaded = false, item = null) {
   const w = img.naturalWidth, h = img.naturalHeight;
   if (!w || !h) return null;
@@ -285,23 +349,37 @@ function cutGarment(img, uploaded = false, item = null) {
   let data;
   try { data = x.getImageData(0, 0, w, h); } catch (e) { return null; }
   const p = data.data;
-  const isBg = i => p[i] >= 200 && p[i + 1] >= 200 && p[i + 2] >= 200
-    && Math.abs(p[i] - p[i + 2]) < 16;
   const seen = new Uint8Array(w * h);
-  const stack = [];
-  const seed = (px, py) => {
-    const i = py * w + px;
-    if (seen[i] || !isBg(i * 4)) return;
-    seen[i] = 1; stack.push(i);
-  };
-  for (let px = 0; px < w; px++) { seed(px, 0); seed(px, h - 1); }
-  for (let py = 0; py < h; py++) { seed(0, py); seed(w - 1, py); }
-  while (stack.length) {
-    const i = stack.pop(), px = i % w, py = (i / w) | 0;
-    if (px > 0) seed(px - 1, py);
-    if (px < w - 1) seed(px + 1, py);
-    if (py > 0) seed(px, py - 1);
-    if (py < h - 1) seed(px, py + 1);
+  {
+    /* 背景泛洪：从四边往里扩散，颜色接近「四边背景色」或属于浅色棚拍底就算背景 */
+    const model = backgroundModel(p, w, h);
+    const stack = [];
+    const isLightBg = j => p[j] >= 200 && p[j + 1] >= 200 && p[j + 2] >= 200
+      && Math.abs(p[j] - p[j + 2]) < 16;
+    const nearBg = j => {
+      if (!model) return false;
+      for (const c2 of model.bg) {
+        const d = Math.abs(p[j] - c2[0]) + Math.abs(p[j + 1] - c2[1]) + Math.abs(p[j + 2] - c2[2]);
+        if (d <= model.tol) return true;
+      }
+      return false;
+    };
+    const seed = (px, py) => {
+      const i = py * w + px;
+      if (seen[i]) return;
+      const j = i * 4;
+      if (!isLightBg(j) && !nearBg(j)) return;
+      seen[i] = 1; stack.push(i);
+    };
+    for (let px = 0; px < w; px++) { seed(px, 0); seed(px, 1); seed(px, h - 1); seed(px, h - 2); }
+    for (let py = 2; py < h - 2; py++) { seed(0, py); seed(1, py); seed(w - 1, py); seed(w - 2, py); }
+    while (stack.length) {
+      const i = stack.pop(), px = i % w, py = (i / w) | 0;
+      if (px > 0) seed(px - 1, py);
+      if (px < w - 1) seed(px + 1, py);
+      if (py > 0) seed(px, py - w);
+      if (py < h - 1) seed(px, py + w);
+    }
   }
 
   let py0 = h, py1 = -1;
@@ -317,17 +395,95 @@ function cutGarment(img, uploaded = false, item = null) {
   /* 上传的是真人照片：肤色区域和头顶深色头发不属于衣服，先删掉。
      阴影很重的黑衣可能被肤色规则误伤，因此只在照片路径启用。 */
   if (uploaded) {
-    const headBottom = py0 + (py1 - py0) * 0.30;
+    /* 人像清理：肤色用 YCbCr 判据（脸、脖子、手、手臂）；
+       头发取「与画面上边缘连通的暗色块」——
+       旧逻辑是「上半幅所有暗像素都算头发」，深色上衣的肩膀会被误删，
+       袖子和肩线直接缺一块。 */
+    const darkMask = new Uint8Array(w * h);
+    {
+      const stack = [];
+      const isDark = j => {
+        const l = 0.299 * p[j] + 0.587 * p[j + 1] + 0.114 * p[j + 2];
+        return l < 108;
+      };
+      /* 头发判定：
+         ① 先求前景外框；顶上那一行如果明显比整体窄，说明上面那小块是头；
+         ② 在前景上四分之一高度里收集暗色前景像素（头发的暗块），
+            从它们向下漫延；
+         ③ 漫延如果越过了上四分之一的高度，说明这块暗色其实是深色衣服，
+            整块放弃——深色上衣的肩膀不能被削掉。
+         直接从画面上边缘漫延不行（头顶和上边之间还有背景，连不上）；
+         直接删掉上半幅所有暗像素也不行（深色上衣的肩膀会被削掉）。 */
+      let fx0 = w, fx1 = -1, fy0 = h, fy1 = -1;
+      for (let py = 0; py < h; py++) {
+        let lo = -1, hi = -1;
+        for (let px = 0; px < w; px++) {
+          if (seen[py * w + px]) continue;
+          if (lo < 0) lo = px;
+          hi = px;
+        }
+        if (lo < 0) continue;
+        if (fy0 === h) { fy0 = py; fx0 = lo; fx1 = hi; }
+        fy1 = py;
+      }
+      let maxW = 0;
+      for (let py = fy0; py <= fy1; py++) {
+        let lo = -1, hi = -1;
+        for (let px = 0; px < w; px++) {
+          if (seen[py * w + px]) continue;
+          if (lo < 0) lo = px;
+          hi = px;
+        }
+        if (lo >= 0 && hi - lo + 1 > maxW) maxW = hi - lo + 1;
+      }
+      const topW = fx1 - fx0 + 1;
+      const headLike = maxW > 0 && topW < maxW * 0.62;
+      /* 头带：从画面顶部的前景行往下，直到前景宽度超过整体宽度 45%（肩膀）
+         为止。头与头发都在这条带子里，肩膀以下不在。 */
+      let zoneBot = fy0;
+      for (let py = fy0; py <= fy1; py++) {
+        let lo = -1, hi = -1;
+        for (let px = 0; px < w; px++) {
+          if (seen[py * w + px]) continue;
+          if (lo < 0) lo = px;
+          hi = px;
+        }
+        if (lo >= 0 && hi - lo + 1 > maxW * 0.45) { zoneBot = py; break; }
+        zoneBot = py;
+      }
+      if (headLike) {
+        for (let py = fy0; py <= zoneBot; py++) {
+          for (let px = 0; px < w; px++) {
+            const i = py * w + px, j = i * 4;
+            if (seen[i] || darkMask[i] || !isDark(j)) continue;
+            darkMask[i] = 1; stack.push(i);
+          }
+        }
+        while (stack.length) {
+          const i = stack.pop(), px = i % w, py = (i / w) | 0;
+          const nb = [px > 0 ? i - 1 : -1, px < w - 1 ? i + 1 : -1,
+                      py > 0 ? i - w : -1, py < h - 1 ? i + w : -1];
+          for (const kk of nb) {
+            if (kk < 0 || seen[kk] || darkMask[kk] || !isDark(kk * 4)) continue;
+            darkMask[kk] = 1; stack.push(kk);
+          }
+        }
+        // 漫延越过头顶区 = 这块暗色其实是衣服，放弃删除
+        let over = 0;
+        for (let py = zoneBot + 1; py < h; py++) {
+          for (let px = 0; px < w; px++) if (darkMask[py * w + px]) { over = 1; break; }
+          if (over) break;
+        }
+        let dm2 = 0; for (let i2 = 0; i2 < darkMask.length; i2++) dm2 += darkMask[i2];
+        if (over) darkMask.fill(0);
+      }
+    }
     for (let py = py0; py <= py1; py++) {
       for (let px = 0; px < w; px++) {
         const i = py * w + px, j = i * 4;
         if (seen[i]) continue;
         const r = p[j], g = p[j + 1], b = p[j + 2];
-        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-        const skin = r > 95 && g > 40 && b > 20 && mx - mn > 15
-          && Math.abs(r - g) > 15 && r > g && r > b && r / Math.max(g, 1) > 1.08;
-        const hair = py < headBottom && r < 105 && g < 105 && b < 105;
-        if (skin || hair) { seen[i] = 1; p[j + 3] = 0; }
+        if (isSkinPixel(r, g, b) || darkMask[i]) { seen[i] = 1; p[j + 3] = 0; }
       }
     }
     // 去掉孤立小碎块（头发丝、手指残片），保留画面中央的大块衣身
@@ -518,7 +674,7 @@ function cutFor(item) {
   let job = fitCache.cuts.get(item.id);
   if (!job) {
     job = loadImg(item.image)
-      .then(img => cutGarment(img, item.id === '__upload__', item))
+      .then(img => cutGarment(img, item.id === '__upload__' || item.photoCut, item))
       .catch(() => null);
     fitCache.cuts.set(item.id, job);
   }
@@ -790,6 +946,8 @@ const els = {
   filterColor: document.getElementById('filter-color'),
   filterStyle: document.getElementById('filter-style'),
   filterGrade: document.getElementById('filter-grade'),
+  filterPBrand: document.getElementById('filter-pbrand'),
+  filterPBrandWrap: document.getElementById('filter-pbrand-wrap'),
 };
 
 /* 搜索框：输入即跨品牌全局检索；Esc / 点 × 清空 */
@@ -827,6 +985,17 @@ function renderFilterOptions() {
     els.filterStyle.value = cur;
     els.filterStyle.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
   }
+  if (els.filterPBrand) {
+    const cur = state.filterPBrand;
+    const counts = new Map();
+    DB.forEach(g => { if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1); });
+    const list = PREMIUM_BRANDS.filter(b => counts.get(b.id));
+    els.filterPBrand.innerHTML = `<option value="">全部品牌</option>` +
+      list.map(b => `<option value="${b.id}">${b.name} (${counts.get(b.id)})</option>`).join('');
+    els.filterPBrand.value = cur;
+    els.filterPBrand.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
+    if (els.filterPBrandWrap) els.filterPBrandWrap.hidden = state.brand !== PREMIUM_TAB.id;
+  }
   if (els.filterGrade) {
     const cur = state.filterGrade;
     const c = opts.grades;
@@ -853,6 +1022,13 @@ if (els.filterStyle) {
 if (els.filterGrade) {
   els.filterGrade.addEventListener('change', () => {
     state.filterGrade = els.filterGrade.value;
+    renderFilterOptions();
+    renderGarments();
+  });
+}
+if (els.filterPBrand) {
+  els.filterPBrand.addEventListener('change', () => {
+    state.filterPBrand = els.filterPBrand.value;
     renderFilterOptions();
     renderGarments();
   });
@@ -1037,6 +1213,11 @@ function refreshGarmentTexture(itemId) {
    否则用户会在两个地方看到同一件衣服。 */
 function currentBrandItems() {
   if (state.brand === VINTAGE_BRAND.id) return DB.filter(g => g.vintage);
+  /* 高分服饰页：各品牌女装里按合身评分排序展示，
+     90 分以上（各参与部位同时落在容差内）的款单独标出来。 */
+  if (state.brand === PREMIUM_TAB.id) {
+    return DB.filter(g => g.premium);
+  }
   return DB.filter(g => g.brand === state.brand && !g.vintage);
 }
 
@@ -1051,6 +1232,8 @@ function clearFilters() {
   state.filterColor = '';
   state.filterStyle = '';
   state.filterGrade = '';
+  state.filterPBrand = '';
+  if (els.filterPBrand) { els.filterPBrand.value = ''; els.filterPBrand.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterColor) { els.filterColor.value = ''; els.filterColor.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterStyle) { els.filterStyle.value = ''; els.filterStyle.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterGrade) { els.filterGrade.value = ''; els.filterGrade.closest('.filter-sel')?.classList.remove('has-value'); }
@@ -1088,14 +1271,16 @@ function matchingItems() {
   const fc = state.filterColor || '';
   const fst = state.filterStyle || '';
   const fg = state.filterGrade || '';
-  if (!q && !fc && !fst && !fg) return currentBrandItems().filter(g => g.category === state.category);
+  const fb = state.filterPBrand || '';
+  if (!q && !fc && !fst && !fg && !fb) return currentBrandItems().filter(g => g.category === state.category);
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
-  const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
+  const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND, ...PREMIUM_BRANDS].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
   return DB.filter(g => {
     if (fc && !(g.colors || []).some(c => c.name === fc)) return false;
     if (fst && g.style !== fst) return false;
     if (fg && String(gradeOf(g).stars) !== fg) return false;
+    if (fb && g.brand !== fb) return false;
     const hay = [
       g.name, g.nameEn, g.code, g.fabric, g.style,
       SILHOUETTE_NAMES[g.silhouette] || '', g.silhouette || '',
@@ -1135,20 +1320,32 @@ function filterOptions() {
 
 function renderBrands() {
   if (!els.brands) return;
-  const all = [...BRANDS, VINTAGE_BRAND];
-  els.brands.innerHTML = all.map(b =>
-    `<button class="brand-tab ${b.id === state.brand ? 'active' : ''}${b.isVintage ? ' vintage' : ''}" data-brand="${b.id}">
-       <b>${b.short}</b><span>${b.name}</span>
-     </button>`
-  ).join('');
+  const all = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND];
+  /* 往季页与高分服饰页各只有一个标签词，不再叠两行（会出现两个 vintage） */
+  els.brands.innerHTML = all.map(b => {
+    const cls = `brand-tab ${b.id === state.brand ? 'active' : ''}${b.isVintage ? ' vintage' : ''}${b.isPremium ? ' high' : ''}`;
+    /* 标签只留一个英文词：DG / BL / HIGH / vintage */
+    const inner = `<b>${b.short}</b>`;
+    return `<button class="${cls}" data-brand="${b.id}">${inner}</button>`;
+  }).join('');
   els.brands.querySelectorAll('.brand-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       state.brand = btn.dataset.brand;
       clearSearch(); clearFilters();
-      const b = [...BRANDS, VINTAGE_BRAND].find(x => x.id === state.brand);
-      els.wardrobeTitle.textContent = b.isVintage ? b.name : `${b.name}女装`;
+      const b = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND].find(x => x.id === state.brand);
+      /* 进「HIGH」页时若当前品类里没有高分款，自动切到有货的品类，
+         免得打开就是空列表。 */
+      if (b.isPremium) {
+        const counts = DB_CATEGORIES.map(c => ({ id: c.id, n: DB.filter(g => g.premium && g.category === c.id).length }));
+        if (!counts.some(c => c.id === state.category && c.n > 0)) {
+          const best = counts.sort((a, b2) => b2.n - a.n)[0];
+          if (best && best.n > 0) state.category = best.id;
+        }
+      }
+      els.wardrobeTitle.textContent = b.isVintage ? b.name : (b.isPremium ? b.name : `${b.name}女装`);
       els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
       renderBrands(); renderCategories(); renderGarments();
+      renderFilterOptions();
       renderSizes(); syncSizeControls();   // 品牌换了，官方码名（IT/FR）随之切换
     });
   });
@@ -1204,7 +1401,7 @@ function renderGarments() {
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
     const brand = [...BRANDS, VINTAGE_BRAND].find(b => b.id === item.brand)
-      || (item.vintage ? { short: 'VINTAGE', name: '往季' } : null);
+      || (item.vintage ? { short: 'VINTAGE', name: 'vintage' } : null);
     const cat = DB_CATEGORIES.find(c => c.id === item.category);
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''} ${gradeOf(item).stars === 3 ? 'is-perfect' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -1216,13 +1413,13 @@ function renderGarments() {
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         ${starBadge(item)}
-        ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ''}
+        ${item.vintage ? `<span class="db-tag vintage">Vintage</span>` : ''}
         ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ''}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${item.fabric}${(searching || filtering) ? ` · ${brand ? brand.short : item.brand} · ${cat ? cat.name : item.category}` : ''}</div>
+      <div class="db-meta">${item.fabric}${(searching || filtering || item.premium) ? ` · ${item.premium ? (PREMIUM_BRANDS.find(b => b.id === item.brand) || { short: item.brand }).name : (brand ? brand.short : item.brand)} · ${cat ? cat.name : item.category}` : ''}</div>
       <div class="db-price">${priceMarkup(item)}</div>
       <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
     </div>`;
@@ -1231,9 +1428,16 @@ function renderGarments() {
     card.addEventListener('click', () => selectGarment(card.dataset.id));
   });
   if (els.wardrobeSub) {
-    els.wardrobeSub.textContent = (searching || filtering)
-      ? `${scope()} · ${items.length} 款（全品牌全品类）`
-      : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
+    if (state.brand === PREMIUM_TAB.id && !filtering) {
+      const over90 = matched.filter(i => gradeOf(i).score >= 90).length;
+      const best = matched.reduce((m, i) => Math.max(m, gradeOf(i).score), 0);
+      els.wardrobeSub.textContent =
+        `${matched.length} 款 · 奢侈品牌女装 · 90 分以上 ${over90} 款 · 当前最高 ${best} 分`;
+    } else {
+      els.wardrobeSub.textContent = (searching || filtering)
+        ? `${scope()} · ${items.length} 款（全品牌全品类）`
+        : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
+    }
   }
 }
 
@@ -1257,6 +1461,14 @@ const IT_TO_FR = { 36: 32, 38: 34, 40: 36, 42: 38, 44: 40, 46: 42, 48: 44, 50: 4
 function sizeText(size) {
   const n = sizeNumber(size);
   const l = sizeLetter(size);
+  /* 高分服饰页每款品牌不同，码名要按该品牌官方体系显示：
+     法国码品牌显示 FR 38，法国数字码品牌（爱马仕）显示 36，其余显示 IT 42。 */
+  const wornIds = Object.values(state.outfit).filter(Boolean).map(o => o.id);
+  const worn = wornIds.map(id => DB_BY_ID[id]).find(it => it && it.premium);
+  if (worn) {
+    const lab = premiumSizeLabel(worn.brand, n);
+    return l ? `${lab} · ${l}` : lab;
+  }
   if (state.brand === 'BL') {
     const fr = IT_TO_FR[n];
     return fr != null ? `FR ${fr} · ${l}` : (l ? `${n} · ${l}` : String(n ?? size));
