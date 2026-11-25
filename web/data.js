@@ -172,11 +172,12 @@ const ALL = SIZES;
      outer:   bust, waist, shoulder, sleeve, length
    ------------------------------------------------------------ */
 
-/* 品牌清单：切换后所有列表、照片识别与合身诊断均按当前品牌过滤 */
+/* 品牌清单：切换后所有列表、照片识别与合身诊断均按当前品牌过滤。
+   圣罗兰（Saint Laurent）已移除：库里一款可售商品都没有，
+   留一个点进去是空页的品牌标签只会让人以为数据没加载出来。 */
 export const BRANDS = [
   { id: 'DG', name: '杜嘉班纳', en: 'Dolce & Gabbana', short: 'DG' },
   { id: 'BL', name: '巴尔曼', en: 'Balmain',          short: 'BL' },
-  { id: 'SL', name: '圣罗兰', en: 'Saint Laurent',   short: 'SL' },
 ];
 
 /* 往季款（vintage）：官网当前目录已下架、但仍可购买的旧季单品。

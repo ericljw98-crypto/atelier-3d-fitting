@@ -172,6 +172,70 @@ function maxDeviation(item, size, model) {
   return worst;
 }
 
+/* ============================================================
+   满分筛选：找出库里对这个身形最合身的那批商品
+   ------------------------------------------------------------
+   先说清一件必须说清的事：严格意义的「满分」——各部位同时落进
+   合身基准的容差区间、也就是 100 分——全库 2123 款里一款都没有。
+   原因不是引擎偷懒，是版型本身：DG / Balmain 官方成衣的胸腰差是
+   18–22cm，而这个身形（胸 94.5 / 腰 85）的胸腰差只有 9.5cm。
+   一件按 20cm 胸腰差裁的衣服，无论穿 IT42 还是 IT54，
+   要么胸围松掉 6cm，要么腰围紧 9cm，两者不可能同时成立。
+   换码能解决「同一件衣服偏大/偏小」，解决不了「版型与身形不符」。
+
+   所以等级按这一档的短板来定，分三档：
+     ★★★  没有「过紧」「过松」，也没有「一处偏紧、一处偏松」这种
+           自相矛盾，并且至少有一个部位完全合身——库里能挑出来的
+           最好状态，也就是满分档。
+     ★★   没有过紧也没有过松，偏差只在「偏紧/偏松」之间。
+     ★    出现「过紧」或「过松」，穿上去会勒住或会垮掉。
+
+   等级跟尺码无关（永远取该款最优的一档），所以它衡量的是
+   「这件衣服对这个人有多友好」，可以用来排序与筛选。
+   ============================================================ */
+
+/** 该款在可选尺码里合身评分最高的那一档。
+    全库 2123 款共用 31 个测量模板，模板相同则结论必然相同，
+    按模板缓存，就不用把 2000 多款 × 9 个尺码重算一遍。 */
+const _bestFitCache = new Map();
+export function bestFitForItem(itemId, model) {
+  const item = DB_BY_ID[itemId];
+  if (!item) return null;
+  const key = `${item.category}|${JSON.stringify(item.measurements || {})}|${JSON.stringify(item.ease || null)}`;
+  if (_bestFitCache.has(key)) return _bestFitCache.get(key);
+  const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
+  let best = null;
+  sizes.forEach(size => {
+    const r = evaluateFit(itemId, size, model);
+    if (r && (!best || r.score > best.score)) best = r;
+  });
+  _bestFitCache.set(key, best);
+  return best;
+}
+
+/** 合身等级（0–3 星）与该款最优尺码。
+    星级直接对应合身评分（评分取该款在可选尺码里的最好一档）：
+      ★★★ 满分档  评分 ≥ 78，即「合身」及以上。库里只有针织、
+                   垂坠缎面这类胸腰差不做收腰的版型能进这一档。
+      ★★          评分 70–77，「基本合身」：不勒不垮，但有取舍。
+      ★           评分 60–69，「略紧/略松」：能穿，但要留意版型。
+      （0 星       评分 < 60，「偏小/偏大」，这一版库里为空）
+    等级与尺码无关，永远取该款最优的一档，所以它衡量的是
+    「这件衣服对这个身形有多友好」，可以用来排序与筛选。 */
+export function fitGrade(itemId, model) {
+  const best = bestFitForItem(itemId, model);
+  if (!best) return { stars: 0, score: 0, size: null, verdict: '无数据', parts: [] };
+  const score = best.score;
+  const stars = score >= 78 ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
+  const absd = best.parts.map(p => Math.abs(p.delta));
+  return {
+    stars, score, size: best.size,
+    maxDev: absd.length ? Math.max(...absd) : 0,
+    verdict: best.verdict, parts: best.parts,
+    level: stars === 3 ? 'perfect' : stars === 2 ? 'good' : stars === 1 ? 'fair' : 'poor',
+  };
+}
+
 /** 推荐尺码：在该款可选尺码里，取相对合身基准线偏差最小的那一档。
     这是逐款算的——同一品牌的裙子与连衣裙，因为平铺尺寸不同，
     合身码可以不同。 */

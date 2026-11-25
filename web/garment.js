@@ -178,7 +178,7 @@ function neckSpec(item, P) {
 /** 沿手臂实测中心线保温袖筒，顶端收成肩头穹顶。
     轴线取轮廓表里的 armCx（逐切片实测的手臂中心 |x|），不再用 armTilt
     一条直线——手臂是向外撇的弧线，直线袖筒到肘部就离体了。 */
-function buildSleeve(P, s, { sleeveCm, ease, mat, nTheta = 26 }) {
+function buildSleeve(P, s, { sleeveCm, ease, mat, tile = false, nTheta = 26 }) {
   const S = P._src, H = P._H, NY = 200;
   const uAt = y => Math.min(0.999, Math.max(0, (y - P.base) / H));
   const armCxAt = y => {
@@ -188,12 +188,17 @@ function buildSleeve(P, s, { sleeveCm, ease, mat, nTheta = 26 }) {
     const v = (isFinite(a) ? a : 0) * (1 - t) + (isFinite(b) ? b : 0) * t;
     return v > 1e-3 ? v : Math.abs(P.armX);
   };
-  const domeH = 0.009;                        // 肩头穹顶高度 ≈ 4.5mm：只做圆角，不做垫肩
-  const yTopS = P.topY + domeH;
+  /* 袖山穹顶：旧版只有 4.5mm，等于把袖筒直接平口切在肩线上——
+     筒口是一个硬边，衣身肩线又是一条硬边，两条边错开几毫米，
+     看上去就是肩膀上贴了一块独立的片。
+     真正装袖的袖山是 3–4cm 高的圆弧：顶点落在肩缝上，向下逐渐
+     张到袖肥，肩头因此是连续的曲面而不是台阶。 */
+  const domeH = 0.058;                        // 袖山高约 2.9cm
+  const yTopS = P.topY + 0.010;               // 顶点正好落在衣身肩线
   const yEnd = P.topY - Math.max(sleeveCm * U, 0.04);
   const N = Math.max(20, Math.round((yTopS - yEnd) / 0.014));
 
-  const pos = [], idx = [], uvs = [];
+  const pos = [], idx = [], uvs = [], cxs = [];
   const row = nTheta + 1;
   for (let i = 0; i <= N; i++) {
     const t = i / N;
@@ -211,7 +216,16 @@ function buildSleeve(P, s, { sleeveCm, ease, mat, nTheta = 26 }) {
     for (let it = 0; it <= nTheta; it++) {
       const th = (it / nTheta) * Math.PI * 2;
       pos.push(cx + Math.cos(th) * r, y, Math.sin(th) * r * 0.95);
-      uvs.push(it / nTheta, t);
+      cxs.push(cx);
+      /* 袖筒的贴图有两种口径：
+         · 用整幅商品图时，横向只取中间一条窄带（u 0.28–0.72），
+           避开平铺图左右两侧的背景；纵向固定在衣身中段，
+           免得袖山去采下摆或领口那一带，肩上就拼出异色的贴片。
+         · 用「胸前那块布」的小块面料时，这块布可以重复贴，
+           于是横向绕一圈重复约 2.6 次、纵向按臂长重复 5 次，
+           花型与衣身同一匹料，只是尺寸小一档。 */
+      if (tile) uvs.push((it / nTheta) * 2.6, t * 5);
+      else uvs.push(0.5 + (it / nTheta - 0.5) * 0.44, 0.52);
     }
   }
   for (let i = 0; i < N; i++) {
@@ -226,7 +240,25 @@ function buildSleeve(P, s, { sleeveCm, ease, mat, nTheta = 26 }) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const m = new THREE.Mesh(scaleUV(geo), mat);
+  /* 法线朝向自检：袖子是绕手臂的管，法线必须朝外。
+     左右两侧的绕序相反（镜像），不统一的话总有一侧是用朝内的
+     法线受光——那一侧会比另一侧亮一大截，肩袖接缝就成了明暗分界线。 */
+  {
+    const nrm = geo.attributes.normal.array;
+    let dot = 0;
+    for (let i = 0; i < nrm.length; i += 3) {
+      const ox = pos[i] - cxs[i / 3], oz = pos[i + 2];
+      const len = Math.hypot(ox, oz) || 1;
+      dot += (nrm[i] * ox + nrm[i + 2] * oz) / len;
+    }
+    if (dot < 0) {
+      const ix = geo.index.array;
+      for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; }
+      geo.index.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
+  }
+  const m = new THREE.Mesh(tile ? geo : scaleUV(geo), mat);
   m.name = 'sleeve';
   return m;
 }
@@ -289,7 +321,7 @@ function angIdx(th) {
 }
 
 /* 主入口 */
-export function buildGarment(itemId, size, model, colorHex, useRealBody = true, tex = null) {
+export function buildGarment(itemId, size, model, colorHex, useRealBody = true, tex = null, texSolid = null) {
   const item = DB_BY_ID[itemId];
   if (!item) return null;
 
@@ -355,14 +387,20 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true, 
         m += flare.amt * k * k;
       }
       /* 袖窿补片：衣身侧缝在腋下是一条竖线，袖筒轴线却在手臂中心，
-         两者之间会露出一条打底衣。把肩下到腋下这一段的两侧角向外撑出，
-         让它搭到袖筒内侧，肩袖接缝才是连续的。 */
-      if (y >= spec.yArm - 0.035 && y <= spec.yShoulder + 0.01) {
+         两者之间会露出一条打底衣。这里把肩下到腋下这一段的两侧角
+         稍稍向外撑一点，只填平腋下的褶皱。
+
+         幅度必须很小：衣身是绕躯干的闭壳，袖筒绕的是手臂，两者的
+         半径本来就差一个臂厚。旧版撑到 26%，衣身侧缝直接越过袖筒
+         外缘，把整条袖子吞进衣身里，只剩肩头一块「贴片」露在外面。
+         现在只给 5.5%（腋下约 1.7cm 的过渡），袖筒的整个外侧半球
+         仍然露在衣身轮廓之外，肩袖接缝才是一条完整的袖子。 */
+      if (y >= spec.yArm - 0.030 && y <= spec.yShoulder - 0.004) {
         const a = Math.abs(Math.atan2(Math.sin(th), Math.cos(th)));
         const sd = Math.min(a, Math.abs(Math.PI - a));
-        if (sd < 0.62) {
+        if (sd < 0.55) {
           const v = Math.max(0, 1 - (spec.yShoulder - y) / Math.max(spec.yShoulder - spec.yArm, 0.02));
-          m += 0.26 * (1 - sd / 0.62) * (0.35 + 0.65 * v);
+          m += 0.055 * (1 - sd / 0.55) * v;
         }
       }
       return m;
@@ -380,8 +418,18 @@ export function buildGarment(itemId, size, model, colorHex, useRealBody = true, 
       /* 袖筒放松量必须单独限幅：衣身的 24cm 宽松量折成半径是 3.8cm，
          直接拿来套在袖子上就是一对气球袖。真实袖肥只多 1–2cm。 */
       const sleeveEase = Math.min(0.020, Math.max(0.006, ease.bust * 0.22)) + outerPad * 0.6;
+      /* 袖筒用「衣身旁边那块布」的素色贴图（texSolid）。
+         商品平铺图里根本没有袖子这块区域，袖筒若按自己的 UV 去采样，
+         采到的往往是背景或阴影，肩上就会拼出一块和衣身不同色的贴片。
+         素色贴图取的是胸前面料的平均色，袖子与衣身才是同一匹料。 */
+      let sleeveMat = mat;
+      if (texSolid) {
+        sleeveMat = mat.clone();
+        sleeveMat.map = texSolid;
+        sleeveMat.needsUpdate = true;
+      }
       [-1, 1].forEach(s => g.add(buildSleeve(P, s, {
-        sleeveCm, ease: sleeveEase, mat,
+        sleeveCm, ease: sleeveEase, mat: sleeveMat, tile: !!texSolid,
       })));
     } else if (spec.strap) {
       [-1, 1].forEach(s => g.add(buildStrap(P, s, { ease: ease.bust, mat })));

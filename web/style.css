@@ -1142,6 +1142,17 @@ input[type="range"]::-moz-range-thumb {
 .db-tag.vintage { color: #b08c5a; }
 .db-tag.nofit { color: #8fa3b8; }
 .db-tag.demo { color: #8fa3b8; }
+/* 合身星级：满分档用金底，其余两档只描边，避免整页都是标签 */
+.db-tag.star3 {
+  color: #2c1f06; background: linear-gradient(180deg, #e3c477, #c9a35c);
+  border-color: rgba(201,163,92,.9); font-weight: 700; opacity: 1;
+  letter-spacing: .06em; padding: 1px 6px;
+}
+.db-tag.star2 { color: #c9a35c; opacity: .9; }
+.db-tag.star1 { color: #7f8794; opacity: .8; }
+/* 满分档卡片描一圈金边，扫一眼就能在最前面找到它们 */
+.db-card.is-perfect { border-color: rgba(201,163,92,.55); }
+.db-card.is-perfect .db-thumb { box-shadow: inset 0 0 0 1px rgba(201,163,92,.30); }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
 .db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .price-eur { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -1351,6 +1362,16 @@ input[type="range"]::-moz-range-thumb {
 }
 .fit-recommend.ok { background: rgba(76,175,120,.08); border-color: rgba(76,175,120,.2); color: #7fd6a0; }
 .fit-recommend b { font-weight: 700; }
+/* 本款最佳状态（星级 / 最优尺码 / 评分） */
+.fit-grade {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 2px;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid rgba(201,163,92,.22); background: rgba(201,163,92,.06);
+}
+.fit-grade-stars { font-size: 13px; letter-spacing: .08em; color: #c9a35c; }
+.fit-grade-text { font-size: 11px; color: var(--text-dim); }
+.fit-grade.star3 { border-color: rgba(201,163,92,.5); background: rgba(201,163,92,.12); }
+.fit-grade.star3 .fit-grade-text { color: #e0c489; }
 
 /* ============================================================
    自动更新

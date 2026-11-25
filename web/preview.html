@@ -1149,6 +1149,17 @@ input[type="range"]::-moz-range-thumb {
 .db-tag.vintage { color: #b08c5a; }
 .db-tag.nofit { color: #8fa3b8; }
 .db-tag.demo { color: #8fa3b8; }
+/* 合身星级：满分档用金底，其余两档只描边，避免整页都是标签 */
+.db-tag.star3 {
+  color: #2c1f06; background: linear-gradient(180deg, #e3c477, #c9a35c);
+  border-color: rgba(201,163,92,.9); font-weight: 700; opacity: 1;
+  letter-spacing: .06em; padding: 1px 6px;
+}
+.db-tag.star2 { color: #c9a35c; opacity: .9; }
+.db-tag.star1 { color: #7f8794; opacity: .8; }
+/* 满分档卡片描一圈金边，扫一眼就能在最前面找到它们 */
+.db-card.is-perfect { border-color: rgba(201,163,92,.55); }
+.db-card.is-perfect .db-thumb { box-shadow: inset 0 0 0 1px rgba(201,163,92,.30); }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
 .db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .price-eur { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -1358,6 +1369,16 @@ input[type="range"]::-moz-range-thumb {
 }
 .fit-recommend.ok { background: rgba(76,175,120,.08); border-color: rgba(76,175,120,.2); color: #7fd6a0; }
 .fit-recommend b { font-weight: 700; }
+/* 本款最佳状态（星级 / 最优尺码 / 评分） */
+.fit-grade {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 2px;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid rgba(201,163,92,.22); background: rgba(201,163,92,.06);
+}
+.fit-grade-stars { font-size: 13px; letter-spacing: .08em; color: #c9a35c; }
+.fit-grade-text { font-size: 11px; color: var(--text-dim); }
+.fit-grade.star3 { border-color: rgba(201,163,92,.5); background: rgba(201,163,92,.12); }
+.fit-grade.star3 .fit-grade-text { color: #e0c489; }
 
 /* ============================================================
    自动更新
@@ -1577,6 +1598,12 @@ input[type="range"]::-moz-range-thumb {
           <label class="filter-sel">
             <span class="filter-label">款式</span>
             <select id="filter-style" aria-label="按款式筛选">
+              <option value="">全部</option>
+            </select>
+          </label>
+          <label class="filter-sel">
+            <span class="filter-label">合身</span>
+            <select id="filter-grade" aria-label="按合身等级筛选">
               <option value="">全部</option>
             </select>
           </label>
@@ -32322,7 +32349,6 @@ input[type="range"]::-moz-range-thumb {
     { id: "dg-F0Z73TGDU47HN1RK", code: "F0Z73TGDU47_HN1RK", name: "欧根纱丛林印花风衣", nameEn: "Organza trench coat with jungle forest print", brand: "DG", category: "outer", style: "风衣", silhouette: "oversize", fit: "宽松", season: "Past Season", collection: "Vintage", fabric: "欧根纱", colorName: "多色", colorHex: "#4b5340", measurements: { "bust": 98, "waist": 78, "hip": 104, "shoulder": 42, "sleeve": 62, "length": 130 }, ease: { "bust": 12, "waist": 12, "hip": 12, "shoulder": 1 }, priceEUR: 3800, priceCNY: 29400, priceNote: "官网在售 · 32500 HKD（≈€3800）", image: "images/dg-F0Z73TGDU47HN1RK.jpg", images: ["images/dg-F0Z73TGDU47HN1RK.jpg"], url: "https://www.dolcegabbana.com/zh-hk/collection-1/organza-trench-coat-with-jungle-forest-print-158057155067503.html", source: "Dolce & Gabbana 官方网站", vintage: true, composite: true },
     { id: "dg-F9R41TG7K6T", code: "F9R41T-G7K6T", name: "白色镂空针织套装 DGVIB3", nameEn: "White openwork knit set DGVIB3", brand: "DG", category: "tops", style: "针织套装", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "针织", colorName: "白色", colorHex: "#f0ece1", measurements: { "bust": 84, "waist": 62, "hip": 88, "shoulder": 36, "sleeve": 58, "length": 56 }, ease: { "bust": 4, "waist": 4, "hip": 4, "shoulder": 0 }, priceEUR: 250, priceCNY: 1950, priceNote: "往季款 · 经销商价 12260 ₴（≈€250）", image: "images/dg-F9R41TG7K6T.jpg", images: ["images/dg-F9R41TG7K6T.jpg"], url: "https://kameron.ua/ua/store/svitsot-dgvib3-kostum-dolce-gabbana-f9r41t-g7k6t-belyj", source: "Kameron（授权经销商）· 白底商品图（浅色主体，2D 合成需人工抠图）", vintage: true, composite: false },
     { id: "dg-FX153ZJASHE", code: "FX153ZJASHE", name: "浅米色丝质贴花亮片上衣", nameEn: "Light beige silk jumper with applique and sequins", brand: "DG", category: "tops", style: "上衣", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "真丝", colorName: "米色", colorHex: "#d8cdb8", measurements: { "bust": 84, "waist": 64, "hip": 88, "shoulder": 38, "sleeve": 58, "length": 62 }, ease: { "bust": 6, "waist": 6, "shoulder": 0 }, priceEUR: 620, priceCNY: 4800, priceNote: "往季款 · 经销商价（已下架，官网无公开价）", image: "images/dg-FX153ZJASHE.jpg", images: ["images/dg-FX153ZJASHE.jpg"], url: "https://symbol.ua/uk/store/svetlo-bezevyj-dzemper-iz-selka-dolcegabbana-fx153zjashe-svetlo-bezevyj", source: "Symbol（授权经销商）· 白底商品图（浅色主体，2D 合成需人工抠图）", vintage: true, composite: false },
-    { id: "dg-F6F3MTFSRLJ", code: "F6F3MT/FSRLJ", name: "浅粉色百合印花粘胶 cady 连衣裙", nameEn: "Light pink viscose cady dress with lily print", brand: "DG", category: "dresses", style: "连衣裙", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "粘胶", colorName: "浅粉", colorHex: "#e8c4c4", measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 38, "sleeve": 16, "length": 108 }, ease: { "bust": 6, "waist": 6, "hip": 6, "shoulder": 0 }, priceEUR: 1750, priceCNY: 13500, priceNote: "往季款 · 经销商价 157500 ₽（≈€1750）", image: "images/dg-F6F3MTFSRLJ.jpg", images: ["images/dg-F6F3MTFSRLJ.jpg"], url: "https://www.tsum.ru/product/5420222-plate-iz-viskozy-dolce-gabbana-svetlo-rozovyi/", source: "ЦУМ（授权经销商）· 模特实拍（2D 合成需平铺图）", vintage: true, composite: false },
     { id: "dg-PIN-CADYFLORAL", code: "PIN-CADYFLORAL", name: "亮片花卉贴花 cady 连衣裙", nameEn: "Sequin-embellished flower-appliqué cady dress", brand: "DG", category: "dresses", style: "连衣裙", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "缎面", colorName: "白色", colorHex: "#f0ece1", measurements: { "bust": 86, "waist": 66, "hip": 92, "shoulder": 37, "sleeve": 16, "length": 112 }, ease: { "bust": 6, "waist": 6, "hip": 6, "shoulder": 0 }, priceEUR: 1200, priceCNY: 9300, priceNote: "往季款 · 图片来源 Pinterest 官方图库（无公开售价）", image: "images/dg-PIN-CADYFLORAL.jpg", images: ["images/dg-PIN-CADYFLORAL.jpg"], url: "https://www.pinterest.com/pin/dolce-gabbana-sequinembellished-flowerappliqu-cady-dress--1407443627080787/", source: "Pinterest 官方图库 · 模特实拍（2D 合成需平铺图）", vintage: true, composite: false },
     { id: "dg-PSH-66E256C1", code: "PSH-66E256C1", name: "DG 精细设计连衣裙", nameEn: "Dolce & Gabbana detailed design dress", brand: "DG", category: "dresses", style: "连衣裙", silhouette: "fitted", fit: "修身", season: "Past Season", collection: "Vintage", fabric: "混纺面料", colorName: "多色", colorHex: "#c9a87c", measurements: { "bust": 88, "waist": 68, "hip": 94, "shoulder": 38, "sleeve": 16, "length": 110 }, ease: { "bust": 6, "waist": 6, "hip": 6, "shoulder": 0 }, priceEUR: 3e3, priceCNY: 23300, priceNote: "往季款 · 寄卖价 3250 USD", image: "images/dg-PSH-66E256C1.jpg", images: ["images/dg-PSH-66E256C1.jpg"], url: "https://poshmark.com/listing/Ever-gorgeous-dress-detailed-design-by-the-famous-designer-Dolce-and-Gabbana-66e256c16af5757178e6b6cc", source: "Poshmark 寄卖 · 杂志实拍（2D 合成需平铺图）", vintage: true, composite: false }
   ];
@@ -32412,8 +32438,7 @@ input[type="range"]::-moz-range-thumb {
   var ALL = SIZES;
   var BRANDS = [
     { id: "DG", name: "杜嘉班纳", en: "Dolce & Gabbana", short: "DG" },
-    { id: "BL", name: "巴尔曼", en: "Balmain", short: "BL" },
-    { id: "SL", name: "圣罗兰", en: "Saint Laurent", short: "SL" }
+    { id: "BL", name: "巴尔曼", en: "Balmain", short: "BL" }
   ];
   var VINTAGE_BRAND = {
     id: "VT",
@@ -35702,7 +35727,7 @@ input[type="range"]::-moz-range-thumb {
     const rimIn = opt.rimIn || 6e-3;
     const yBot = typeof opt.yBot === "function" ? opt.yBot : () => opt.yBot;
     const yTop = typeof opt.yTop === "function" ? opt.yTop : () => opt.yTop;
-    const pos = [], idx = [], uvs = [];
+    const pos = [], idx = [], uvs = [], czs = [];
     const row = nTheta + 1;
     const R = new Float32Array((rows + 1) * row);
     const Y = new Float32Array((rows + 1) * row);
@@ -35765,6 +35790,7 @@ input[type="range"]::-moz-range-thumb {
         const cz = silCz(S, U4[i]);
         const x = r * Math.cos(th);
         pos.push(x, yy, cz + r * Math.sin(th));
+        czs.push(cz);
         uvs.push(Math.min(1, Math.max(0, 0.5 + 0.5 * x / rowX[iy])), iy / rows);
       }
     }
@@ -35808,6 +35834,26 @@ input[type="range"]::-moz-range-thumb {
     geo.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
+    {
+      const nrm = geo.attributes.normal.array;
+      const mainCount = czs.length;
+      let dot = 0;
+      for (let i = 0; i < mainCount * 3; i += 3) {
+        const ox = pos[i], oz = pos[i + 2] - czs[i / 3];
+        const len = Math.hypot(ox, oz) || 1;
+        dot += (nrm[i] * ox + nrm[i + 2] * oz) / len;
+      }
+      if (dot < 0) {
+        const ix = geo.index.array;
+        for (let i = 0; i < ix.length; i += 3) {
+          const t = ix[i + 1];
+          ix[i + 1] = ix[i + 2];
+          ix[i + 2] = t;
+        }
+        geo.index.needsUpdate = true;
+        geo.computeVertexNormals();
+      }
+    }
     return geo;
   }
   function topEdgeFn(P, o) {
@@ -36392,6 +36438,37 @@ input[type="range"]::-moz-range-thumb {
     });
     return worst;
   }
+  var _bestFitCache = /* @__PURE__ */ new Map();
+  function bestFitForItem(itemId, model) {
+    const item = DB_BY_ID[itemId];
+    if (!item) return null;
+    const key2 = `${item.category}|${JSON.stringify(item.measurements || {})}|${JSON.stringify(item.ease || null)}`;
+    if (_bestFitCache.has(key2)) return _bestFitCache.get(key2);
+    const sizes = item.sizes && item.sizes.length ? item.sizes : SIZES;
+    let best = null;
+    sizes.forEach((size) => {
+      const r = evaluateFit(itemId, size, model);
+      if (r && (!best || r.score > best.score)) best = r;
+    });
+    _bestFitCache.set(key2, best);
+    return best;
+  }
+  function fitGrade(itemId, model) {
+    const best = bestFitForItem(itemId, model);
+    if (!best) return { stars: 0, score: 0, size: null, verdict: "无数据", parts: [] };
+    const score = best.score;
+    const stars = score >= 78 ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
+    const absd = best.parts.map((p) => Math.abs(p.delta));
+    return {
+      stars,
+      score,
+      size: best.size,
+      maxDev: absd.length ? Math.max(...absd) : 0,
+      verdict: best.verdict,
+      parts: best.parts,
+      level: stars === 3 ? "perfect" : stars === 2 ? "good" : stars === 1 ? "fair" : "poor"
+    };
+  }
   function recommendSizeForItem(itemId, model) {
     const item = DB_BY_ID[itemId];
     if (!item || !model) return fitSizeForModel(model);
@@ -36597,7 +36674,7 @@ input[type="range"]::-moz-range-thumb {
       ySide: f(0.92)
     };
   }
-  function buildSleeve(P, s, { sleeveCm, ease, mat: mat2, nTheta = 26 }) {
+  function buildSleeve(P, s, { sleeveCm, ease, mat: mat2, tile = false, nTheta = 26 }) {
     const S = P._src, H = P._H, NY2 = 200;
     const uAt = (y) => Math.min(0.999, Math.max(0, (y - P.base) / H));
     const armCxAt = (y) => {
@@ -36607,11 +36684,11 @@ input[type="range"]::-moz-range-thumb {
       const v = (isFinite(a) ? a : 0) * (1 - t) + (isFinite(b) ? b : 0) * t;
       return v > 1e-3 ? v : Math.abs(P.armX);
     };
-    const domeH = 9e-3;
-    const yTopS = P.topY + domeH;
+    const domeH = 0.058;
+    const yTopS = P.topY + 0.01;
     const yEnd = P.topY - Math.max(sleeveCm * U3, 0.04);
     const N = Math.max(20, Math.round((yTopS - yEnd) / 0.014));
-    const pos = [], idx = [], uvs = [];
+    const pos = [], idx = [], uvs = [], cxs = [];
     const row = nTheta + 1;
     for (let i = 0; i <= N; i++) {
       const t = i / N;
@@ -36625,7 +36702,9 @@ input[type="range"]::-moz-range-thumb {
       for (let it = 0; it <= nTheta; it++) {
         const th = it / nTheta * Math.PI * 2;
         pos.push(cx + Math.cos(th) * r, y, Math.sin(th) * r * 0.95);
-        uvs.push(it / nTheta, t);
+        cxs.push(cx);
+        if (tile) uvs.push(it / nTheta * 2.6, t * 5);
+        else uvs.push(0.5 + (it / nTheta - 0.5) * 0.44, 0.52);
       }
     }
     for (let i = 0; i < N; i++) {
@@ -36640,7 +36719,26 @@ input[type="range"]::-moz-range-thumb {
     geo.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    const m = new Mesh(scaleUV(geo), mat2);
+    {
+      const nrm = geo.attributes.normal.array;
+      let dot = 0;
+      for (let i = 0; i < nrm.length; i += 3) {
+        const ox = pos[i] - cxs[i / 3], oz = pos[i + 2];
+        const len = Math.hypot(ox, oz) || 1;
+        dot += (nrm[i] * ox + nrm[i + 2] * oz) / len;
+      }
+      if (dot < 0) {
+        const ix = geo.index.array;
+        for (let i = 0; i < ix.length; i += 3) {
+          const t = ix[i + 1];
+          ix[i + 1] = ix[i + 2];
+          ix[i + 2] = t;
+        }
+        geo.index.needsUpdate = true;
+        geo.computeVertexNormals();
+      }
+    }
+    const m = new Mesh(tile ? geo : scaleUV(geo), mat2);
     m.name = "sleeve";
     return m;
   }
@@ -36693,7 +36791,7 @@ input[type="range"]::-moz-range-thumb {
     let i = Math.floor((Math.PI * 0.5 - th + Math.PI) / DTH2);
     return (i % NTH2 + NTH2) % NTH2;
   }
-  function buildGarment(itemId, size, model, colorHex, useRealBody = true, tex = null) {
+  function buildGarment(itemId, size, model, colorHex, useRealBody = true, tex = null, texSolid = null) {
     const item = DB_BY_ID[itemId];
     if (!item) return null;
     const P = bodyProfile(model);
@@ -36747,12 +36845,12 @@ input[type="range"]::-moz-range-thumb {
           const k = Math.min(1, (flare.from - y) / Math.max(flare.from - hemY, 0.02));
           m += flare.amt * k * k;
         }
-        if (y >= spec.yArm - 0.035 && y <= spec.yShoulder + 0.01) {
+        if (y >= spec.yArm - 0.03 && y <= spec.yShoulder - 4e-3) {
           const a = Math.abs(Math.atan2(Math.sin(th), Math.cos(th)));
           const sd = Math.min(a, Math.abs(Math.PI - a));
-          if (sd < 0.62) {
+          if (sd < 0.55) {
             const v = Math.max(0, 1 - (spec.yShoulder - y) / Math.max(spec.yShoulder - spec.yArm, 0.02));
-            m += 0.26 * (1 - sd / 0.62) * (0.35 + 0.65 * v);
+            m += 0.055 * (1 - sd / 0.55) * v;
           }
         }
         return m;
@@ -36772,10 +36870,17 @@ input[type="range"]::-moz-range-thumb {
       g.add(new Mesh(scaleUV(geo), mat2));
       if (sleeveCm > 0) {
         const sleeveEase = Math.min(0.02, Math.max(6e-3, ease.bust * 0.22)) + outerPad * 0.6;
+        let sleeveMat = mat2;
+        if (texSolid) {
+          sleeveMat = mat2.clone();
+          sleeveMat.map = texSolid;
+          sleeveMat.needsUpdate = true;
+        }
         [-1, 1].forEach((s) => g.add(buildSleeve(P, s, {
           sleeveCm,
           ease: sleeveEase,
-          mat: mat2
+          mat: sleeveMat,
+          tile: !!texSolid
         })));
       } else if (spec.strap) {
         [-1, 1].forEach((s) => g.add(buildStrap(P, s, { ease: ease.bust, mat: mat2 })));
@@ -37182,8 +37287,10 @@ input[type="range"]::-moz-range-thumb {
     // 商品搜索关键词：命中时跨品牌、跨品类全局搜索
     filterColor: "",
     // 颜色筛选
-    filterStyle: ""
+    filterStyle: "",
     // 款式（版型）筛选
+    filterGrade: ""
+    // 合身等级筛选（3/2/1 星）
   };
   function saveProfile(p) {
     try {
@@ -37725,7 +37832,7 @@ input[type="range"]::-moz-range-thumb {
       });
       return;
     }
-    const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId));
+    const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId), fabricSolidTexOf(itemId));
     if (!group) return;
     garmentGroup.add(group);
     state.outfit[slot] = { id: itemId, slot, group, color, colorName: colorName2 };
@@ -37786,7 +37893,8 @@ input[type="range"]::-moz-range-thumb {
     searchInput: document.getElementById("search-input"),
     searchClear: document.getElementById("search-clear"),
     filterColor: document.getElementById("filter-color"),
-    filterStyle: document.getElementById("filter-style")
+    filterStyle: document.getElementById("filter-style"),
+    filterGrade: document.getElementById("filter-grade")
   };
   if (els2.searchInput) {
     els2.searchInput.addEventListener("input", () => {
@@ -37809,7 +37917,7 @@ input[type="range"]::-moz-range-thumb {
     });
   }
   function renderFilterOptions() {
-    var _a, _b;
+    var _a, _b, _c;
     const opts = filterOptions();
     if (els2.filterColor) {
       const cur = state.filterColor;
@@ -37823,6 +37931,13 @@ input[type="range"]::-moz-range-thumb {
       els2.filterStyle.value = cur;
       (_b = els2.filterStyle.closest(".filter-sel")) == null ? void 0 : _b.classList.toggle("has-value", !!cur);
     }
+    if (els2.filterGrade) {
+      const cur = state.filterGrade;
+      const c = opts.grades;
+      els2.filterGrade.innerHTML = `<option value="">全部等级</option>` + [3, 2, 1].map((s) => `<option value="${s}">${STAR_TEXT[s]} (${c[s] || 0})</option>`).join("");
+      els2.filterGrade.value = cur;
+      (_c = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _c.classList.toggle("has-value", !!cur);
+    }
   }
   if (els2.filterColor) {
     els2.filterColor.addEventListener("change", () => {
@@ -37834,6 +37949,13 @@ input[type="range"]::-moz-range-thumb {
   if (els2.filterStyle) {
     els2.filterStyle.addEventListener("change", () => {
       state.filterStyle = els2.filterStyle.value;
+      renderFilterOptions();
+      renderGarments();
+    });
+  }
+  if (els2.filterGrade) {
+    els2.filterGrade.addEventListener("change", () => {
+      state.filterGrade = els2.filterGrade.value;
       renderFilterOptions();
       renderGarments();
     });
@@ -37852,6 +37974,99 @@ input[type="range"]::-moz-range-thumb {
     PALETTE.olive,
     PALETTE.chocolate
   ];
+  function flattenShading(img) {
+    const N = 256;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = N;
+    const g = cv.getContext("2d", { willReadFrequently: true });
+    g.drawImage(img, 0, 0, N, N);
+    let data;
+    try {
+      data = g.getImageData(0, 0, N, N);
+    } catch (e) {
+      return null;
+    }
+    const px = data.data;
+    const luma = new Float32Array(N * N);
+    for (let i = 0, p = 0; i < px.length; i += 4, p++) luma[p] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    const R = 22, tmp = new Float32Array(N * N), low = new Float32Array(N * N);
+    const box = (src, dst, horizontal) => {
+      for (let y = 0; y < N; y++) {
+        let sum = 0;
+        const at = (k) => horizontal ? src[y * N + Math.min(N - 1, Math.max(0, k))] : src[Math.min(N - 1, Math.max(0, k)) * N + y];
+        for (let k = -R; k <= R; k++) sum += at(k);
+        for (let x = 0; x < N; x++) {
+          if (horizontal) dst[y * N + x] = sum / (2 * R + 1);
+          else dst[x * N + y] = sum / (2 * R + 1);
+          sum += at(x + R + 1) - at(x - R);
+        }
+      }
+    };
+    box(luma, tmp, true);
+    box(tmp, low, false);
+    let ref = 0, cnt = 0;
+    for (let y = N * 0.35; y < N * 0.65; y++) for (let x = N * 0.35; x < N * 0.65; x++) {
+      ref += low[(y | 0) * N + (x | 0)];
+      cnt++;
+    }
+    ref = cnt ? ref / cnt : 128;
+    if (!isFinite(ref) || ref < 12) return null;
+    for (let p = 0, i = 0; p < N * N; p++, i += 4) {
+      const k = Math.min(2.6, Math.max(0.5, ref / Math.max(8, low[p])));
+      px[i] = Math.min(255, px[i] * k);
+      px[i + 1] = Math.min(255, px[i + 1] * k);
+      px[i + 2] = Math.min(255, px[i + 2] * k);
+    }
+    g.putImageData(data, 0, 0);
+    const x0 = Math.floor(N * 0.36), x1 = Math.ceil(N * 0.64);
+    const y0 = Math.floor(N * (1 - 0.74)), y1 = Math.ceil(N * (1 - 0.4));
+    let r = 0, gg = 0, b = 0, n = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const i = (y * N + x) * 4;
+      r += px[i];
+      gg += px[i + 1];
+      b += px[i + 2];
+      n++;
+    }
+    const mean = n ? [Math.round(r / n), Math.round(gg / n), Math.round(b / n)] : [128, 128, 128];
+    let tile = null;
+    const cw = Math.round(N * 0.16), ch = Math.round(N * 0.16);
+    const cx0 = Math.round(N * 0.42), cy0 = Math.round(N * (1 - 0.68));
+    if (cw > 4 && ch > 4 && cx0 + cw <= N && cy0 + ch <= N) {
+      const tc = document.createElement("canvas");
+      tc.width = cw;
+      tc.height = ch;
+      const tg = tc.getContext("2d");
+      tg.drawImage(cv, cx0, cy0, cw, ch, 0, 0, cw, ch);
+      tile = tc;
+    }
+    return { canvas: cv, mean, tile };
+  }
+  var _solidTexCache = /* @__PURE__ */ new Map();
+  function fabricSolidTexOf(itemId) {
+    if (_solidTexCache.has(itemId)) return _solidTexCache.get(itemId);
+    const flat2 = _flatCache.get(itemId);
+    let tex = null;
+    if (flat2 && flat2.tile) {
+      tex = new Texture(flat2.tile);
+      tex.wrapS = tex.wrapT = RepeatWrapping;
+      tex.colorSpace = SRGBColorSpace;
+      tex.needsUpdate = true;
+    } else if (flat2 && flat2.mean) {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = 4;
+      const g = cv.getContext("2d");
+      const [r, gg, b] = flat2.mean;
+      g.fillStyle = `rgb(${r},${gg},${b})`;
+      g.fillRect(0, 0, 4, 4);
+      tex = new Texture(cv);
+      tex.colorSpace = SRGBColorSpace;
+      tex.needsUpdate = true;
+    }
+    _solidTexCache.set(itemId, tex);
+    return tex;
+  }
+  var _flatCache = /* @__PURE__ */ new Map();
   var _texCache = /* @__PURE__ */ new Map();
   function fabricTexOf(itemId) {
     if (_texCache.has(itemId)) return _texCache.get(itemId);
@@ -37865,14 +38080,49 @@ input[type="range"]::-moz-range-thumb {
     if (src) {
       const img = document.querySelector(`.garment-card[data-id="${itemId}"] .db-photo`);
       if (img && img.complete && img.naturalWidth > 0) {
-        tex = new Texture(img);
+        const flat2 = flattenShading(img);
+        if (flat2) {
+          _flatCache.set(itemId, flat2);
+          tex = new Texture(flat2.canvas);
+        } else {
+          tex = new Texture(img);
+        }
         tex.wrapS = tex.wrapT = ClampToEdgeWrapping;
         tex.colorSpace = SRGBColorSpace;
         tex.needsUpdate = true;
+      } else if (img) {
+        const pending = new Image();
+        if (REMOTE_ASSET_BASE) pending.crossOrigin = "anonymous";
+        pending.onload = () => {
+          _texCache.delete(itemId);
+          _flatCache.delete(itemId);
+          _solidTexCache.delete(itemId);
+          fabricTexOf(itemId);
+          refreshGarmentTexture(itemId);
+        };
+        pending.src = assetURL(src);
       }
     }
     _texCache.set(itemId, tex);
     return tex;
+  }
+  function refreshGarmentTexture(itemId) {
+    const slot = Object.keys(state.outfit).find((k) => state.outfit[k] && state.outfit[k].id === itemId);
+    if (!slot) return;
+    const entry = state.outfit[slot];
+    const group = buildGarment(
+      itemId,
+      state.size,
+      state.model,
+      entry.color,
+      true,
+      fabricTexOf(itemId),
+      fabricSolidTexOf(itemId)
+    );
+    if (!group) return;
+    garmentGroup.remove(entry.group);
+    entry.group = group;
+    garmentGroup.add(group);
   }
   function currentBrandItems() {
     if (state.brand === VINTAGE_BRAND.id) return DB.filter((g) => g.vintage);
@@ -37884,9 +38134,10 @@ input[type="range"]::-moz-range-thumb {
     if (els2.searchClear) els2.searchClear.hidden = true;
   }
   function clearFilters() {
-    var _a, _b;
+    var _a, _b, _c;
     state.filterColor = "";
     state.filterStyle = "";
+    state.filterGrade = "";
     if (els2.filterColor) {
       els2.filterColor.value = "";
       (_a = els2.filterColor.closest(".filter-sel")) == null ? void 0 : _a.classList.remove("has-value");
@@ -37895,18 +38146,41 @@ input[type="range"]::-moz-range-thumb {
       els2.filterStyle.value = "";
       (_b = els2.filterStyle.closest(".filter-sel")) == null ? void 0 : _b.classList.remove("has-value");
     }
+    if (els2.filterGrade) {
+      els2.filterGrade.value = "";
+      (_c = els2.filterGrade.closest(".filter-sel")) == null ? void 0 : _c.classList.remove("has-value");
+    }
+  }
+  var _gradeCache = /* @__PURE__ */ new Map();
+  function gradeOf(item) {
+    let g = _gradeCache.get(item.id);
+    if (!g) {
+      g = fitGrade(item.id, state.model);
+      _gradeCache.set(item.id, g);
+    }
+    return g;
+  }
+  var STAR_TEXT = { 3: "★★★ 满分", 2: "★★ 合身", 1: "★ 略偏", 0: "" };
+  function starBadge(item) {
+    const g = gradeOf(item);
+    if (!g.stars) return "";
+    const cls = g.stars === 3 ? "star3" : g.stars === 2 ? "star2" : "star1";
+    const tip = `合身评分 ${g.score} 分（最优尺码 ${g.size} · ${g.verdict}）`;
+    return `<span class="db-tag ${cls}" title="${tip}">${"★".repeat(g.stars)} ${g.score}</span>`;
   }
   function matchingItems() {
     const q = (state.query || "").trim().toLowerCase();
     const fc = state.filterColor || "";
     const fst = state.filterStyle || "";
-    if (!q && !fc && !fst) return currentBrandItems().filter((g) => g.category === state.category);
+    const fg = state.filterGrade || "";
+    if (!q && !fc && !fst && !fg) return currentBrandItems().filter((g) => g.category === state.category);
     const terms = q.split(/\s+/).filter(Boolean);
     const catName = Object.fromEntries(DB_CATEGORIES.map((c) => [c.id, c.name + " " + c.en]));
     const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map((b) => [b.id, `${b.name} ${b.en} ${b.short}`]));
     return DB.filter((g) => {
       if (fc && !(g.colors || []).some((c) => c.name === fc)) return false;
       if (fst && g.style !== fst) return false;
+      if (fg && String(gradeOf(g).stars) !== fg) return false;
       const hay = [
         g.name,
         g.nameEn,
@@ -37924,17 +38198,22 @@ input[type="range"]::-moz-range-thumb {
       return terms.every((t) => hay.includes(t));
     });
   }
+  function sortByFit(items) {
+    return items.map((item, i) => ({ item, g: gradeOf(item), i })).sort((a, b) => b.g.score - a.g.score || a.i - b.i).map((x) => x.item);
+  }
   function filterOptions() {
     const colors = /* @__PURE__ */ new Map(), styles = /* @__PURE__ */ new Map();
+    const grades = { 3: 0, 2: 0, 1: 0, 0: 0 };
     DB.forEach((g) => {
       (g.colors || []).forEach((c) => {
         if (!c || !c.name) return;
         colors.set(c.name, (colors.get(c.name) || 0) + 1);
       });
       if (g.style) styles.set(g.style, (styles.get(g.style) || 0) + 1);
+      grades[gradeOf(g).stars] = (grades[gradeOf(g).stars] || 0) + 1;
     });
     const top = (m, n) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
-    return { colors: top(colors, 26), styles: top(styles, 40) };
+    return { colors: top(colors, 26), styles: top(styles, 40), grades };
   }
   function renderBrands() {
     if (!els2.brands) return;
@@ -37982,13 +38261,16 @@ input[type="range"]::-moz-range-thumb {
   }
   function renderGarments() {
     const searching = !!(state.query || "").trim();
-    const filtering = !!(state.filterColor || state.filterStyle);
-    const items = matchingItems();
+    const filtering = !!(state.filterColor || state.filterStyle || state.filterGrade);
+    const matched = matchingItems();
+    const items = sortByFit(matched);
+    const starCount = matched.filter((i) => gradeOf(i).stars === 3).length;
     const scope = () => {
       const parts = [];
       if (searching) parts.push(`搜索「${state.query.trim()}」`);
       if (state.filterColor) parts.push(`颜色 ${state.filterColor}`);
       if (state.filterStyle) parts.push(`款式 ${state.filterStyle}`);
+      if (state.filterGrade) parts.push(`${"★".repeat(+state.filterGrade)} 档`);
       return parts.join(" · ");
     };
     if (!items.length) {
@@ -38002,13 +38284,14 @@ input[type="range"]::-moz-range-thumb {
       const chosen = Object.values(state.outfit).some((o) => o && o.id === item.id);
       const brand = [...BRANDS, VINTAGE_BRAND].find((b) => b.id === item.brand) || (item.vintage ? { short: "VINTAGE", name: "往季" } : null);
       const cat = DB_CATEGORIES.find((c) => c.id === item.category);
-      return `<div class="garment-card db-card ${chosen ? "selected" : ""}" data-id="${item.id}">
+      return `<div class="garment-card db-card ${chosen ? "selected" : ""} ${gradeOf(item).stars === 3 ? "is-perfect" : ""}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div class="db-thumb">
         ${item.image ? `<img class="db-photo" src="${assetURL(item.image)}" alt="${item.nameEn}" loading="lazy"${REMOTE_ASSET_BASE ? ' crossorigin="anonymous"' : ""} onerror="this.remove()"/>` : `<div class="db-thumb-fallback"><span>${item.archiveYear || "ARCHIVE"}</span><b>${item.nameEn}</b><i>停产款 · 无官方图</i></div>`}
       </div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
+        ${starBadge(item)}
         ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ""}
         ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ""}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ""}</span>` : ""}
@@ -38024,7 +38307,7 @@ input[type="range"]::-moz-range-thumb {
       card.addEventListener("click", () => selectGarment(card.dataset.id));
     });
     if (els2.wardrobeSub) {
-      els2.wardrobeSub.textContent = searching || filtering ? `${scope()} · ${items.length} 款（全品牌全品类）` : `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+      els2.wardrobeSub.textContent = searching || filtering ? `${scope()} · ${items.length} 款（全品牌全品类）` : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
     }
   }
   function renderColors() {
@@ -38083,7 +38366,7 @@ input[type="range"]::-moz-range-thumb {
       const entry = state.outfit[slot];
       if (!entry) return;
       const color = entry.color;
-      const group = buildGarment(entry.id, state.size, state.model, color, true);
+      const group = buildGarment(entry.id, state.size, state.model, color, true, fabricTexOf(entry.id), fabricSolidTexOf(entry.id));
       garmentGroup.remove(entry.group);
       entry.group.traverse((o) => {
         if (o.isMesh) o.geometry.dispose();
@@ -38128,11 +38411,17 @@ input[type="range"]::-moz-range-thumb {
     </div>`;
     }).join("");
     const recHtml = result.recommendation !== state.size ? `<div class="fit-recommend">系统推荐尺码 <b>${result.recommendation}</b>，当前 ${state.size} 可能不够合身</div>` : `<div class="fit-recommend ok">当前尺码 ${state.size} 与推荐一致</div>`;
+    const g = gradeOf(DB_BY_ID[entry.id]);
+    const gradeHtml = `<div class="fit-grade ${g.stars === 3 ? "star3" : g.stars === 2 ? "star2" : "star1"}">
+      <span class="fit-grade-stars">${"★".repeat(g.stars) || "☆"}</span>
+      <span class="fit-grade-text">本款最佳状态：${STAR_TEXT[g.stars] || "不合身"} · 最优尺码 ${g.size} · 评分 ${g.score}</span>
+    </div>`;
     els2.fitReport.innerHTML = `
     <div class="fit-score-row">
       <div class="fit-score ${levelClass}">${result.score}<small>分</small></div>
       <div class="fit-score-desc">${result.summary}</div>
     </div>
+    ${gradeHtml}
     ${partsHtml}
     ${recHtml}`;
   }

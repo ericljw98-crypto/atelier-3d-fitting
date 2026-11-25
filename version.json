@@ -1,15 +1,15 @@
 {
-  "versionCode": 37,
-  "versionName": "2.26",
-  "releaseDate": "2026-11-24",
-  "size": 110410081,
-  "sha256": "b916a36505201a127a56754df96d7a492471425402b6186da1bead01ddebe64f",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk",
-  "notes": "往季库扩充：新增 10 款真实在售往季款（来源均为授权经销商/寄卖平台的商品页，款号价格面料尺码取自页面原始数据）——DG TLC-121341 黑色刺绣波点薄纱裙、1STD-27411072 真丝玫瑰印花裹身衬衫、LP 条纹玫瑰印花半裙 IT46、DR281131-40 百合印花迷你裙、F0Z73TGDU47 官网在售欧根纱丛林印花风衣、F9R41T-G7K6T 白针织套装、FX153ZJASHE 浅米丝质亮片上衣、F6F3MT/FSRLJ 浅粉百合印花 cady 裙、PIN 亮片花卉贴花 cady 裙、PSH 寄卖连衣裙。新增 composite 标记：实拍图或浅色主体（抠底会被误判为背景）的款不参与 2D 合成，卡片标「仅浏览」并提示改看 3D。往季库 14 款，商品库 2123 款。",
+  "versionCode": 38,
+  "versionName": "2.27",
+  "releaseDate": "2026-11-25",
+  "size": 110413605,
+  "sha256": "5cdbb107a3e26b56b040d99190b6dd600f8ac8f10d370b97d24489da558995ba",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk",
+  "notes": "合身评分排序与三星满分标记（新增等级筛选）；修复3D肩袖贴合：衣身壳体法线朝内导致整体发暗、袖窿补片把袖子吞进衣身、袖山改为与肩线连续的圆弧、袖子改用同匹面料贴图；移除无商品的圣罗兰品牌页；删除往季浅粉 cady 连衣裙（图片与商品不符）",
   "apk": {
-    "size": 110410081,
-    "sha256": "b916a36505201a127a56754df96d7a492471425402b6186da1bead01ddebe64f",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.26/ATELIER-3D-Fitting-v2.26.apk"
+    "size": 110413605,
+    "sha256": "5cdbb107a3e26b56b040d99190b6dd600f8ac8f10d370b97d24489da558995ba",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.27/ATELIER-3D-Fitting-v2.27.apk"
   }
 }

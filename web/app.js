@@ -4,7 +4,7 @@ import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, VINTAGE_BRAND, SIZE_CHART
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
-import { evaluateFit, garmentMeasurements, fitSizeForModel } from './fitEngine.js';
+import { evaluateFit, garmentMeasurements, fitSizeForModel, fitGrade } from './fitEngine.js';
 import { initUpdate } from './update.js';
 
 /* ============================================================
@@ -87,6 +87,7 @@ const state = {
   query: '',                           // 商品搜索关键词：命中时跨品牌、跨品类全局搜索
   filterColor: '',                     // 颜色筛选
   filterStyle: '',                     // 款式（版型）筛选
+  filterGrade: '',                     // 合身等级筛选（3/2/1 星）
 };
 
 function loadProfile() {
@@ -735,7 +736,7 @@ function selectGarment(itemId, opt = {}) {
   }
   /* 面料贴图：直接取卡片上已经解码好的商品图，不额外发请求。
      取不到（图片未就绪 / 该款无图）就退回纯色。 */
-  const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId));
+  const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId), fabricSolidTexOf(itemId));
   if (!group) return;
   garmentGroup.add(group);
   state.outfit[slot] = { id: itemId, slot, group, color, colorName };
@@ -788,6 +789,7 @@ const els = {
   searchClear: document.getElementById('search-clear'),
   filterColor: document.getElementById('filter-color'),
   filterStyle: document.getElementById('filter-style'),
+  filterGrade: document.getElementById('filter-grade'),
 };
 
 /* 搜索框：输入即跨品牌全局检索；Esc / 点 × 清空 */
@@ -825,6 +827,14 @@ function renderFilterOptions() {
     els.filterStyle.value = cur;
     els.filterStyle.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
   }
+  if (els.filterGrade) {
+    const cur = state.filterGrade;
+    const c = opts.grades;
+    els.filterGrade.innerHTML = `<option value="">全部等级</option>` +
+      [3, 2, 1].map(s => `<option value="${s}">${STAR_TEXT[s]} (${c[s] || 0})</option>`).join('');
+    els.filterGrade.value = cur;
+    els.filterGrade.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
+  }
 }
 if (els.filterColor) {
   els.filterColor.addEventListener('change', () => {
@@ -840,6 +850,13 @@ if (els.filterStyle) {
     renderGarments();
   });
 }
+if (els.filterGrade) {
+  els.filterGrade.addEventListener('change', () => {
+    state.filterGrade = els.filterGrade.value;
+    renderFilterOptions();
+    renderGarments();
+  });
+}
 
 const SWATCHES = [
   PALETTE.black, PALETTE.ivory, PALETTE.red, PALETTE.wine,
@@ -849,6 +866,107 @@ const SWATCHES = [
 
 
 /* ---------------- 面料贴图 ---------------- */
+
+/** 把商品图的大块明暗压平，只留下花型与织纹。
+    平铺商品图自带摄影棚的光影：肩部一条暗影、裙摆一片反光。
+    这些明暗一旦当面料贴上模型，就会被读成「这块布换了一种颜色」——
+    袖山采到亮区、衣身采到暗影时，肩上就出现一块对不上的贴片。
+    做法是除以低频亮度（大半径模糊），把光照成分除掉，保留高频纹样。
+    同时量出「胸前那块面料」的平均色，供袖筒取色。 */
+function flattenShading(img) {
+  const N = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, N, N);
+  let data;
+  try { data = g.getImageData(0, 0, N, N); } catch (e) { return null; }   // 跨域污染则放弃
+  const px = data.data;
+  const luma = new Float32Array(N * N);
+  for (let i = 0, p = 0; i < px.length; i += 4, p++) luma[p] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+  // 可分离盒式模糊，半径 22（约占画幅 1/6），只留大尺度光照
+  const R = 22, tmp = new Float32Array(N * N), low = new Float32Array(N * N);
+  const box = (src, dst, horizontal) => {
+    for (let y = 0; y < N; y++) {
+      let sum = 0;
+      const at = (k) => horizontal ? src[y * N + Math.min(N - 1, Math.max(0, k))] : src[Math.min(N - 1, Math.max(0, k)) * N + y];
+      for (let k = -R; k <= R; k++) sum += at(k);
+      for (let x = 0; x < N; x++) {
+        if (horizontal) dst[y * N + x] = sum / (2 * R + 1);
+        else dst[x * N + y] = sum / (2 * R + 1);
+        sum += at(x + R + 1) - at(x - R);
+      }
+    }
+  };
+  box(luma, tmp, true); box(tmp, low, false);
+  // 以中央区域（一定落在衣身上）的平均亮度为基准
+  let ref = 0, cnt = 0;
+  for (let y = N * 0.35; y < N * 0.65; y++) for (let x = N * 0.35; x < N * 0.65; x++) { ref += low[(y | 0) * N + (x | 0)]; cnt++; }
+  ref = cnt ? ref / cnt : 128;
+  if (!isFinite(ref) || ref < 12) return null;
+  for (let p = 0, i = 0; p < N * N; p++, i += 4) {
+    const k = Math.min(2.6, Math.max(0.5, ref / Math.max(8, low[p])));
+    px[i] = Math.min(255, px[i] * k);
+    px[i + 1] = Math.min(255, px[i + 1] * k);
+    px[i + 2] = Math.min(255, px[i + 2] * k);
+  }
+  g.putImageData(data, 0, 0);
+  // 整件成衣所在区域的平均色（贴图坐标 u 0.36–0.64 / v 0.40–0.74，canvas 的 y 是反的）
+  const x0 = Math.floor(N * 0.36), x1 = Math.ceil(N * 0.64);
+  const y0 = Math.floor(N * (1 - 0.74)), y1 = Math.ceil(N * (1 - 0.40));
+  let r = 0, gg = 0, b = 0, n = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const i = (y * N + x) * 4;
+    r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++;
+  }
+  const mean = n ? [Math.round(r / n), Math.round(gg / n), Math.round(b / n)] : [128, 128, 128];
+  /* 袖筒专用的小块面料：裁一块胸前那块布下来，绕着袖子贴一圈。
+     用实色会让有花型的衣服出现「素色袖子」，用整幅图又会把花纹拉变形，
+     裁一小块再重复，袖子的花色和衣身才是同一匹料。 */
+  let tile = null;
+  const cw = Math.round(N * 0.16), ch = Math.round(N * 0.16);
+  const cx0 = Math.round(N * 0.42), cy0 = Math.round(N * (1 - 0.68));
+  if (cw > 4 && ch > 4 && cx0 + cw <= N && cy0 + ch <= N) {
+    const tc = document.createElement('canvas');
+    tc.width = cw; tc.height = ch;
+    const tg = tc.getContext('2d');
+    tg.drawImage(cv, cx0, cy0, cw, ch, 0, 0, cw, ch);
+    tile = tc;
+  }
+  return { canvas: cv, mean, tile };
+}
+
+/* 袖筒专用的面料贴图：取胸前那块布的一小块，绕着袖子重复贴。
+   平铺图里没有袖子对应的区域，袖筒若按自己的 UV 去采样，
+   采到的多半是背景或阴影，肩头就会拼出一块异色的贴片；
+   用素色又会让有花型的衣服出现「素色袖子」。
+   裁一小块重复贴，袖子才和衣身是同一匹料。 */
+const _solidTexCache = new Map();
+function fabricSolidTexOf(itemId) {
+  if (_solidTexCache.has(itemId)) return _solidTexCache.get(itemId);
+  const flat = _flatCache.get(itemId);
+  let tex = null;
+  if (flat && flat.tile) {
+    tex = new THREE.Texture(flat.tile);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+  } else if (flat && flat.mean) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 4;
+    const g = cv.getContext('2d');
+    const [r, gg, b] = flat.mean;
+    g.fillStyle = `rgb(${r},${gg},${b})`;
+    g.fillRect(0, 0, 4, 4);
+    tex = new THREE.Texture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+  }
+  _solidTexCache.set(itemId, tex);
+  return tex;
+}
+
+const _flatCache = new Map();
 const _texCache = new Map();
 function fabricTexOf(itemId) {
   if (_texCache.has(itemId)) return _texCache.get(itemId);
@@ -860,14 +978,44 @@ function fabricTexOf(itemId) {
   if (src) {
     const img = document.querySelector(`.garment-card[data-id="${itemId}"] .db-photo`);
     if (img && img.complete && img.naturalWidth > 0) {
-      tex = new THREE.Texture(img);
+      const flat = flattenShading(img);
+      if (flat) {
+        _flatCache.set(itemId, flat);
+        tex = new THREE.Texture(flat.canvas);
+      } else {
+        tex = new THREE.Texture(img);
+      }
       tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.needsUpdate = true;
+    } else if (img) {
+      /* 卡片图还没解码完（懒加载刚进视口）：自己再取一次，
+         到位后重建当前这件，衣服才不会是没花色的纯色壳。 */
+      const pending = new Image();
+      if (REMOTE_ASSET_BASE) pending.crossOrigin = 'anonymous';
+      pending.onload = () => {
+        _texCache.delete(itemId); _flatCache.delete(itemId); _solidTexCache.delete(itemId);
+        fabricTexOf(itemId);
+        refreshGarmentTexture(itemId);
+      };
+      pending.src = assetURL(src);
     }
   }
   _texCache.set(itemId, tex);
   return tex;
+}
+
+/* 面料贴图到位后，把正在穿的这件重建一次 */
+function refreshGarmentTexture(itemId) {
+  const slot = Object.keys(state.outfit).find(k => state.outfit[k] && state.outfit[k].id === itemId);
+  if (!slot) return;
+  const entry = state.outfit[slot];
+  const group = buildGarment(itemId, state.size, state.model, entry.color, true,
+    fabricTexOf(itemId), fabricSolidTexOf(itemId));
+  if (!group) return;
+  garmentGroup.remove(entry.group);
+  entry.group = group;
+  garmentGroup.add(group);
 }
 
 /* 当前品牌页的商品集。
@@ -889,8 +1037,34 @@ function clearSearch() {
 function clearFilters() {
   state.filterColor = '';
   state.filterStyle = '';
+  state.filterGrade = '';
   if (els.filterColor) { els.filterColor.value = ''; els.filterColor.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterStyle) { els.filterStyle.value = ''; els.filterStyle.closest('.filter-sel')?.classList.remove('has-value'); }
+  if (els.filterGrade) { els.filterGrade.value = ''; els.filterGrade.closest('.filter-sel')?.classList.remove('has-value'); }
+}
+
+/* ---------------- 合身等级（星级） ---------------- */
+/* 每一款的等级取它在可选尺码里「最优的那一档」的合身评分：
+   评分越高说明这件衣服对当前身形越友好。等级与尺码无关，
+   所以可以直接用来排序和筛选。
+   同批商品共用 31 个测量模板，引擎内部按模板缓存，这里只做逐款的取值。 */
+const _gradeCache = new Map();
+function gradeOf(item) {
+  let g = _gradeCache.get(item.id);
+  if (!g) {
+    g = fitGrade(item.id, state.model);
+    _gradeCache.set(item.id, g);
+  }
+  return g;
+}
+const STAR_TEXT = { 3: '★★★ 满分', 2: '★★ 合身', 1: '★ 略偏', 0: '' };
+/* 星级徽章：满分档才给三星，其余两档也标出来，用户一眼能看出排序依据 */
+function starBadge(item) {
+  const g = gradeOf(item);
+  if (!g.stars) return '';
+  const cls = g.stars === 3 ? 'star3' : g.stars === 2 ? 'star2' : 'star1';
+  const tip = `合身评分 ${g.score} 分（最优尺码 ${g.size} · ${g.verdict}）`;
+  return `<span class="db-tag ${cls}" title="${tip}">${'★'.repeat(g.stars)} ${g.score}</span>`;
 }
 
 /* 商品搜索：有关键词时跨品牌、跨品类全局检索；空关键词回到当前品牌+品类。
@@ -900,13 +1074,15 @@ function matchingItems() {
   const q = (state.query || '').trim().toLowerCase();
   const fc = state.filterColor || '';
   const fst = state.filterStyle || '';
-  if (!q && !fc && !fst) return currentBrandItems().filter(g => g.category === state.category);
+  const fg = state.filterGrade || '';
+  if (!q && !fc && !fst && !fg) return currentBrandItems().filter(g => g.category === state.category);
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
   const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
   return DB.filter(g => {
     if (fc && !(g.colors || []).some(c => c.name === fc)) return false;
     if (fst && g.style !== fst) return false;
+    if (fg && String(gradeOf(g).stars) !== fg) return false;
     const hay = [
       g.name, g.nameEn, g.code, g.fabric, g.style,
       SILHOUETTE_NAMES[g.silhouette] || '', g.silhouette || '',
@@ -918,19 +1094,30 @@ function matchingItems() {
   });
 }
 
+/* 按合身评分降序排列：满分（★★★）在最前，其余依次往后。
+   同分保持原有目录顺序，避免整页被打乱。 */
+function sortByFit(items) {
+  return items
+    .map((item, i) => ({ item, g: gradeOf(item), i }))
+    .sort((a, b) => (b.g.score - a.g.score) || (a.i - b.i))
+    .map(x => x.item);
+}
+
 /* 筛选项来源：始终用全库统计，用户能直接看到每个颜色/款式各有多少款，
    不会因为当前品牌或分类不同而看到忽多忽少的选项。 */
 function filterOptions() {
   const colors = new Map(), styles = new Map();
+  const grades = { 3: 0, 2: 0, 1: 0, 0: 0 };
   DB.forEach(g => {
     (g.colors || []).forEach(c => {
       if (!c || !c.name) return;
       colors.set(c.name, (colors.get(c.name) || 0) + 1);
     });
     if (g.style) styles.set(g.style, (styles.get(g.style) || 0) + 1);
+    grades[gradeOf(g).stars] = (grades[gradeOf(g).stars] || 0) + 1;
   });
   const top = (m, n) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
-  return { colors: top(colors, 26), styles: top(styles, 40) };
+  return { colors: top(colors, 26), styles: top(styles, 40), grades };
 }
 
 function renderBrands() {
@@ -977,8 +1164,11 @@ function priceMarkup(item) {
 
 function renderGarments() {
   const searching = !!(state.query || '').trim();
-  const filtering = !!(state.filterColor || state.filterStyle);
-  const items = matchingItems();
+  const filtering = !!(state.filterColor || state.filterStyle || state.filterGrade);
+  const matched = matchingItems();
+  /* 按合身评分降序：满分档（★★★）在最前，其余依次往后 */
+  const items = sortByFit(matched);
+  const starCount = matched.filter(i => gradeOf(i).stars === 3).length;
   /* 副标题要说明当前看到的是「筛选后」还是「该品牌全部」，
      否则 1922 款和筛选出的 463 款看起来像数据对不上。 */
   const scope = () => {
@@ -986,6 +1176,7 @@ function renderGarments() {
     if (searching) parts.push(`搜索「${state.query.trim()}」`);
     if (state.filterColor) parts.push(`颜色 ${state.filterColor}`);
     if (state.filterStyle) parts.push(`款式 ${state.filterStyle}`);
+    if (state.filterGrade) parts.push(`${'★'.repeat(+state.filterGrade)} 档`);
     return parts.join(' · ');
   };
   if (!items.length) {
@@ -1002,7 +1193,7 @@ function renderGarments() {
     const brand = [...BRANDS, VINTAGE_BRAND].find(b => b.id === item.brand)
       || (item.vintage ? { short: 'VINTAGE', name: '往季' } : null);
     const cat = DB_CATEGORIES.find(c => c.id === item.category);
-    return `<div class="garment-card db-card ${chosen ? 'selected' : ''}" data-id="${item.id}">
+    return `<div class="garment-card db-card ${chosen ? 'selected' : ''} ${gradeOf(item).stars === 3 ? 'is-perfect' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <div class="db-thumb">
         ${item.image
@@ -1011,6 +1202,7 @@ function renderGarments() {
       </div>
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
+        ${starBadge(item)}
         ${item.vintage ? `<span class="db-tag vintage">往季</span>` : ''}
         ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ''}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
@@ -1028,7 +1220,7 @@ function renderGarments() {
   if (els.wardrobeSub) {
     els.wardrobeSub.textContent = (searching || filtering)
       ? `${scope()} · ${items.length} 款（全品牌全品类）`
-      : `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+      : `${currentBrandItems().length} 款 · 本类 ${items.length} 款 · 按合身评分排序 · ${starCount} 款满分置顶`;
   }
 }
 
@@ -1099,7 +1291,7 @@ function recomputeOutfitForSize() {
     const entry = state.outfit[slot];
     if (!entry) return;
     const color = entry.color;
-    const group = buildGarment(entry.id, state.size, state.model, color, true);
+    const group = buildGarment(entry.id, state.size, state.model, color, true, fabricTexOf(entry.id), fabricSolidTexOf(entry.id));
     garmentGroup.remove(entry.group);
     entry.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
     garmentGroup.add(group);
@@ -1151,11 +1343,20 @@ function renderFitReport() {
     ? `<div class="fit-recommend">系统推荐尺码 <b>${result.recommendation}</b>，当前 ${state.size} 可能不够合身</div>`
     : `<div class="fit-recommend ok">当前尺码 ${state.size} 与推荐一致</div>`;
 
+  /* 该款在所有可选尺码里的最好状态：星级 + 最优码 + 评分。
+     列表按它排序，诊断面板也把它摆出来，两处口径一致。 */
+  const g = gradeOf(DB_BY_ID[entry.id]);
+  const gradeHtml = `<div class="fit-grade ${g.stars === 3 ? 'star3' : g.stars === 2 ? 'star2' : 'star1'}">
+      <span class="fit-grade-stars">${'★'.repeat(g.stars) || '☆'}</span>
+      <span class="fit-grade-text">本款最佳状态：${STAR_TEXT[g.stars] || '不合身'} · 最优尺码 ${g.size} · 评分 ${g.score}</span>
+    </div>`;
+
   els.fitReport.innerHTML = `
     <div class="fit-score-row">
       <div class="fit-score ${levelClass}">${result.score}<small>分</small></div>
       <div class="fit-score-desc">${result.summary}</div>
     </div>
+    ${gradeHtml}
     ${partsHtml}
     ${recHtml}`;
 }

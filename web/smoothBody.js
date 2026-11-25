@@ -611,7 +611,7 @@ export function shellVarying(P, opt) {
   const yBot = typeof opt.yBot === 'function' ? opt.yBot : () => opt.yBot;
   const yTop = typeof opt.yTop === 'function' ? opt.yTop : () => opt.yTop;
 
-  const pos = [], idx = [], uvs = [];
+  const pos = [], idx = [], uvs = [], czs = [];
   const row = nTheta + 1;
   const R = new Float32Array((rows + 1) * row);
   const Y = new Float32Array((rows + 1) * row);
@@ -688,6 +688,7 @@ export function shellVarying(P, opt) {
       const cz = silCz(S, U[i]);
       const x = r * Math.cos(th);
       pos.push(x, yy, cz + r * Math.sin(th));
+      czs.push(cz);
       uvs.push(Math.min(1, Math.max(0, 0.5 + 0.5 * x / rowX[iy])), iy / rows);
     }
   }
@@ -735,6 +736,29 @@ export function shellVarying(P, opt) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
+  /* 法线朝向自检。壳体是绕身体的闭壳，法线必须朝外。
+     绕序一旦写反，双面材质里的「背面翻法线」就会把朝内的法线再翻成朝外，
+     看着没事；但只要某一面的正反面判定与法线方向不一致，
+     那块布就会用朝内的法线去受光——整件衣服发暗发灰，
+     和亮色的袖子一比，就像肩上贴了一块别的料子。
+     这里量一遍法线与「离身体轴的水平方向」的点积，
+     整体朝内就把三角形绕序反过来，重算法线。 */
+  {
+    const nrm = geo.attributes.normal.array;
+    const mainCount = czs.length;            // 只量主壳体，翻边不参与判定
+    let dot = 0;
+    for (let i = 0; i < mainCount * 3; i += 3) {
+      const ox = pos[i], oz = pos[i + 2] - czs[i / 3];
+      const len = Math.hypot(ox, oz) || 1;
+      dot += (nrm[i] * ox + nrm[i + 2] * oz) / len;
+    }
+    if (dot < 0) {
+      const ix = geo.index.array;
+      for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; }
+      geo.index.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
+  }
   return geo;
 }
 
