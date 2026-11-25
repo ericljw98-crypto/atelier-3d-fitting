@@ -1103,6 +1103,22 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(157, 180, 200, .14); border-color: #9db4c8; color: #cfe0ef;
 }
 
+/* 高分库：平台在售尺码提示 */
+.db-avail {
+  font-size: 11px; color: #7f95a8; margin: 2px 0 3px;
+  letter-spacing: .02em;
+}
+.db-avail::before { content: '· '; color: #55697c; }
+
+/* 平台没有这一档码的尺码按钮 */
+.size-buttons button.off-size {
+  opacity: .38; position: relative;
+}
+.size-buttons button.off-size .no-size {
+  font-style: normal; font-size: 9px; color: #8fa3b8;
+  margin-left: 2px; letter-spacing: 0;
+}
+
 /* 商品实拍图 */
 .db-thumb {
   width: 100%; height: 132px; flex: 0 0 132px; min-height: 132px;

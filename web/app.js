@@ -6,6 +6,7 @@ import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
 import { evaluateFit, garmentMeasurements, fitSizeForModel, fitGrade } from './fitEngine.js';
 import { premiumSizeLabel } from './premiumBrands.js';
+import { CUT_EASE as PREMIUM_EASE, judgeAt } from './platformFit.js';
 import { initUpdate } from './update.js';
 
 /* ============================================================
@@ -892,13 +893,26 @@ function selectGarment(itemId, opt = {}) {
   }
   /* 面料贴图：直接取卡片上已经解码好的商品图，不额外发请求。
      取不到（图片未就绪 / 该款无图）就退回纯色。 */
+  /* 高分库商品只买得到平台在售的那几档：当前尺码买不到时，
+     自动切到在售尺码里最接近的一档（该款的最优码）。 */
+  if (item.premium && item.availSizes && item.availSizes.length) {
+    if (!item.availSizes.includes(state.size)) {
+      const best = item.fitSize && item.availSizes.includes(item.fitSize)
+        ? item.fitSize
+        : item.availSizes.reduce((a, b) =>
+            Math.abs(sizeNumber(b) - sizeNumber(item.fitSize || state.size)) <
+            Math.abs(sizeNumber(a) - sizeNumber(item.fitSize || state.size)) ? b : a);
+      state.size = best;
+      state.sizeLocked = true;
+    }
+  }
   const group = buildGarment(itemId, state.size, state.model, color, true, fabricTexOf(itemId), fabricSolidTexOf(itemId));
   if (!group) return;
   garmentGroup.add(group);
   state.outfit[slot] = { id: itemId, slot, group, color, colorName };
   state.activeSlot = slot;
   state.color = color; state.colorName = colorName;
-  renderGarments(); renderSummary(); updateStatus(); renderColors(); renderFitReport();
+  renderGarments(); renderSummary(); updateStatus(); renderColors(); renderSizes(); renderFitReport();
   toast(`已试穿：${item.name}`);
 }
 function clearAll() {
@@ -1248,12 +1262,44 @@ const _gradeCache = new Map();
 function gradeOf(item) {
   let g = _gradeCache.get(item.id);
   if (!g) {
-    g = fitGrade(item.id, state.model);
+    /* 高分库（平台商品）用 platformFit 的判据：平台在售尺码 + 品牌官方码表。
+       DG / Balmain 库有真实平铺尺寸，仍用引擎那套「成衣 − 基准线」的判据。 */
+    if (item.premium && item.fitScore != null) {
+      g = {
+        stars: item.fitScore >= 90 ? 3 : item.fitScore >= 75 ? 2 : item.fitScore >= 60 ? 1 : 0,
+        score: item.fitScore,
+        size: item.fitSize,
+        verdict: item.fitScore >= 90 ? '非常合身' : item.fitScore >= 75 ? '合身' : item.fitScore >= 60 ? '基本合身' : '偏小/偏大',
+        parts: (item.fitParts || []).map(p => ({ ...p, statusLabel: p.statusLabel })),
+        level: item.fitScore >= 90 ? 'perfect' : item.fitScore >= 75 ? 'good' : 'fair',
+      };
+    } else {
+      g = fitGrade(item.id, state.model);
+    }
     _gradeCache.set(item.id, g);
   }
   return g;
 }
 const STAR_TEXT = { 3: '★★★ 满分', 2: '★★ 合身', 1: '★ 略偏', 0: '' };
+
+/* 高分库商品的规格文字：这些款没有官方平铺尺寸，
+   尺码栏给的是**该码的官方净体围度**，不能当成成衣围度显示。
+   这里显示「该码官方净体围度 + 版型设计余量」，
+   并标出与模特围度的档位差，让用户知道这件买哪个码。 */
+function premiumSpecText(item, size) {
+  const g = gradeOf(item);
+  const n = sizeNumber(size);
+  const body = SIZE_CHART[size] || {};
+  const ease = (PREMIUM_EASE[item.cut] || {});
+  const parts = [];
+  if (body.bust != null) parts.push(`胸围 ${Math.round(body.bust + (ease.bust || 0))}`);
+  if (body.waist != null && item.category !== 'bottoms') parts.push(`腰围 ${Math.round(body.waist + (ease.waist || 0))}`);
+  if (body.hip != null && item.category === 'bottoms') parts.push(`臀围 ${Math.round(body.hip + (ease.hip || 0))}`);
+  const fit = g.parts && g.parts.length
+    ? g.parts.map(p => `${p.label}${p.delta > 0 ? '+' : ''}${p.delta}`).join(' ')
+    : '';
+  return `${parts.join(' / ')} cm${fit ? ` · ${fit}` : ''}`;
+}
 /* 星级徽章：满分档才给三星，其余两档也标出来，用户一眼能看出排序依据 */
 function starBadge(item) {
   const g = gradeOf(item);
@@ -1421,7 +1467,8 @@ function renderGarments() {
       <div class="garment-name">${item.name}</div>
       <div class="db-meta">${item.fabric}${(searching || filtering || item.premium) ? ` · ${item.premium ? (PREMIUM_BRANDS.find(b => b.id === item.brand) || { short: item.brand }).name : (brand ? brand.short : item.brand)} · ${cat ? cat.name : item.category}` : ''}</div>
       <div class="db-price">${priceMarkup(item)}</div>
-      <div class="db-foot"><span class="db-spec">${specText(item, state.size)}</span></div>
+      ${item.premium && item.availSizesText ? `<div class="db-avail">平台在售尺码 ${item.availSizesText}</div>` : ''}
+      <div class="db-foot"><span class="db-spec">${item.premium ? premiumSpecText(item, state.size) : specText(item, state.size)}</span></div>
     </div>`;
   }).join('');
   els.list.querySelectorAll('.garment-card').forEach(card => {
@@ -1429,10 +1476,10 @@ function renderGarments() {
   });
   if (els.wardrobeSub) {
     if (state.brand === PREMIUM_TAB.id && !filtering) {
-      const over90 = matched.filter(i => gradeOf(i).score >= 90).length;
       const best = matched.reduce((m, i) => Math.max(m, gradeOf(i).score), 0);
+      const brs = new Set(matched.map(i => i.brand)).size;
       els.wardrobeSub.textContent =
-        `${matched.length} 款 · 奢侈品牌女装 · 90 分以上 ${over90} 款 · 当前最高 ${best} 分`;
+        `${matched.length} 款 · ${brs} 个奢侈品牌女装 · 全部为合身 90 分以上 · 当前最高 ${best} 分`;
     } else {
       els.wardrobeSub.textContent = (searching || filtering)
         ? `${scope()} · ${items.length} 款（全品牌全品类）`
@@ -1488,9 +1535,15 @@ function syncSizeControls() {
 
 function renderSizes() {
   const rec = recommendSize(state.model || DEFAULT_MODEL);
-  els.sizes.innerHTML = SIZES.map(s =>
-    `<button class="${s === state.size ? 'active' : ''}" data-size="${s}" title="${SIZE_CHART[s].label}">${sizeText(s)}${s === rec ? '<i class="rec-dot"></i>' : ''}</button>`
-  ).join('');
+  /* 高分库商品受平台在售尺码限制：只买得到那几个码。
+     其他码照常显示但标灰并注明「平台无此码」，让用户知道这件买哪档。 */
+  const wornItem = Object.values(state.outfit).filter(Boolean)
+    .map(o => DB_BY_ID[o.id]).find(it => it && it.premium && it.availSizes && it.availSizes.length);
+  const avail = wornItem ? wornItem.availSizes : null;
+  els.sizes.innerHTML = SIZES.map(s => {
+    const off = avail && !avail.includes(s);
+    return `<button class="${s === state.size ? 'active' : ''}${off ? ' off-size' : ''}" data-size="${s}" title="${SIZE_CHART[s].label}${off ? ' · 平台无此码' : ''}">${sizeText(s)}${s === rec ? '<i class="rec-dot"></i>' : ''}${off ? '<i class="no-size">无</i>' : ''}</button>`;
+  }).join('');
   els.sizes.querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => {
       state.size = b.dataset.size;
@@ -1507,7 +1560,12 @@ function renderSizes() {
   const m = state.model || {};
   const bustW = m.bust != null && m.waist != null ? Math.round(m.bust - m.waist) : null;
   const bodyType = bustW == null ? '' : bustW >= 17 ? 'Y型' : bustW >= 12 ? 'A型' : bustW >= 8 ? 'B型' : 'C型';
-  els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm${bodyType ? ` · ${bodyType}身材` : ''}，按胸臀厘米对标推荐 ${sizeText(rec)}${bodyType === 'B型' || bodyType === 'C型' ? '（腰围偏大，已按胸臀放宽一档）' : ''}`;
+  /* 高分库商品有自己的最优码（按平台在售尺码判定），
+     不能拿通用的 fitSizeForModel 结果去覆盖它的提示。 */
+  const wornNow = Object.values(state.outfit).filter(Boolean)
+    .map(o => DB_BY_ID[o.id]).find(it => it && it.premium && it.fitSize);
+  const recShown = wornNow ? wornNow.fitSize : rec;
+  els.sizeHint.textContent = `三围 ${m.bust ?? '—'} / ${m.waist ?? '—'} / ${m.hip ?? '—'}cm${bodyType ? ` · ${bodyType}身材` : ''}，${wornNow ? '本款最优码' : '按胸臀厘米对标推荐'} ${sizeText(recShown)}${!wornNow && (bodyType === 'B型' || bodyType === 'C型') ? '（腰围偏大，已按胸臀放宽一档）' : ''}`;
 }
 
 /* 换尺码后，用新尺码重建已穿服装 */
@@ -1537,6 +1595,38 @@ function renderSummary() {
   }).join('');
 }
 /* 合身诊断：按成衣固定尺寸 vs 模特身体尺寸判断 */
+/** 高分库商品的诊断结果：与列表评分同一套判据
+    （平台在售尺码 + 品牌官方 IT 码表），只是针对当前选中的那一档码。 */
+function premiumFitResult(item, size, model) {
+  const itNum = sizeNumber(size);
+  const avail = item.availSizes || [];
+  const r = judgeAt(item, itNum, model);
+  if (!r) return null;
+  const onSale = avail.length ? avail.includes(size) : true;
+  const parts = r.parts.map(p => ({
+    ...p,
+    baseline: p.body,             // 基准线 = 模特该部位围度
+    designEase: p.ease,
+  }));
+  const score = r.score;
+  let verdict;
+  if (!onSale) verdict = '平台无此码';
+  else if (score >= 90) verdict = '非常合身';
+  else if (score >= 75) verdict = '合身';
+  else if (score >= 60) verdict = '基本合身';
+  else if (r.blocked) verdict = '偏小 / 偏大';
+  else verdict = '略有取舍';
+  const level = !onSale ? 'tooLoose' : score >= 90 ? 'perfect' : score >= 75 ? 'good' : score >= 60 ? 'good' : 'tight';
+  return {
+    score, level, verdict, parts,
+    recommendation: item.fitSize,
+    summary: '',
+    recommendationNote: onSale
+      ? `平台在售尺码 ${item.availSizesText}`
+      : `平台在售尺码 ${item.availSizesText}（不含当前这一档）`,
+  };
+}
+
 function renderFitReport() {
   const worn = Object.values(state.outfit).filter(Boolean);
   if (!worn.length || !state.model) {
@@ -1548,7 +1638,12 @@ function renderFitReport() {
 
   // 以当前选中服饰为判断对象；无选中则取第一件
   const entry = (state.activeSlot && state.outfit[state.activeSlot]) || worn[0];
-  const result = evaluateFit(entry.id, state.size, state.model);
+  const wornItem = DB_BY_ID[entry.id];
+  /* 高分库商品没有官方平铺尺寸，判定依据是平台在售尺码 + 品牌官方码表，
+     与列表里的评分同一口径（platformFit.js）。 */
+  const result = wornItem && wornItem.premium
+    ? premiumFitResult(wornItem, state.size, state.model)
+    : evaluateFit(entry.id, state.size, state.model);
   if (!result) return;
 
   const levelClass = 'fit-' + result.level;
@@ -1564,9 +1659,11 @@ function renderFitReport() {
     </div>`;
   }).join('');
 
-  const recHtml = result.recommendation !== state.size
-    ? `<div class="fit-recommend">系统推荐尺码 <b>${result.recommendation}</b>，当前 ${state.size} 可能不够合身</div>`
-    : `<div class="fit-recommend ok">当前尺码 ${state.size} 与推荐一致</div>`;
+  const recHtml = result.recommendationNote
+    ? `<div class="fit-recommend ${result.recommendationNote.indexOf('不含') >= 0 ? '' : 'ok'}">${result.recommendationNote}${result.recommendation && result.recommendation !== state.size ? ` · 建议 ${result.recommendation}` : ''}</div>`
+    : (result.recommendation !== state.size
+      ? `<div class="fit-recommend">系统推荐尺码 <b>${result.recommendation}</b>，当前 ${state.size} 可能不够合身</div>`
+      : `<div class="fit-recommend ok">当前尺码 ${state.size} 与推荐一致</div>`);
 
   /* 该款在所有可选尺码里的最好状态：星级 + 最优码 + 评分。
      列表按它排序，诊断面板也把它摆出来，两处口径一致。 */

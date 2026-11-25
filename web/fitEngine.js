@@ -112,9 +112,17 @@ function judgePart(delta, tol) {
 const PART_LABEL = { bust: '胸围', waist: '腰围', hip: '臀围', shoulder: '肩宽' };
 const TOL = { bust: 2.5, waist: 2.5, hip: 2.5, shoulder: 1.2 };
 
-/** 该部位参与合身判断的清单：上装没有臀围，外套不看臀围。 */
+/** 该部位参与合身判断的清单：上装没有臀围，外套不看臀围。
+    垂坠款（直筒 T 恤、卫衣、箱型连衣裙…）另作处理：
+    这类衣服是整片从肩/胸挂下来的，腰围根本不随身体走——
+    按「腰围 = 身体腰围 + 放松量」的基准去判，会把一件本来就不收腰的
+    T 恤判成「腰围偏紧 3cm」，整件衣服凭空掉到 63 分。
+    垂坠款的合身只看上身开口（胸围，外套再加肩宽），腰围不参与判定。 */
 function fitParts(item) {
   const cat = (item && item.category) || 'tops';
+  if (item && item.hangWaist) {
+    return cat === 'outer' ? ['bust', 'shoulder'] : ['bust'];
+  }
   if (cat === 'bottoms') return ['waist', 'hip'];
   if (cat === 'outer') return ['bust', 'waist', 'shoulder'];
   return ['bust', 'waist'];

@@ -1,15 +1,15 @@
 {
-  "versionCode": 40,
-  "versionName": "2.29",
+  "versionCode": 41,
+  "versionName": "3.0",
   "releaseDate": "2026-11-25",
-  "size": 110436535,
-  "sha256": "db322745b2cec5b0a9d9ab0ab2ea1e461230c5a0687dc554576bcf512dc83908",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk",
-  "notes": "上传照片自动抠图（背景自适应泛洪 + 肤色/头发清理，衣身整块抠出）；2D 模特脸部按真人照片重生成，脸型更窄更圆；3D 手臂外挪 1.8cm；品牌标签只留英文（DG / BL / HIGH / vintage）；新增 HIGH 高分服饰页（奢侈品牌女装按合身评分排序，带品牌筛选）；删除无法试穿的往季商品",
+  "size": 121229613,
+  "sha256": "f697b6a9c58b00da075baab419f8bd73833a01c207895d839048305fe3a4d9a4",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk",
+  "notes": "v3.0：合身评分改为同款详情页真实在售尺码。symbol 复核 845 件（476 件尺码与列表卡不同），domino 补抓 248 件详情页尺码；设计余量不再二次放宽容差，合身区间细分为 90/95/100。高分库 301 款（95 分 198、100 分 103），商品图全部本地化。",
   "apk": {
-    "size": 110436535,
-    "sha256": "db322745b2cec5b0a9d9ab0ab2ea1e461230c5a0687dc554576bcf512dc83908",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v2.29/ATELIER-3D-Fitting-v2.29.apk"
+    "size": 121229613,
+    "sha256": "f697b6a9c58b00da075baab419f8bd73833a01c207895d839048305fe3a4d9a4",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk"
   }
 }

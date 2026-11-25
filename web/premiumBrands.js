@@ -61,18 +61,18 @@ export function premiumSizeLabel(brandId, itNum) {
    ============================================================ */
 export const CUT_BASES = {
   // 上装类：bust / waist / shoulder
-  shift_top:    { bust: 98, waist: 94, shoulder: 41 , cat: 'tops'},   // 直筒衬衫/罩衫
-  boxy_top:     { bust: 106, waist: 102, shoulder: 44 , cat: 'tops'},  // 箱型廓形上衣
-  knit_top:     { bust: 96, waist: 92, shoulder: 41 , cat: 'tops'},    // 针织衫/开衫
+  shift_top:    { bust: 98, waist: 94, shoulder: 41 , cat: 'tops', hang: true},   // 直筒衬衫/罩衫
+  boxy_top:     { bust: 106, waist: 102, shoulder: 44 , cat: 'tops', hang: true},  // 箱型廓形上衣
+  knit_top:     { bust: 96, waist: 92, shoulder: 41 , cat: 'tops', hang: true},    // 针织衫/开衫
   fitted_top:   { bust: 90, waist: 72, shoulder: 38 , cat: 'tops'},    // 修身衬衫
-  silk_top:     { bust: 92, waist: 88, shoulder: 39 , cat: 'tops'},    // 真丝缎面上衣
+  silk_top:     { bust: 92, waist: 88, shoulder: 39 , cat: 'tops', hang: true},    // 真丝缎面上衣
   // 连衣裙类：bust / waist / hip / shoulder
-  shift_dress:  { bust: 98, waist: 94, hip: 102, shoulder: 41 , cat: 'dresses'},
-  boxy_dress:   { bust: 106, waist: 102, hip: 110, shoulder: 44 , cat: 'dresses'},
-  knit_dress:   { bust: 96, waist: 92, hip: 102, shoulder: 41 , cat: 'dresses'},
+  shift_dress:  { bust: 98, waist: 94, hip: 102, shoulder: 41 , cat: 'dresses', hang: true},
+  boxy_dress:   { bust: 106, waist: 102, hip: 110, shoulder: 44 , cat: 'dresses', hang: true},
+  knit_dress:   { bust: 96, waist: 92, hip: 102, shoulder: 41 , cat: 'dresses', hang: true},
   aline_dress:  { bust: 92, waist: 86, hip: 106, shoulder: 40 , cat: 'dresses'},
   fitted_dress: { bust: 88, waist: 68, hip: 94, shoulder: 38 , cat: 'dresses'},
-  silk_dress:   { bust: 92, waist: 86, hip: 100, shoulder: 39 , cat: 'dresses'},
+  silk_dress:   { bust: 92, waist: 86, hip: 100, shoulder: 39 , cat: 'dresses', hang: true},
   // 外套类：bust / waist / shoulder
   straight_coat:{ bust: 104, waist: 100, shoulder: 44 , cat: 'outer'},
   belted_coat:  { bust: 100, waist: 84, shoulder: 43 , cat: 'outer'},
