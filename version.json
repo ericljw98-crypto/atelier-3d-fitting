@@ -1,15 +1,15 @@
 {
-  "versionCode": 41,
-  "versionName": "3.0",
+  "versionCode": 43,
+  "versionName": "3.2",
   "releaseDate": "2026-11-25",
-  "size": 121229613,
-  "sha256": "f697b6a9c58b00da075baab419f8bd73833a01c207895d839048305fe3a4d9a4",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk",
-  "notes": "v3.0：合身评分改为同款详情页真实在售尺码。symbol 复核 845 件（476 件尺码与列表卡不同），domino 补抓 248 件详情页尺码；设计余量不再二次放宽容差，合身区间细分为 90/95/100。高分库 301 款（95 分 198、100 分 103），商品图全部本地化。",
+  "size": 121188309,
+  "sha256": "68b350ffea450e7c49e69ae23930dfc4a09c1e7d9a05bad040df17b66d88384c",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk",
+  "notes": "v3.2：平台商品改用与杜嘉班纳库同一个 fitEngine 评分，删除独立的 platformFit 评分判据。measurements 由官方净体基准档+版型余量构造，尺码只取详情页真实在售码；星级阈值统一 78/70/60。80 分以上纳入 HIGH 库（本引擎离散档位下为 87 款三星）。",
   "apk": {
-    "size": 121229613,
-    "sha256": "f697b6a9c58b00da075baab419f8bd73833a01c207895d839048305fe3a4d9a4",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.0/ATELIER-3D-Fitting-v3.0.apk"
+    "size": 121188309,
+    "sha256": "68b350ffea450e7c49e69ae23930dfc4a09c1e7d9a05bad040df17b66d88384c",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.2/ATELIER-3D-Fitting-v3.2.apk"
   }
 }
