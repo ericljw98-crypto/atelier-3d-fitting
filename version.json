@@ -1,15 +1,15 @@
 {
-  "versionCode": 44,
-  "versionName": "3.3",
-  "releaseDate": "2026-11-25",
-  "size": 121176468,
-  "sha256": "4251eb9ccb91efa24807d3b8397fe3635d275b185f847ba934eb30e3d65c64d6",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk",
-  "notes": "v3.3：修复「部位不合身却 100 分」——评分按最差部位封顶（过紧/过松≤59、偏紧/偏松≤77），三星额外要求所有参与部位合身。连衣裙强制纳入腰围判定（此前 47 件连衣裙因 hangWaist 只判胸围），腰围不合身即降级；模特胸腰差与欧码表冲突，本版连衣裙全部未达入库门槛。剔除 2 件真人模特照商品（无法当衣服图试穿）。高分库 39 款，全部三星、图片本地化。",
+  "versionCode": 45,
+  "versionName": "3.4",
+  "releaseDate": "2026-11-26",
+  "size": 128946914,
+  "sha256": "4e337480f1f940c6e37afd85f51fcf0df94601dc0280047f31b5d6fbe0ae904f",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk",
+  "notes": "v3.4：新增 kameron.ua 抓取（女装高分 17 款）；标签重组为 HIGH EU（DG/BL 官网合并，80 分以上）与 HIGH UA（Symbol/Domino/Kameron 平台，182 款），均按版型标注平台。评分按版型分级：T恤/卫衣/毛衣只判胸围且按实际穿着余量判；其余上装判胸+腰+肩；直筒連衣裙/外套肩宽为主判据、腰围降为参考位（0.25 权重、不封顶），收腰款腰围为主判据；两页低于 80 分款全部剔除。修复评分缓存键缺款式字段导致的串味。真人照商品全部剔除，商品图均为可试穿平铺图。",
   "apk": {
-    "size": 121176468,
-    "sha256": "4251eb9ccb91efa24807d3b8397fe3635d275b185f847ba934eb30e3d65c64d6",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.3/ATELIER-3D-Fitting-v3.3.apk"
+    "size": 128946914,
+    "sha256": "4e337480f1f940c6e37afd85f51fcf0df94601dc0280047f31b5d6fbe0ae904f",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk"
   }
 }
