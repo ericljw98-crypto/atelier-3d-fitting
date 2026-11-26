@@ -1,15 +1,15 @@
 {
-  "versionCode": 50,
-  "versionName": "3.9",
+  "versionCode": 51,
+  "versionName": "4.0",
   "releaseDate": "2026-11-26",
-  "size": 26655894,
-  "sha256": "3cdd84d65e8813273d4b2e637d754543371d62ffadc27dc6856dc62af678795d",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.9/ATELIER-3D-Fitting-v3.9.apk",
-  "notes": "v3.9：促销信息改为每 4 小时自动刷新。新增乌克兰平台商品页实时盯价数据源（Symbol / Domino / Kameron），覆盖高分库现价、原价与折扣并重排 TOP5；界面显示数据更新时间，离线保留上次结果。修复点击促销卡片后分类落到不存在的「全部」导致卡片不可见的问题。",
+  "size": 37237800,
+  "sha256": "58a0863f7bccfbf1cfadaa9d87da684f3dbf1589bf680d622c72188ca1dfa771",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk",
+  "notes": "v4.0：扩充 Symbol 折扣页意大利一奢/高奢/顶奢品牌（Brunello Cucinelli、Loro Piana、Ermanno Scervino、Peserico、Etro、Missoni、Jil Sander、Off-White、Max Mara、Moorer、Woolrich、Twin Set、Dondup、Armani、Moncler），全部沿用 fitEngine 统一评分，只保留 90 分以上成衣；新增「配件」分类，收纳围巾、帽子、皮带、手套等真实商品图，标注仅浏览、不参与合身评分；逐图复核剔除模特照与束腰款误判。",
   "apk": {
-    "size": 26655894,
-    "sha256": "3cdd84d65e8813273d4b2e637d754543371d62ffadc27dc6856dc62af678795d",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.9/ATELIER-3D-Fitting-v3.9.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.9/ATELIER-3D-Fitting-v3.9.apk"
+    "size": 37237800,
+    "sha256": "58a0863f7bccfbf1cfadaa9d87da684f3dbf1589bf680d622c72188ca1dfa771",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk"
   }
 }
