@@ -1,15 +1,15 @@
 {
-  "versionCode": 46,
-  "versionName": "3.5",
+  "versionCode": 47,
+  "versionName": "3.6",
   "releaseDate": "2026-11-26",
-  "size": 126246784,
-  "sha256": "c9cf368083303a8cf7b54986bc331f337fee25c2b3bda8ae0db60bedf0cee595",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk",
-  "notes": "v3.5：官网扩充 7 款（DG it-it sitemap + 产品页在售尺码 5 款，Balmain 官网产品 API 2 款），HIGH EU 增至 415 款。所有新增款按同一 fitEngine 评分，只收 80 分以上；尺码为官网 variants 真实在售码，Balmain 真人照已替换为官网平铺图。剔除图片下载临时文件，安装包由 128.9MB 降至 126.2MB。",
+  "size": 26653519,
+  "sha256": "6ae9e870b19334397cc1d0e052ebdfd40541a26fe1231d5aefe79fc0cadeab5e",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk",
+  "notes": "v3.6：90 分以下商品下架（vintage 除外），数据库收敛至 541 款（HIGH EU 381 / HIGH UA 151 / vintage 9）。收腰型连衣裙改为腰围基准线评分并有图片识别覆盖表，52 款被文本字段误标为直筒的束腰款已剔除；诊断面板标注基准线/参考位，推荐码与评分口径统一。安装包只打包入库款引用的 542 张商品图，体积由 126MB 降至 26.6MB。",
   "apk": {
-    "size": 126246784,
-    "sha256": "c9cf368083303a8cf7b54986bc331f337fee25c2b3bda8ae0db60bedf0cee595",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk"
+    "size": 26653519,
+    "sha256": "6ae9e870b19334397cc1d0e052ebdfd40541a26fe1231d5aefe79fc0cadeab5e",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk"
   }
 }
