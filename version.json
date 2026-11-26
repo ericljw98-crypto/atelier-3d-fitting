@@ -1,15 +1,15 @@
 {
-  "versionCode": 53,
-  "versionName": "4.2",
-  "releaseDate": "2026-11-26",
-  "size": 37387410,
-  "sha256": "7d2e2854c86c9ba877e95b5861ae28d4b2071a16fd4f6a17047dc966cf640d77",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.2/ATELIER-3D-Fitting-v4.2.apk",
-  "notes": "v4.2：照片识别弹窗新增可直接核对的对比图。上传图片与命中的库内真实商品图左右并排显示，下方列出相似度最高的 8 个候选缩略图；点选任一候选即同步更新对比图、相似度说明、下拉框和试穿目标，做到所见即所穿。手动下拉选款也会更新对比图。",
+  "versionCode": 54,
+  "versionName": "4.3",
+  "releaseDate": "2026-11-27",
+  "size": 70910119,
+  "sha256": "92435a89b883867890cad02dd113d80843f85acc981ca8bc40971a03679fa8e1",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.3/ATELIER-3D-Fitting-v4.3.apk",
+  "notes": "v4.3：① 配件标准由低于2折上调为3折及以下，按真实原价/现价筛选，仅浏览、不参与合身评分；② 补入 Rindi、Simonetta Ravizza，以及从 Symbol/Domino 折扣页二次盘点的意大利一奢/高奢/顶奢品牌，全部沿用 fitEngine 同一评分，只保留 90 分以上；③ Domino 女装奢排按同规则纳入；④ 按用户要求彻底移除 Off-White；⑤ 真人模特照剔除，识图指纹索引随新库重建；⑥ 促销数据源同步到新库并继续每4小时刷新。",
   "apk": {
-    "size": 37387410,
-    "sha256": "7d2e2854c86c9ba877e95b5861ae28d4b2071a16fd4f6a17047dc966cf640d77",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.2/ATELIER-3D-Fitting-v4.2.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.2/ATELIER-3D-Fitting-v4.2.apk"
+    "size": 70910119,
+    "sha256": "92435a89b883867890cad02dd113d80843f85acc981ca8bc40971a03679fa8e1",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.3/ATELIER-3D-Fitting-v4.3.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.3/ATELIER-3D-Fitting-v4.3.apk"
   }
 }
