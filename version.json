@@ -1,15 +1,15 @@
 {
-  "versionCode": 51,
-  "versionName": "4.0",
+  "versionCode": 52,
+  "versionName": "4.1",
   "releaseDate": "2026-11-26",
-  "size": 37237800,
-  "sha256": "58a0863f7bccfbf1cfadaa9d87da684f3dbf1589bf680d622c72188ca1dfa771",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk",
-  "notes": "v4.0：扩充 Symbol 折扣页意大利一奢/高奢/顶奢品牌（Brunello Cucinelli、Loro Piana、Ermanno Scervino、Peserico、Etro、Missoni、Jil Sander、Off-White、Max Mara、Moorer、Woolrich、Twin Set、Dondup、Armani、Moncler），全部沿用 fitEngine 统一评分，只保留 90 分以上成衣；新增「配件」分类，收纳围巾、帽子、皮带、手套等真实商品图，标注仅浏览、不参与合身评分；逐图复核剔除模特照与束腰款误判。",
+  "size": 37386464,
+  "sha256": "a861bf37b05f5d52b2608a8adbdda8273de1eeafe544f662036e9cf6a19af9a1",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.1/ATELIER-3D-Fitting-v4.1.apk",
+  "notes": "v4.1：照片识别改为真正的以图搜图。新增 1413 张入库商品图的感知哈希索引（pHash/dHash/HSV 直方图/灰度结构），上传图片后全库比对并按相似度排序，不再按长宽比猜品类、也不再受当前品牌标签限制。库内同图识别 24/25 命中、相似度 90%–98%，缩放压缩后仍稳定；库外图片不会误判为同款。跨品牌命中时自动切换品牌与品类并高亮卡片。",
   "apk": {
-    "size": 37237800,
-    "sha256": "58a0863f7bccfbf1cfadaa9d87da684f3dbf1589bf680d622c72188ca1dfa771",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.0/ATELIER-3D-Fitting-v4.0.apk"
+    "size": 37386464,
+    "sha256": "a861bf37b05f5d52b2608a8adbdda8273de1eeafe544f662036e9cf6a19af9a1",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.1/ATELIER-3D-Fitting-v4.1.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.1/ATELIER-3D-Fitting-v4.1.apk"
   }
 }
