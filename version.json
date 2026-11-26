@@ -1,15 +1,15 @@
 {
-  "versionCode": 47,
-  "versionName": "3.6",
+  "versionCode": 48,
+  "versionName": "3.7",
   "releaseDate": "2026-11-26",
-  "size": 26653519,
-  "sha256": "6ae9e870b19334397cc1d0e052ebdfd40541a26fe1231d5aefe79fc0cadeab5e",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk",
-  "notes": "v3.6：90 分以下商品下架（vintage 除外），数据库收敛至 541 款（HIGH EU 381 / HIGH UA 151 / vintage 9）。收腰型连衣裙改为腰围基准线评分并有图片识别覆盖表，52 款被文本字段误标为直筒的束腰款已剔除；诊断面板标注基准线/参考位，推荐码与评分口径统一。安装包只打包入库款引用的 542 张商品图，体积由 126MB 降至 26.6MB。",
+  "size": 26653531,
+  "sha256": "9f5c67504ac579c8d8540ea73ae91607d04cd4768c954987c2dd867b8961c2b9",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk",
+  "notes": "v3.7：修复商品卡片不显示品牌的问题。品牌标签改为始终显示并前置到描述行，统一解析官网品牌/奢侈品牌/vintage，HIGH EU 与 HIGH UA 现均显示中文品牌名。",
   "apk": {
-    "size": 26653519,
-    "sha256": "6ae9e870b19334397cc1d0e052ebdfd40541a26fe1231d5aefe79fc0cadeab5e",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.6/ATELIER-3D-Fitting-v3.6.apk"
+    "size": 26653531,
+    "sha256": "9f5c67504ac579c8d8540ea73ae91607d04cd4768c954987c2dd867b8961c2b9",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk"
   }
 }
