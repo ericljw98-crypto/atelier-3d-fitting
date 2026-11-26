@@ -1,15 +1,15 @@
 {
-  "versionCode": 48,
-  "versionName": "3.7",
+  "versionCode": 49,
+  "versionName": "3.8",
   "releaseDate": "2026-11-26",
-  "size": 26653531,
-  "sha256": "9f5c67504ac579c8d8540ea73ae91607d04cd4768c954987c2dd867b8961c2b9",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk",
-  "notes": "v3.7：修复商品卡片不显示品牌的问题。品牌标签改为始终显示并前置到描述行，统一解析官网品牌/奢侈品牌/vintage，HIGH EU 与 HIGH UA 现均显示中文品牌名。",
+  "size": 26654779,
+  "sha256": "15ac2867a4c2e328ec35f0c619869fe9ad939916873ffdb88c02fa0a071526f4",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.8/ATELIER-3D-Fitting-v3.8.apk",
+  "notes": "v3.8：新增促销提示功能。从乌克兰平台真实抓取的原价/现价结构化为折扣字段，高分库内有折扣的款按折扣降序显示 TOP5（品牌、平台、评分、原价与现价），点击可直接切到 HIGH UA 试穿；区块可折叠。只展示当前高分库在售款，不下架款。",
   "apk": {
-    "size": 26653531,
-    "sha256": "9f5c67504ac579c8d8540ea73ae91607d04cd4768c954987c2dd867b8961c2b9",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.7/ATELIER-3D-Fitting-v3.7.apk"
+    "size": 26654779,
+    "sha256": "15ac2867a4c2e328ec35f0c619869fe9ad939916873ffdb88c02fa0a071526f4",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.8/ATELIER-3D-Fitting-v3.8.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.8/ATELIER-3D-Fitting-v3.8.apk"
   }
 }
