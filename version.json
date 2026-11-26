@@ -1,15 +1,15 @@
 {
-  "versionCode": 45,
-  "versionName": "3.4",
+  "versionCode": 46,
+  "versionName": "3.5",
   "releaseDate": "2026-11-26",
-  "size": 128946914,
-  "sha256": "4e337480f1f940c6e37afd85f51fcf0df94601dc0280047f31b5d6fbe0ae904f",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk",
-  "notes": "v3.4：新增 kameron.ua 抓取（女装高分 17 款）；标签重组为 HIGH EU（DG/BL 官网合并，80 分以上）与 HIGH UA（Symbol/Domino/Kameron 平台，182 款），均按版型标注平台。评分按版型分级：T恤/卫衣/毛衣只判胸围且按实际穿着余量判；其余上装判胸+腰+肩；直筒連衣裙/外套肩宽为主判据、腰围降为参考位（0.25 权重、不封顶），收腰款腰围为主判据；两页低于 80 分款全部剔除。修复评分缓存键缺款式字段导致的串味。真人照商品全部剔除，商品图均为可试穿平铺图。",
+  "size": 126246784,
+  "sha256": "c9cf368083303a8cf7b54986bc331f337fee25c2b3bda8ae0db60bedf0cee595",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk",
+  "notes": "v3.5：官网扩充 7 款（DG it-it sitemap + 产品页在售尺码 5 款，Balmain 官网产品 API 2 款），HIGH EU 增至 415 款。所有新增款按同一 fitEngine 评分，只收 80 分以上；尺码为官网 variants 真实在售码，Balmain 真人照已替换为官网平铺图。剔除图片下载临时文件，安装包由 128.9MB 降至 126.2MB。",
   "apk": {
-    "size": 128946914,
-    "sha256": "4e337480f1f940c6e37afd85f51fcf0df94601dc0280047f31b5d6fbe0ae904f",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.4/ATELIER-3D-Fitting-v3.4.apk"
+    "size": 126246784,
+    "sha256": "c9cf368083303a8cf7b54986bc331f337fee25c2b3bda8ae0db60bedf0cee595",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v3.5/ATELIER-3D-Fitting-v3.5.apk"
   }
 }
