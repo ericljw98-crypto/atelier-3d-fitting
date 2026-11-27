@@ -1,15 +1,15 @@
 {
-  "versionCode": 64,
-  "versionName": "4.13",
+  "versionCode": 65,
+  "versionName": "4.14",
   "releaseDate": "2026-11-27",
-  "size": 65106208,
-  "sha256": "1657da171f3a350b8a660458869ea7dd59de7cb19366cd60cd9c670327a928eb",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.13/ATELIER-3D-Fitting-v4.13.apk",
-  "notes": "剔除 Twin Set（TS）品牌全部85件商品，库存女装降至1768件，商品图白名单降至1779张，促销清单同步清理。资源版本v63。",
+  "size": 65084174,
+  "sha256": "e4dc12c41a6898fa1791fe4df1581bdcaf8d6210f6eff8eed38160704d410375",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.14/ATELIER-3D-Fitting-v4.14.apk",
+  "notes": "删除 Dore & Rose（此前被错标为博柏利 BU）；此前要求移除但漏网的 Off-White 一并删除；Peserico、Herno 改正品牌归属为 PE/HN 并保留。博柏利品牌下已无商品。资源版本v64。",
   "apk": {
-    "size": 65106208,
-    "sha256": "1657da171f3a350b8a660458869ea7dd59de7cb19366cd60cd9c670327a928eb",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.13/ATELIER-3D-Fitting-v4.13.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.13/ATELIER-3D-Fitting-v4.13.apk"
+    "size": 65084174,
+    "sha256": "e4dc12c41a6898fa1791fe4df1581bdcaf8d6210f6eff8eed38160704d410375",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.14/ATELIER-3D-Fitting-v4.14.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.14/ATELIER-3D-Fitting-v4.14.apk"
   }
 }
