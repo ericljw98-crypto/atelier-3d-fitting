@@ -1,15 +1,15 @@
 {
-  "versionCode": 62,
-  "versionName": "4.11",
+  "versionCode": 63,
+  "versionName": "4.12",
   "releaseDate": "2026-11-27",
-  "size": 67115326,
-  "sha256": "e146c9bb140227d2a733062651d0b7a1878b398b04091b3146d1dddb98749446",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.11/ATELIER-3D-Fitting-v4.11.apk",
-  "notes": "促销抓取周期改为每2小时；HIGH UA 卡片显示折扣率并按低价优先排序；限时折扣页手机端价格单独成行确保可见，点击条目以系统浏览器打开平台商品详情页；修复资源打包在 Windows 上复制图片时偶发卡死的问题。资源版本v61。",
+  "size": 65967737,
+  "sha256": "1cf31d3c068cd2d0ae8c2211b7897ca5adf2f97970f755223dffc7e1767be3fc",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.12/ATELIER-3D-Fitting-v4.12.apk",
+  "notes": "剔除 Domino 平台标记 is_markdown（Уцінка）的瑕疵/清仓品：女装18件、男装17件，共35件；库存女装1853、男装13，折扣页56条。新增平台全量 markdown 清单抓取与入库过滤，后续抓取不再收录。资源版本v62。",
   "apk": {
-    "size": 67115326,
-    "sha256": "e146c9bb140227d2a733062651d0b7a1878b398b04091b3146d1dddb98749446",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.11/ATELIER-3D-Fitting-v4.11.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.11/ATELIER-3D-Fitting-v4.11.apk"
+    "size": 65967737,
+    "sha256": "1cf31d3c068cd2d0ae8c2211b7897ca5adf2f97970f755223dffc7e1767be3fc",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.12/ATELIER-3D-Fitting-v4.12.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.12/ATELIER-3D-Fitting-v4.12.apk"
   }
 }
