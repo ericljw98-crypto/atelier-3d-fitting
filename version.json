@@ -1,15 +1,15 @@
 {
-  "versionCode": 66,
-  "versionName": "4.15",
+  "versionCode": 67,
+  "versionName": "4.16",
   "releaseDate": "2026-11-27",
-  "size": 63993241,
-  "sha256": "850c88a715dffeefff68da3e1ef791237f771aa3975781f7a7c28a94d5635df5",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.15/ATELIER-3D-Fitting-v4.15.apk",
-  "notes": "修复商品卡片价格挤压：窄屏下卡片高度按内容自适应（不再固定250px裁切价格），顶部标签可换行且款号截断，价格行独立两行完整显示原价与折扣价。删除 Gran Sasso（GS）品牌17件（品牌价值不行），库存降至1749件、折扣页52条。资源版本v65。",
+  "size": 63488640,
+  "sha256": "0ac72af8f567b27531c2e65eda8b369827ed0aa502066621793965c4e281a358",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk",
+  "notes": "按用户要求删除所有吊带类产品：通过商品图拼版复核，在 tops 品类中找出23件被平台误译为「背心」的细肩带吊带上衣（spaghetti strap/camisole）并下架；连同此前已清空的吊带连衣裙，全库吊带残留为0。宽肩带背心、挂脖、抹胸、内衣不在下架范围。库存降至1726件，图片白名单1737张。资源版本v66。",
   "apk": {
-    "size": 63993241,
-    "sha256": "850c88a715dffeefff68da3e1ef791237f771aa3975781f7a7c28a94d5635df5",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.15/ATELIER-3D-Fitting-v4.15.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.15/ATELIER-3D-Fitting-v4.15.apk"
+    "size": 63488640,
+    "sha256": "0ac72af8f567b27531c2e65eda8b369827ed0aa502066621793965c4e281a358",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk"
   }
 }
