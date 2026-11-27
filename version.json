@@ -1,15 +1,15 @@
 {
-  "versionCode": 55,
-  "versionName": "4.4",
+  "versionCode": 56,
+  "versionName": "4.5",
   "releaseDate": "2026-11-27",
-  "size": 71323954,
-  "sha256": "947ba132bbae415bf7801d2036806ee18c8aff0b134717c90888f49df05cb13c",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.4/ATELIER-3D-Fitting-v4.4.apk",
-  "notes": "书页式左右联动界面：左页商品与促销 TOP5，点击商品或促销项翻到右页，展示 2D 上身、合身诊断与准确度细节（权重、偏差、贡献、短板封顶）；支持返回目录和方向键翻页。评分仍复用 fitEngine，未改口径。",
+  "size": 71325022,
+  "sha256": "70496f3e570724adc29983c31acc7640454b7643228f784f606fb4a23e1519fb",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.5/ATELIER-3D-Fitting-v4.5.apk",
+  "notes": "修复手机端无法翻页：窄屏改为单页视图，点击商品/促销自动翻页，支持左右滑动切换；试衣页顺序调整为模特在上、尺码与合身诊断在下，准确度明细可滚动查看。桌面翻页保持不变。",
   "apk": {
-    "size": 71323954,
-    "sha256": "947ba132bbae415bf7801d2036806ee18c8aff0b134717c90888f49df05cb13c",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.4/ATELIER-3D-Fitting-v4.4.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.4/ATELIER-3D-Fitting-v4.4.apk"
+    "size": 71325022,
+    "sha256": "70496f3e570724adc29983c31acc7640454b7643228f784f606fb4a23e1519fb",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.5/ATELIER-3D-Fitting-v4.5.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.5/ATELIER-3D-Fitting-v4.5.apk"
   }
 }
