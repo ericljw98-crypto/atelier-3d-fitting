@@ -1,15 +1,15 @@
 {
-  "versionCode": 59,
-  "versionName": "4.8",
+  "versionCode": 60,
+  "versionName": "4.9",
   "releaseDate": "2026-11-27",
-  "size": 67114406,
-  "sha256": "43ff7ee18961b9b3fdac0abe20c96f86f7dcedbd87ecfeea417a096cd122bdee",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.8/ATELIER-3D-Fitting-v4.8.apk",
-  "notes": "限时折扣标签页展示全部在售折扣商品（女装1351款+男装30款，共1381条），不再限制15条；每条折扣确保有预览图，加载失败自动以衣形占位替代。资源版本v58。",
+  "size": 67114418,
+  "sha256": "a7ad6a5ab430695e75b335f37cc79f532832397fe8a4224e35b3df14d168cebc",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.9/ATELIER-3D-Fitting-v4.9.apk",
+  "notes": "折扣页门槛从3折提高到2折（折扣≥80%），只展示符合门槛的在售商品（女装47+男装30共77条），浅折扣商品不再进入；全部按折扣降序展示并带预览图兜底。资源版本v59。",
   "apk": {
-    "size": 67114406,
-    "sha256": "43ff7ee18961b9b3fdac0abe20c96f86f7dcedbd87ecfeea417a096cd122bdee",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.8/ATELIER-3D-Fitting-v4.8.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.8/ATELIER-3D-Fitting-v4.8.apk"
+    "size": 67114418,
+    "sha256": "a7ad6a5ab430695e75b335f37cc79f532832397fe8a4224e35b3df14d168cebc",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.9/ATELIER-3D-Fitting-v4.9.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.9/ATELIER-3D-Fitting-v4.9.apk"
   }
 }
