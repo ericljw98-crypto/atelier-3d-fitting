@@ -9,6 +9,7 @@ import { SLIP_DRESS_IDS } from './slipDressIds.js';
 import { SLIP_TOP_IDS } from './slipTopIds.js';
 import { MARKDOWN_IDS } from './markdownIds.js';
 import { isShoe } from './shoeFilter.js';
+import { isAllowedLine } from './brandLineFilter.js';
 import { KAMERON_DEEP } from './kameronDeepCatalog.js';
 
 /* ============================================================
@@ -309,6 +310,8 @@ export const DB = mergeById(
   .filter(isWearable)
   /* 鞋履按用户要求整体删除：平台常把鞋归入配件/男装，按名称与 URL 统一剔除。 */
   .filter(it => !isShoe(it))
+  /* Polo Ralph Lauren 只保留 Collection 与紫标（Purple Label）产品线。 */
+  .filter(isAllowedLine)
   .filter(it => !!(it.image && it.image.trim()))
   /* 90 分以下商品整体下架：全库只保留 fitEngine 按锁定档案算出的
      90+ 白名单，HIGH EU / HIGH UA 两个标签页同一口径。
