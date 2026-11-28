@@ -1,15 +1,15 @@
 {
-  "versionCode": 72,
-  "versionName": "4.21",
+  "versionCode": 73,
+  "versionName": "4.22",
   "releaseDate": "2026-11-28",
-  "size": 63563186,
-  "sha256": "44aa8af6be3a69cdce2586c6bf097ee386b1f2ab0b8c6281dd151a711587e631",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk",
-  "notes": "Polo Ralph Lauren 仅保留 Collection 与紫标产品线；其余商品全部删除",
+  "size": 63536237,
+  "sha256": "934d59608126ad4995e39af7a2134a4f74083939cb2da514427001d674d2bcef",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk",
+  "notes": "移除 Domino 已无货的 Orciani 黑色皮带",
   "apk": {
-    "size": 63563186,
-    "sha256": "44aa8af6be3a69cdce2586c6bf097ee386b1f2ab0b8c6281dd151a711587e631",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk"
+    "size": 63536237,
+    "sha256": "934d59608126ad4995e39af7a2134a4f74083939cb2da514427001d674d2bcef",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk"
   }
 }
