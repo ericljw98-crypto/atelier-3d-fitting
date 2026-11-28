@@ -1,15 +1,15 @@
 {
-  "versionCode": 73,
-  "versionName": "4.22",
+  "versionCode": 74,
+  "versionName": "4.23",
   "releaseDate": "2026-11-28",
-  "size": 63536237,
-  "sha256": "934d59608126ad4995e39af7a2134a4f74083939cb2da514427001d674d2bcef",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk",
-  "notes": "移除 Domino 已无货的 Orciani 黑色皮带",
+  "size": 63536240,
+  "sha256": "935f177939a7f89fe581ff469ed5f866e0d5ad3d6d5fd017ec99f352a3d39fce",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.23/ATELIER-3D-Fitting-v4.23.apk",
+  "notes": "修复电脑端预览试穿不显示：补全主库商品图远程资源，重建预览页",
   "apk": {
-    "size": 63536237,
-    "sha256": "934d59608126ad4995e39af7a2134a4f74083939cb2da514427001d674d2bcef",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.22/ATELIER-3D-Fitting-v4.22.apk"
+    "size": 63536240,
+    "sha256": "935f177939a7f89fe581ff469ed5f866e0d5ad3d6d5fd017ec99f352a3d39fce",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.23/ATELIER-3D-Fitting-v4.23.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.23/ATELIER-3D-Fitting-v4.23.apk"
   }
 }
