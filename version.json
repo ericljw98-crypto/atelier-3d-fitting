@@ -1,15 +1,15 @@
 {
-  "versionCode": 69,
-  "versionName": "4.18",
+  "versionCode": 70,
+  "versionName": "4.19",
   "releaseDate": "2026-11-28",
-  "size": 65025951,
-  "sha256": "178a1dd0b5514512432acf283f59496c14c959489550d3e4066fded5b36b49ff",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.18/ATELIER-3D-Fitting-v4.18.apk",
-  "notes": "Kameron 2折深折82款纳入限时折扣与HIGH UA：排除童装与细肩带吊带，男女装均按折扣排序，外链浏览",
+  "size": 63872930,
+  "sha256": "ebde297c368ace235dda9e03d1b2cf5d042d09fd9e0179d5c263a67d8cde3790",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.19/ATELIER-3D-Fitting-v4.19.apk",
+  "notes": "Kameron 女装深折按统一评分90分入库可试穿，吊带衫剔除；Ultra Shop BOSS/HUGO 无2折商品",
   "apk": {
-    "size": 65025951,
-    "sha256": "178a1dd0b5514512432acf283f59496c14c959489550d3e4066fded5b36b49ff",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.18/ATELIER-3D-Fitting-v4.18.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.18/ATELIER-3D-Fitting-v4.18.apk"
+    "size": 63872930,
+    "sha256": "ebde297c368ace235dda9e03d1b2cf5d042d09fd9e0179d5c263a67d8cde3790",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.19/ATELIER-3D-Fitting-v4.19.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.19/ATELIER-3D-Fitting-v4.19.apk"
   }
 }
