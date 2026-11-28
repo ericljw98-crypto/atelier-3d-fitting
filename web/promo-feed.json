@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-28T14:59:52.576Z",
-  "generatedLocal": "2026-11-28 16:59:52",
+  "generatedAt": "2026-11-28T15:07:05.329Z",
+  "generatedLocal": "2026-11-28 17:07:05",
   "timeZone": "Europe/Kyiv",
   "source": "Symbol / Domino / Kameron 商品页实时抓取（含男装折扣与 Kameron 2 折深折）",
   "rateUahEur": 48.5,
-  "total": 1448,
-  "ok": 1422,
+  "total": 1450,
+  "ok": 1424,
   "items": [
     {
       "id": "ua-PR-om-prada-24g1vsh-sinij-1ouhbf",
@@ -27292,6 +27292,25 @@
       "error": ""
     },
     {
+      "id": "km-deep-8608",
+      "name": "Мереживний топ",
+      "brand": "DG",
+      "brandLabel": "杜嘉班纳",
+      "platform": "Kameron",
+      "url": "https://kameron.ua/ua/store/kruzevnoj-top-dolce-gabbana-f73e8z-hhmbd-belyj",
+      "category": "tops",
+      "fitScore": 0,
+      "gender": "women",
+      "curUAH": 4170,
+      "origUAH": 20850,
+      "discountPct": 80,
+      "priceEUR": 86,
+      "priceCNY": 671,
+      "priceNote": "平台价 4 170 грн（原价 20 850 грн，约 €86）",
+      "status": "ok",
+      "error": ""
+    },
+    {
       "id": "km-deep-226392",
       "name": "羊毛长裤",
       "brand": "DG",
@@ -27421,6 +27440,25 @@
       "priceEUR": 71,
       "priceCNY": 554,
       "priceNote": "平台价 3 440 грн（原价 17 200 грн，约 €71）",
+      "status": "ok",
+      "error": ""
+    },
+    {
+      "id": "km-deep-7314",
+      "name": "Майка лляна",
+      "brand": "BL",
+      "brandLabel": "巴尔曼",
+      "platform": "Kameron",
+      "url": "https://kameron.ua/ua/store/lnanaa-majka-balmain-rf11130i073-raznocvetnyj",
+      "category": "tops",
+      "fitScore": 0,
+      "gender": "women",
+      "curUAH": 3230,
+      "origUAH": 16150,
+      "discountPct": 80,
+      "priceEUR": 67,
+      "priceCNY": 523,
+      "priceNote": "平台价 3 230 грн（原价 16 150 грн，约 €67）",
       "status": "ok",
       "error": ""
     },
