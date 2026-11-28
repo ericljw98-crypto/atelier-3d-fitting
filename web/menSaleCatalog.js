@@ -171,19 +171,5 @@ export const MEN_SALE = [
   "url": "https://domino.ua/dolce-gabbana-shirts-blue-999208",
   "gender": "men",
   "onlyBrowse": true
- },
- {
-  "id": "men-domino-22",
-  "brand": "Orciani",
-  "name": "Ремінь зі шкіри чорний чоловічий",
-  "kind": "男装",
-  "platform": "Domino",
-  "curUAH": 1900,
-  "origUAH": 10900,
-  "discountPct": 83,
-  "image": "images/men_domino_22.jpg",
-  "url": "https://domino.ua/orciani-belts-and-braces-black-996157",
-  "gender": "men",
-  "onlyBrowse": true
  }
 ];
