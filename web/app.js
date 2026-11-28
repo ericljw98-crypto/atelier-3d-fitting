@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, VINTAGE_BRAND, PREMIUM_BRANDS, PREMIUM_TAB, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
+import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, PREMIUM_BRANDS, PREMIUM_TAB, EU_TAB, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
+import { MEN_SALE } from './menSaleCatalog.js';
+import { KAMERON_DEEP } from './kameronDeepCatalog.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
 import { buildGarment, recommendSize, specText } from './garment.js';
 import { buildSmoothBody, bodyReady } from './smoothBody.js';
-import { evaluateFit, garmentMeasurements, fitSizeForModel, fitGrade } from './fitEngine.js';
+import { evaluateFit, evaluateItem, garmentMeasurements, fitSizeForModel, fitGrade } from './fitEngine.js';
 import { premiumSizeLabel } from './premiumBrands.js';
-import { CUT_EASE as PREMIUM_EASE, judgeAt } from './platformFit.js';
 import { initUpdate } from './update.js';
+import { matchImage } from './imageMatch.js';
 
 /* ============================================================
    3D 场景（沿用既有渲染框架）
@@ -77,7 +79,7 @@ scene.add(avatarGroup);
 const LS_KEY = 'atelier_model_profile_v1';
 const state = {
   model: null,                         // 建档后的模特参数
-  brand: 'DG',                         // 当前品牌：DG 杜嘉班纳 / BL 巴尔曼
+  brand: PREMIUM_TAB.id,               // 默认打开 HIGH UA；标签顺序 HIGH UA → HIGH EU
   category: 'dresses',
   size: 'IT 46',
   sizeLocked: false,                   // 用户手动指定过尺码后，不再被自动推荐覆盖
@@ -91,6 +93,7 @@ const state = {
   filterStyle: '',                     // 款式（版型）筛选
   filterGrade: '',                     // 合身等级筛选（3/2/1 星）
   filterPBrand: '',                    // 高分服饰页里的品牌筛选
+  filterPlatform: '',                  // 高分服饰页里的销售平台筛选
 };
 
 function loadProfile() {
@@ -293,7 +296,7 @@ function fitEnsure() {
    ============================================================ */
 
 /** 四边颜色的量化统计：背景色集合 + 容差 */
-function backgroundModel(p, w, h) {
+function backgroundModel(p, w, h, strict = false) {
   const buckets = new Map();
   const ring = [];
   const push = (x, y) => {
@@ -326,7 +329,9 @@ function backgroundModel(p, w, h) {
     dev += best; n++;
   }
   const mean = n ? dev / n : 20;
-  return { bg, tol: Math.max(24, Math.min(72, mean * 2.2 + 16)) };
+  /* 容差不能再放到 72：白/米白衣服与浅灰棚拍底只差 30–70（三通道合计），
+     容差一大整件衣身都会被当成背景泛洪掉，最后只剩一条门襟贴到模特身上。 */
+  return { bg, tol: strict ? 20 : Math.max(18, Math.min(60, mean * 2.0 + 14)) };
 }
 
 /** 肤色判据（YCbCr）：比 RGB 启发式稳，不会把米色/浅杏色衣服整片删掉 */
@@ -340,7 +345,7 @@ function isSkinPixel(r, g, b) {
 /* 抠底：先把背景整块抹掉，再按品类需要处理领口。
    uploaded=true 时额外做「人物照片→单件衣服」的清洗：去掉肤色（脸、脖子、
    手、手臂）和头顶的深色头发，只留中间那件衣服。 */
-function cutGarment(img, uploaded = false, item = null) {
+function cutGarment(img, uploaded = false, item = null, strict = false) {
   const w = img.naturalWidth, h = img.naturalHeight;
   if (!w || !h) return null;
   const c = document.createElement('canvas');
@@ -351,12 +356,15 @@ function cutGarment(img, uploaded = false, item = null) {
   try { data = x.getImageData(0, 0, w, h); } catch (e) { return null; }
   const p = data.data;
   const seen = new Uint8Array(w * h);
+  let bgModel = null;
   {
-    /* 背景泛洪：从四边往里扩散，颜色接近「四边背景色」或属于浅色棚拍底就算背景 */
-    const model = backgroundModel(p, w, h);
+    /* 背景泛洪：从四边往里扩散，颜色接近「四边背景色」就算背景 */
+    const model = backgroundModel(p, w, h, strict);
+    bgModel = model;
     const stack = [];
-    const isLightBg = j => p[j] >= 200 && p[j + 1] >= 200 && p[j + 2] >= 200
-      && Math.abs(p[j] - p[j + 2]) < 16;
+    /* 旧逻辑把「所有 RGB ≥200 的浅色像素」无条件当背景。白色开衫、白色 T 恤
+       在浅灰棚拍底上就是这样整件消失的。现在只信「从四边连通、且贴近四边实测
+       背景色」的像素，浅色衣身即使和背景很接近也能留下来。 */
     const nearBg = j => {
       if (!model) return false;
       for (const c2 of model.bg) {
@@ -369,7 +377,7 @@ function cutGarment(img, uploaded = false, item = null) {
       const i = py * w + px;
       if (seen[i]) return;
       const j = i * 4;
-      if (!isLightBg(j) && !nearBg(j)) return;
+      if (!nearBg(j)) return;
       seen[i] = 1; stack.push(i);
     };
     for (let px = 0; px < w; px++) { seed(px, 0); seed(px, 1); seed(px, h - 1); seed(px, h - 2); }
@@ -511,10 +519,30 @@ function cutGarment(img, uploaded = false, item = null) {
       const main = comp[0];
       for (const k of comp) {
         if (k.id === main.id) continue;
-        if (k.n > main.n * 0.05 && Math.abs(k.cx - main.cx) < w * 0.18) continue;
+        /* 开襟衫/马甲会被门襟分成左右两片，不能用「离主块中心很近」来判：
+           两片相隔可能超过画幅 30%，丢掉一片就只剩半件衣服。 */
+        if (k.n > main.n * (strict ? 0.01 : 0.06) && k.cx > w * 0.14 && k.cx < w * 0.86) continue;
         for (let i = 0; i < w * h; i++) {
           if (lab[i] === k.id) { seen[i] = 1; p[i * 4 + 3] = 0; }
         }
+      }
+    }
+  }
+
+  /* 袖口与衣身围出的封闭浅色区，四边泛洪进不去，会留下一道白横带。
+     再按四边实测背景色清一次，阈值 26 远小于白衣身与浅灰底的差值，
+     所以白 T 恤、白开衫不会被误删。 */
+  if (bgModel) {
+    for (let py = py0; py <= py1; py++) {
+      for (let px = 0; px < w; px++) {
+        const i = py * w + px, j = i * 4;
+        if (seen[i]) continue;
+        let close = false;
+        for (const c of bgModel.bg) {
+          const d = Math.abs(p[j] - c[0]) + Math.abs(p[j + 1] - c[1]) + Math.abs(p[j + 2] - c[2]);
+          if (d <= (strict ? 3 : 12)) { close = true; break; }
+        }
+        if (close) { seen[i] = 1; p[j + 3] = 0; }
       }
     }
   }
@@ -620,6 +648,25 @@ function cutGarment(img, uploaded = false, item = null) {
     }
   }
 
+  /* 白/米白衣身在浅灰棚拍底上只差十几个灰阶，常规容差可能把整件吃光，
+     只剩一条门襟（主体不足画幅 8%）。这时用更严格容差重抠一次。 */
+  if (!strict) {
+    let fg = 0, lum = 0;
+    for (let i = 0; i < seen.length; i++) {
+      if (seen[i]) continue;
+      fg++;
+      const j = i * 4;
+      lum += 0.299 * p[j] + 0.587 * p[j + 1] + 0.114 * p[j + 2];
+    }
+    const meanLum = fg ? lum / fg : 0;
+    /* 浅色衣身（均值 >205）即使面积够大也用严格容差重抠，
+       否则白 T 恤下半截会被浅灰底一路吃掉，只剩上半件。 */
+    if (fg < w * h * 0.12 || meanLum > 205) {
+      const retry = cutGarment(img, uploaded, item, true);
+      if (retry) return retry;
+    }
+  }
+
   x.putImageData(data, 0, 0);
   /* 取某相对高度处的衣身宽（跳过袖口、吊带这类极窄行，也跳过被袖子撑开的顶行） */
   const widthAt = frac => {
@@ -707,6 +754,55 @@ function sizeFitFactors(item, size) {
   return { w, h };
 }
 
+/* 商品图定位：肩宽和衣长分别定标。
+   旧版取 min(kSh,kLen) 再等比例缩放：长款大衣的图又窄又长，kLen 一压，
+   肩宽就只剩人体肩宽的 70–80%，看上去「贴上去小小一件」。现在横向按肩宽、
+   纵向按衣长分别缩放，只在 1.5/0.67 以内限制拉伸，既对齐肩线又保留衣长。
+   抠图异常时（浅色衣身被削成窄条）不采信这条假肩线，改用主体框宽度。 */
+function fitPlacement(item, cut) {
+  const cat = item.category;
+  const lenCm = (item.measurements && item.measurements.length) || (cat === 'dresses' ? 100 : 62);
+  const fm = item.flatMeta;
+  let sh = fm
+    ? { y: fm.shoulderY, w: fm.shoulderW, lo: FIT.cx - fm.shoulderW / 2, hi: FIT.cx + fm.shoulderW / 2 }
+    : cut.shoulder;
+  if (sh && cat !== 'bottoms' && sh.w < cut.box.w * 0.28) sh = null;
+  const kSh = cat === 'bottoms'
+    ? (FIT.hipW * 1.02) / Math.max(cut.widthAt(0.35), 1)
+    : (sh && sh.w > 6)
+      ? (FIT.shoulderW * 0.99) / sh.w
+      : FIT.shoulderW / Math.max(cut.widthAt(0.06), cut.box.w * 0.72, 1);
+  const kLen = (lenCm * FIT.pxPerCm) / Math.max(cut.box.h, 1);
+  let kw = Math.min(Math.max(kSh, 0.5), 3.6);
+  let kh = Math.min(Math.max(kLen, 0.5), 3.6);
+  const ar = kw / kh;
+  if (ar > 1.5) kw = kh * 1.5;
+  else if (ar < 0.67) kw = kh * 0.67;
+  /* 按当前尺码放码：宽度按围度档差，长度按衣长档差。 */
+  const fitF = sizeFitFactors(item, state.size);
+  kw = Math.min(Math.max(kw * fitF.w, 0.5), 4.2);
+  kh = Math.min(Math.max(kh * fitF.h, 0.5), 4.2);
+
+  /* 贴合：肩线对到人体肩点所在 y，横向按肩线中点对中线。 */
+  let anchorY, srcY, midX;
+  if (cat === 'bottoms') {
+    anchorY = FIT.waistY - 4; srcY = cut.box.y0;
+    midX = cut.box.x0 + cut.box.w / 2;
+  } else if (sh) {
+    anchorY = FIT.shoulderY; srcY = sh.y;
+    midX = (sh.lo + sh.hi + 1) / 2;
+  } else {
+    anchorY = FIT.shoulderY - 4; srcY = cut.box.y0 + cut.box.h * 0.04;
+    midX = cut.box.x0 + cut.box.w / 2;
+  }
+  return {
+    cat, lenCm, sh, kSh, kLen, kw, kh, fitF,
+    anchorY, srcY, midX,
+    dx: FIT.cx - midX * kw,
+    dy: anchorY - srcY * kh,
+  };
+}
+
 /* 单件商品图合成：把裁好的商品图按人体标定贴到画布上。
    只负责「画这一件」，不负责清屏——多件搭配（上衣+下装）由
    fitDrawOutfit 统一编排：先画模特，再按下装→上衣→外套的顺序叠。 */
@@ -716,52 +812,11 @@ function fitDrawGarment(item, ctx) {
   if (!job) return Promise.resolve(false);
   return job.then(cut => {
     if (!cut) return false;
-    const cat = item.category;
-    const lenCm = (item.measurements && item.measurements.length) || (cat === 'dresses' ? 100 : 62);
-    /* 写实款（flat 图由网格离线烘出）自带肩部几何：肩线在哪一行、肩宽多少像素，
-       是渲染时从顶点直接算的，比在图上做轮廓检测可靠——渲染图肩侧有袖山外扩，
-       检测会把肩宽多算 10cm，衣服就被压得又宽又短。 */
-    const fm = item.flatMeta;
-    const sh = fm
-      ? { y: fm.shoulderY, w: fm.shoulderW, lo: FIT.cx - fm.shoulderW / 2, hi: FIT.cx + fm.shoulderW / 2 }
-      : cut.shoulder;
-    /* 比例：① 衣肩 → 人体肩宽（343px）；② 衣长 → 衣长×8.606px。
-       取小值，单用任一条都会被袖子或长摆骗偏。 */
-    const kSh = cat === 'bottoms'
-      ? (FIT.hipW * 1.02) / Math.max(cut.widthAt(0.35), 1)
-      : (sh && sh.w > 6)
-        ? (FIT.shoulderW * 0.99) / sh.w
-        : FIT.shoulderW / Math.max(cut.widthAt(0.06), 1);
-    const kLen = (lenCm * FIT.pxPerCm) / Math.max(cut.box.h, 1);
-    let k = Math.min(kSh, kLen);
-    k = Math.min(Math.max(k, 0.5), 3.5);
-    /* 按当前尺码放码：印花图样与衣身一起缩放，宽度按围度档差（约 ±18%），
-       长度按衣长档差（约 ±5%），两者一起变才看得出「这件是 EU44 的版」。 */
-    const fitF = sizeFitFactors(item, state.size);
-    const kw = Math.min(Math.max(k * fitF.w, 0.5), 3.6);
-    const kh = Math.min(Math.max(k * fitF.h, 0.5), 3.6);
-
-    /* 贴合：把手绘的「衣肩线」对到人体肩点所在的 y，横向按肩线中点对中线。
-       这就是之前衣肩往下坠的原因——原来锚的是外框顶（领口最高点），
-       高领、立领款一差就是 5–8cm。 */
-    let anchorY, srcY, midX;
-    if (cat === 'bottoms') {
-      anchorY = FIT.waistY - 4; srcY = cut.box.y0;
-      midX = cut.box.x0 + cut.box.w / 2;
-    } else if (sh) {
-      anchorY = FIT.shoulderY; srcY = sh.y;
-      midX = (sh.lo + sh.hi + 1) / 2;
-    } else {
-      anchorY = FIT.shoulderY - 4; srcY = cut.box.y0;
-      midX = cut.box.x0 + cut.box.w / 2;
-    }
-    const dx = FIT.cx - midX * kw;
-    const dy = anchorY - srcY * kh;
-
+    const pf = fitPlacement(item, cut);
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(cut.canvas, dx, dy, cut.canvas.width * kw, cut.canvas.height * kh);
+    ctx.drawImage(cut.canvas, pf.dx, pf.dy, cut.canvas.width * pf.kw, cut.canvas.height * pf.kh);
     ctx.restore();
     return true;
   });
@@ -913,6 +968,8 @@ function selectGarment(itemId, opt = {}) {
   state.activeSlot = slot;
   state.color = color; state.colorName = colorName;
   renderGarments(); renderSummary(); updateStatus(); renderColors(); renderSizes(); renderFitReport();
+  /* 左页选中 → 右页翻页；已在右页时只做一次内容刷新，不反复整页翻转。 */
+  setBookPage('fitting', item, { refresh: bookEls.book && bookEls.book.dataset.page === 'fitting' });
   toast(`已试穿：${item.name}`);
 }
 function clearAll() {
@@ -921,6 +978,7 @@ function clearAll() {
   state.customPhoto = null;
   fitCache.cuts.delete('__upload__');
   renderGarments(); renderSummary(); updateStatus(); renderFitReport();
+  setBookPage('catalog');
 }
 function setColor(hex, name) {
   state.color = hex; state.colorName = name;
@@ -942,6 +1000,9 @@ const els = {
   wardrobeTitle: document.getElementById('wardrobe-title'),
   wardrobeSub: document.getElementById('wardrobe-sub'),
   tabs: document.getElementById('category-tabs'),
+  promoStrip: document.getElementById('promo-strip'),
+  promoList: document.getElementById('promo-list'),
+  promoUpdated: document.getElementById('promo-updated'),
   list: document.getElementById('garment-list'),
   colors: document.getElementById('color-swatches'),
   sizes: document.getElementById('size-buttons'),
@@ -962,7 +1023,123 @@ const els = {
   filterGrade: document.getElementById('filter-grade'),
   filterPBrand: document.getElementById('filter-pbrand'),
   filterPBrandWrap: document.getElementById('filter-pbrand-wrap'),
+  filterPlatform: document.getElementById('filter-platform'),
+  filterPlatformWrap: document.getElementById('filter-platform-wrap'),
 };
+
+/* ============================================================
+   书页式左右联动：左页 01 商品与促销 / 右页 02 试衣与准确度
+   ============================================================ */
+const bookEls = {
+  book: document.getElementById('book'),
+  nav: document.getElementById('page-nav'),
+  flipper: document.getElementById('page-flipper'),
+  coverImg: document.getElementById('cover-img'),
+  coverPlaceholder: document.getElementById('cover-placeholder'),
+  coverBrand: document.getElementById('cover-brand'),
+  coverName: document.getElementById('cover-name'),
+  coverPrice: document.getElementById('cover-price'),
+  coverCta: document.getElementById('cover-cta'),
+  sheetItem: document.getElementById('sheet-item'),
+  accuracy: document.getElementById('accuracy-report'),
+};
+let selectedCoverItem = null;
+
+function coverPriceText(item) {
+  if (!item) return '';
+  if (item.discontinued) return `€${item.priceEUR.toLocaleString()} · 停产档案`;
+  if (item.premium && item.curUAH > 0) {
+    return `${item.platform || '平台在售'} · ₴${item.curUAH.toLocaleString()}${item.discountPct ? ` · -${item.discountPct}%` : ''}`;
+  }
+  return `€${item.priceEUR.toLocaleString()}`;
+}
+
+/** 只画封面，不改动「已选中」状态；用于左页卡片悬停预览。 */
+function paintCover(item) {
+  if (!bookEls.coverImg) return;
+  if (!item) {
+    bookEls.coverImg.hidden = true;
+    bookEls.coverImg.removeAttribute('src');
+    bookEls.coverPlaceholder.hidden = false;
+    bookEls.coverPlaceholder.innerHTML = '从左侧挑一件商品<br/>右侧自动翻到它的试衣报告';
+    bookEls.coverBrand.textContent = '尚未选择款式';
+    bookEls.coverName.textContent = '商品目录 · 限时折扣 · 高分库';
+    bookEls.coverPrice.textContent = '';
+    bookEls.coverCta.disabled = true;
+    return;
+  }
+  bookEls.coverBrand.textContent = `${resolveBrandLabel(item)} · ${item.code || ''}`.trim();
+  bookEls.coverName.textContent = item.name || item.nameEn || '未命名款式';
+  bookEls.coverPrice.textContent = coverPriceText(item);
+  bookEls.coverCta.disabled = false;
+  if (item.image) {
+    bookEls.coverImg.src = assetURL(item.image);
+    bookEls.coverImg.hidden = false;
+    bookEls.coverPlaceholder.hidden = true;
+  } else {
+    bookEls.coverImg.hidden = true;
+    bookEls.coverImg.removeAttribute('src');
+    bookEls.coverPlaceholder.hidden = false;
+    bookEls.coverPlaceholder.innerHTML = `${resolveBrandLabel(item)}<br/>${item.name || ''}<br/>暂无商品图`;
+  }
+}
+
+function updateCover(item) {
+  selectedCoverItem = item || null;
+  paintCover(selectedCoverItem);
+}
+
+function setBookPage(page, item, opt = {}) {
+  const target = page === 'fitting' ? 'fitting' : 'catalog';
+  if (item) updateCover(item);
+  if (!bookEls.book) return;
+  bookEls.book.dataset.page = target;
+  if (bookEls.nav) {
+    bookEls.nav.querySelectorAll('.page-nav-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.page === target));
+  }
+  if (target === 'fitting' && opt.refresh && bookEls.flipper) {
+    bookEls.flipper.classList.remove('refreshed');
+    void bookEls.flipper.offsetWidth;
+    bookEls.flipper.classList.add('refreshed');
+    setTimeout(() => bookEls.flipper.classList.remove('refreshed'), 540);
+  }
+}
+
+if (bookEls.nav) {
+  bookEls.nav.addEventListener('click', e => {
+    const b = e.target.closest('.page-nav-btn');
+    if (b) setBookPage(b.dataset.page);
+  });
+}
+if (bookEls.coverCta) bookEls.coverCta.addEventListener('click', () => setBookPage('fitting'));
+{
+  const back = document.getElementById('btn-back-page');
+  if (back) back.addEventListener('click', () => setBookPage('catalog'));
+}
+/* 窄屏手势：横向滑动翻页；纵向滑动仍交给商品列表和报告区自己滚动。 */
+if (bookEls.book) {
+  let swipeStart = null;
+  bookEls.book.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { swipeStart = null; return; }
+    swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  }, { passive: true });
+  bookEls.book.addEventListener('touchend', e => {
+    if (!swipeStart || !e.changedTouches.length) return;
+    const dx = e.changedTouches[0].clientX - swipeStart.x;
+    const dy = e.changedTouches[0].clientY - swipeStart.y;
+    const dt = Date.now() - swipeStart.t;
+    swipeStart = null;
+    if (dt > 900 || Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    setBookPage(dx < 0 ? 'fitting' : 'catalog');
+  }, { passive: true });
+}
+document.addEventListener('keydown', e => {
+  if (e.target && e.target.closest('input, select, textarea')) return;
+  if (document.querySelector('.modal-backdrop.open')) return;
+  if (e.key === 'ArrowRight') setBookPage('fitting');
+  if (e.key === 'ArrowLeft') setBookPage('catalog');
+});
 
 /* 搜索框：输入即跨品牌全局检索；Esc / 点 × 清空 */
 if (els.searchInput) {
@@ -1002,13 +1179,33 @@ function renderFilterOptions() {
   if (els.filterPBrand) {
     const cur = state.filterPBrand;
     const counts = new Map();
-    DB.forEach(g => { if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1); });
-    const list = PREMIUM_BRANDS.filter(b => counts.get(b.id));
+    [...DB, ...KAMERON_DEEP].forEach(g => {
+      if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1);
+    });
+    const known = PREMIUM_BRANDS.filter(b => counts.get(b.id))
+      .map(b => ({ id: b.id, name: b.name }));
+    /* Kameron 深折里的 Polo Ralph Lauren 等品牌不在高分库清单，按真实品牌名补入。 */
+    for (const [id, n] of counts) {
+      if (!known.some(b => b.id === id)) known.push({ id, name: KAMERON_DEEP.find(g => g.brand === id)?.brandLabel || id });
+    }
     els.filterPBrand.innerHTML = `<option value="">全部品牌</option>` +
-      list.map(b => `<option value="${b.id}">${b.name} (${counts.get(b.id)})</option>`).join('');
+      known.map(b => `<option value="${b.id}">${b.name} (${counts.get(b.id)})</option>`).join('');
     els.filterPBrand.value = cur;
     els.filterPBrand.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
     if (els.filterPBrandWrap) els.filterPBrandWrap.hidden = state.brand !== PREMIUM_TAB.id;
+  }
+  if (els.filterPlatform) {
+    const cur = state.filterPlatform;
+    const pc = new Map();
+    [...DB, ...KAMERON_DEEP].forEach(g => {
+      if (g.premium) { const p = g.platform || '其他'; pc.set(p, (pc.get(p) || 0) + 1); }
+    });
+    els.filterPlatform.innerHTML = `<option value="">全部平台</option>` +
+      [...pc.entries()].sort((a, b) => b[1] - a[1])
+        .map(([p, n]) => `<option value="${p}">${p} (${n})</option>`).join('');
+    els.filterPlatform.value = cur;
+    els.filterPlatform.closest('.filter-sel')?.classList.toggle('has-value', !!cur);
+    if (els.filterPlatformWrap) els.filterPlatformWrap.hidden = state.brand !== PREMIUM_TAB.id;
   }
   if (els.filterGrade) {
     const cur = state.filterGrade;
@@ -1043,6 +1240,13 @@ if (els.filterGrade) {
 if (els.filterPBrand) {
   els.filterPBrand.addEventListener('change', () => {
     state.filterPBrand = els.filterPBrand.value;
+    renderFilterOptions();
+    renderGarments();
+  });
+}
+if (els.filterPlatform) {
+  els.filterPlatform.addEventListener('change', () => {
+    state.filterPlatform = els.filterPlatform.value;
     renderFilterOptions();
     renderGarments();
   });
@@ -1221,18 +1425,54 @@ function refreshGarmentTexture(itemId) {
   garmentGroup.add(group);
 }
 
+/* 折扣门槛：2 折及以下（现价不超过原价 20%，即折扣 ≥80%）。
+   浅折扣商品不进限时折扣页。 */
+const SALE_MIN_DISCOUNT = 80;
+
+/* 限时折扣：女装来自高分库（在售码里仍有 90+ 合身档），
+   男装来自 Symbol / Domino 男装 sale 页，只进折扣信息、不进试穿库。
+   两边都先过 2 折门槛，再按折扣降序全部展示，不设条数上限。 */
+function saleItems() {
+  const women = DB.filter(g => g.premium && g.category !== 'accessories' && hasFittingSaleSize(g) &&
+    g.discountPct >= SALE_MIN_DISCOUNT && g.curUAH > 0 && g.origUAH > g.curUAH);
+  const men = MEN_SALE.filter(g => g.discountPct >= SALE_MIN_DISCOUNT &&
+    g.curUAH > 0 && g.origUAH > g.curUAH);
+  /* Kameron 2 折及以下深折：女装 + 男装都在促销页展示，童装已在抓取层排除。
+     这批没有逐款成衣围度，仅浏览 + 外链，不进 fitEngine。 */
+  const kameron = KAMERON_DEEP.filter(g => g.discountPct >= SALE_MIN_DISCOUNT &&
+    g.curUAH > 0 && g.origUAH > g.curUAH);
+  return [...women, ...men, ...kameron]
+    .sort((a, b) => b.discountPct - a.discountPct || (b.fitScore || 0) - (a.fitScore || 0));
+}
+/* 深折条目按 id 查找（不进 DB_BY_ID，避免把无成衣围度的款混进 3D/2D 试穿）。 */
+const KAMERON_BY_ID = Object.fromEntries(KAMERON_DEEP.map(g => [g.id, g]));
+
+/* 折扣预览图加载失败时的占位（灰色衣形），保证每条都有可视预览，
+   不再因为单张图缺失就把 img 从 DOM 里摘掉。 */
+const PROMO_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="68" height="88" viewBox="0 0 68 88">' +
+  '<rect width="68" height="88" fill="#2a2622"/>' +
+  '<path d="M24 14 L34 20 L44 14 L56 26 L49 34 L46 30 L46 74 L22 74 L22 30 L19 34 L12 26 Z" fill="#544a3e"/>' +
+  '</svg>');
+
 /* 当前品牌页的商品集。
-   state.brand === 'VT' 是「往季精选」页：只收 vintage 款。
-   DG / BL 是在售页：官网当前目录的款，vintage 款不在其中，
-   否则用户会在两个地方看到同一件衣服。 */
+   HIGH UA 是默认首页：四个乌克兰平台在售的女装高分款，逐款带平台标注。
+   HIGH EU 是欧洲官网高分款。vintage 已整体下架，两个页面都不再显示。 */
 function currentBrandItems() {
-  if (state.brand === VINTAGE_BRAND.id) return DB.filter(g => g.vintage);
-  /* 高分服饰页：各品牌女装里按合身评分排序展示，
-     90 分以上（各参与部位同时落在容差内）的款单独标出来。 */
+  if (state.brand === SALE_TAB.id) return saleItems();
+  /* HIGH UA：四个乌克兰平台在售的女装高分款，逐款带平台标注。 */
   if (state.brand === PREMIUM_TAB.id) {
-    return DB.filter(g => g.premium);
+    /* 在售码里没有一档合身（90+）的平台款不进 HIGH UA。
+       Kameron 2 折及以下深折款一并纳入（男女装均收，童装已在抓取层排除），
+       无成衣围度，标为仅浏览 + 外链。 */
+    return [...DB.filter(g => g.premium && hasFittingSaleSize(g)), ...KAMERON_DEEP];
   }
-  return DB.filter(g => g.brand === state.brand && !g.vintage);
+  /* HIGH EU：杜嘉班纳、巴尔曼官网库，以及各奢侈品牌官网当季款。
+     只保留合身评分 80 分以上的款——按新判据重算后低于 80 的一律不显示。 */
+  if (state.brand === EU_TAB.id) {
+    return DB.filter(g => !g.premium && gradeOf(g).score >= 80);
+  }
+  return DB.filter(g => g.brand === state.brand);
 }
 
 function clearSearch() {
@@ -1247,7 +1487,9 @@ function clearFilters() {
   state.filterStyle = '';
   state.filterGrade = '';
   state.filterPBrand = '';
+  state.filterPlatform = '';
   if (els.filterPBrand) { els.filterPBrand.value = ''; els.filterPBrand.closest('.filter-sel')?.classList.remove('has-value'); }
+  if (els.filterPlatform) { els.filterPlatform.value = ''; els.filterPlatform.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterColor) { els.filterColor.value = ''; els.filterColor.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterStyle) { els.filterStyle.value = ''; els.filterStyle.closest('.filter-sel')?.classList.remove('has-value'); }
   if (els.filterGrade) { els.filterGrade.value = ''; els.filterGrade.closest('.filter-sel')?.classList.remove('has-value'); }
@@ -1260,41 +1502,54 @@ function clearFilters() {
    同批商品共用 31 个测量模板，引擎内部按模板缓存，这里只做逐款的取值。 */
 const _gradeCache = new Map();
 function gradeOf(item) {
+  /* 配件与仅浏览款没有成衣围度，不能套 fitEngine 产出伪评分。 */
+  if (item.category === 'accessories' || item.composite === false) {
+    return { score: 0, stars: 0, verdict: '仅浏览', size: '', parts: [] };
+  }
   let g = _gradeCache.get(item.id);
   if (!g) {
-    /* 高分库（平台商品）用 platformFit 的判据：平台在售尺码 + 品牌官方码表。
-       DG / Balmain 库有真实平铺尺寸，仍用引擎那套「成衣 − 基准线」的判据。 */
-    if (item.premium && item.fitScore != null) {
-      g = {
-        stars: item.fitScore >= 90 ? 3 : item.fitScore >= 75 ? 2 : item.fitScore >= 60 ? 1 : 0,
-        score: item.fitScore,
-        size: item.fitSize,
-        verdict: item.fitScore >= 90 ? '非常合身' : item.fitScore >= 75 ? '合身' : item.fitScore >= 60 ? '基本合身' : '偏小/偏大',
-        parts: (item.fitParts || []).map(p => ({ ...p, statusLabel: p.statusLabel })),
-        level: item.fitScore >= 90 ? 'perfect' : item.fitScore >= 75 ? 'good' : 'fair',
-      };
-    } else {
-      g = fitGrade(item.id, state.model);
-    }
+    /* 全站同一把尺子：平台商品与 DG 库都走 fitEngine 的 fitGrade。
+       平台商品的 measurements 由官方净体表 + 版型余量构造，
+       sizes 只保留详情页抓到的在售码，与 DG 商品同一判据。 */
+    g = fitGrade(item.id, state.model);
     _gradeCache.set(item.id, g);
   }
   return g;
 }
+
+/** HIGH UA 在售款：只有在售尺码里存在一档 90 分以上合身码才留在库里。
+    配件按既定规则仅浏览、不评分。 */
+function hasFittingSaleSize(item) {
+  if (!item || !item.premium || item.category === 'accessories' || item.composite === false) return true;
+  const av = (item.availSizes && item.availSizes.length) ? item.availSizes : item.sizes;
+  if (!av || !av.length) return false;
+  const g = gradeOf(item);
+  return !!(g && g.score >= 90 && g.size && av.some(s => normalizeSize(s).size === g.size));
+}
+
 const STAR_TEXT = { 3: '★★★ 满分', 2: '★★ 合身', 1: '★ 略偏', 0: '' };
 
-/* 高分库商品的规格文字：这些款没有官方平铺尺寸，
-   尺码栏给的是**该码的官方净体围度**，不能当成成衣围度显示。
-   这里显示「该码官方净体围度 + 版型设计余量」，
-   并标出与模特围度的档位差，让用户知道这件买哪个码。 */
+/* 统一解析商品品牌名，覆盖官网品牌、奢侈品牌与乌克兰平台。
+   卡片品牌标签始终显示，不再受搜索/筛选状态控制。 */
+function resolveBrandLabel(item) {
+  const all = [...BRANDS, ...PREMIUM_BRANDS];
+  const found = all.find(b => b.id === item.brand);
+  if (found) return found.name;
+  return item.brand || '';
+}
+
+/* 高分库商品的规格文字：与 DG 库同口径，直接显示引擎算出的
+   该码成衣尺寸（官方净体基准档 + 设计余量，按官方档比放缩），
+   再附各部位相对合身基准线的偏差。 */
 function premiumSpecText(item, size) {
+  if (item.onlyBrowse) return '深折仅浏览 · 点击打开平台商品页';
+  if (item.category === 'accessories') return `${item.style || '配件'} · 仅浏览，不参与合身评分`;
   const g = gradeOf(item);
-  const n = sizeNumber(size);
-  const body = SIZE_CHART[size] || {};
-  const ease = (PREMIUM_EASE[item.cut] || {});
+  const gm = item.measurements ? garmentMeasurements(item.id, size, state.model) || {} : {};
   const parts = [];
-  if (body.bust != null) parts.push(`胸围 ${Math.round(body.bust + (ease.bust || 0))}`);
-  if (body.waist != null && item.category !== 'bottoms') parts.push(`腰围 ${Math.round(body.waist + (ease.waist || 0))}`);
-  if (body.hip != null && item.category === 'bottoms') parts.push(`臀围 ${Math.round(body.hip + (ease.hip || 0))}`);
+  if (gm.bust != null) parts.push(`胸围 ${Math.round(gm.bust)}`);
+  if (gm.waist != null && item.category !== 'bottoms') parts.push(`腰围 ${Math.round(gm.waist)}`);
+  if (gm.hip != null && item.category === 'bottoms') parts.push(`臀围 ${Math.round(gm.hip)}`);
   const fit = g.parts && g.parts.length
     ? g.parts.map(p => `${p.label}${p.delta > 0 ? '+' : ''}${p.delta}`).join(' ')
     : '';
@@ -1318,19 +1573,25 @@ function matchingItems() {
   const fst = state.filterStyle || '';
   const fg = state.filterGrade || '';
   const fb = state.filterPBrand || '';
-  if (!q && !fc && !fst && !fg && !fb) return currentBrandItems().filter(g => g.category === state.category);
+  const fp = state.filterPlatform || '';
+  if (!q && !fc && !fst && !fg && !fb && !fp) return currentBrandItems().filter(g => g.category === state.category);
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
-  const brandName = Object.fromEntries([...BRANDS, VINTAGE_BRAND, ...PREMIUM_BRANDS].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
-  return DB.filter(g => {
+  const brandName = Object.fromEntries([...BRANDS, ...PREMIUM_BRANDS].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
+  /* 搜索池同时包含 HIGH UA 高分款与 Kameron 深折款，否则深折款一搜就消失。 */
+  const pool = state.brand === PREMIUM_TAB.id ? [...DB, ...KAMERON_DEEP] : DB;
+  return pool.filter(g => {
+    /* 跨品牌搜索也执行同一条 HIGH UA 在售合身门槛。 */
+    if (!hasFittingSaleSize(g)) return false;
     if (fc && !(g.colors || []).some(c => c.name === fc)) return false;
     if (fst && g.style !== fst) return false;
     if (fg && String(gradeOf(g).stars) !== fg) return false;
     if (fb && g.brand !== fb) return false;
+    if (fp && (g.platform || '其他') !== fp) return false;
     const hay = [
       g.name, g.nameEn, g.code, g.fabric, g.style,
       SILHOUETTE_NAMES[g.silhouette] || '', g.silhouette || '',
-      g.season || '', g.collection || '',
+      g.season || '', g.collection || '', g.platform || '',
       catName[g.category] || '', brandName[g.brand] || '',
       (g.colors || []).map(c => c && c.name).join(' '),
     ].join(' ').toLowerCase();
@@ -1344,6 +1605,19 @@ function sortByFit(items) {
   return items
     .map((item, i) => ({ item, g: gradeOf(item), i }))
     .sort((a, b) => (b.g.score - a.g.score) || (a.i - b.i))
+    .map(x => x.item);
+}
+
+/* HIGH UA 低价优先：按现价（格里夫纳）升序，无现价的排最后，
+   同价保持目录原顺序，避免同价位反复跳动。 */
+function sortByPriceAsc(items) {
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => {
+      const pa = a.item.curUAH > 0 ? a.item.curUAH : Infinity;
+      const pb = b.item.curUAH > 0 ? b.item.curUAH : Infinity;
+      return (pa - pb) || (a.i - b.i);
+    })
     .map(x => x.item);
 }
 
@@ -1364,13 +1638,26 @@ function filterOptions() {
   return { colors: top(colors, 26), styles: top(styles, 40), grades };
 }
 
+/* 折扣页排在最前，之后是 HIGH UA、HIGH EU。
+   vintage 已整体下架，不再占用标签位。 */
+const SALE_TAB = { id: 'SALE', name: '限时折扣', short: '限时折扣', isSale: true };
+const BRAND_TABS = [SALE_TAB, PREMIUM_TAB, EU_TAB];
+
+function setBrandHeading(b) {
+  if (!b || !els.wardrobeTitle) return;
+  els.wardrobeTitle.textContent = b.name;
+  if (b.isSale) {
+    const stamp = promoFeedMeta.generatedAt ? `更新 ${promoStamp(promoFeedMeta.generatedAt)}` : '每2小时刷新';
+    els.wardrobeSub.textContent = `${saleItems().length} 条 · 含男装 · ${stamp} · 男装仅浏览`;
+  } else {
+    els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
+  }
+}
+
 function renderBrands() {
   if (!els.brands) return;
-  const all = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND];
-  /* 往季页与高分服饰页各只有一个标签词，不再叠两行（会出现两个 vintage） */
-  els.brands.innerHTML = all.map(b => {
-    const cls = `brand-tab ${b.id === state.brand ? 'active' : ''}${b.isVintage ? ' vintage' : ''}${b.isPremium ? ' high' : ''}`;
-    /* 标签只留一个英文词：DG / BL / HIGH / vintage */
+  els.brands.innerHTML = BRAND_TABS.map(b => {
+    const cls = `brand-tab ${b.id === state.brand ? 'active' : ''} high`;
     const inner = `<b>${b.short}</b>`;
     return `<button class="${cls}" data-brand="${b.id}">${inner}</button>`;
   }).join('');
@@ -1378,21 +1665,165 @@ function renderBrands() {
     btn.addEventListener('click', () => {
       state.brand = btn.dataset.brand;
       clearSearch(); clearFilters();
-      const b = [...BRANDS, PREMIUM_TAB, VINTAGE_BRAND].find(x => x.id === state.brand);
+      const b = BRAND_TABS.find(x => x.id === state.brand);
       /* 进「HIGH」页时若当前品类里没有高分款，自动切到有货的品类，
          免得打开就是空列表。 */
-      if (b.isPremium) {
-        const counts = DB_CATEGORIES.map(c => ({ id: c.id, n: DB.filter(g => g.premium && g.category === c.id).length }));
+      if (b.isPremium || b.isEu) {
+        const counts = DB_CATEGORIES.map(c => ({ id: c.id, n: currentBrandItems().filter(g => g.category === c.id).length }));
         if (!counts.some(c => c.id === state.category && c.n > 0)) {
           const best = counts.sort((a, b2) => b2.n - a.n)[0];
           if (best && best.n > 0) state.category = best.id;
         }
       }
-      els.wardrobeTitle.textContent = b.isVintage ? b.name : (b.isPremium ? b.name : `${b.name}女装`);
-      els.wardrobeSub.textContent = `${currentBrandItems().length} 款 · 点击试穿，数据驱动合身`;
-      renderBrands(); renderCategories(); renderGarments();
+      setBrandHeading(b);
+      renderBrands(); renderCategories(); renderGarments(); renderPromo();
       renderFilterOptions();
       renderSizes(); syncSizeControls();   // 品牌换了，官方码名（IT/FR）随之切换
+    });
+  });
+}
+
+/* ---------- 促销数据源：每 2 小时刷新 ----------
+   商品库里的价格是抓库时的快照。这里从 GitHub 上的 promo-feed.json
+   读取最新商品页价格，覆盖高分库 DB 中的现价/原价/折扣；拿不到远端时
+   沿用本地缓存，离线也不会把已有的促销提示清空。 */
+const PROMO_FEED_URLS = [
+  'https://raw.githubusercontent.com/ericljw98-crypto/atelier-3d-fitting/main/web/promo-feed.json',
+  'https://cdn.jsdelivr.net/gh/ericljw98-crypto/atelier-3d-fitting@main/web/promo-feed.json',
+];
+const PROMO_CACHE_KEY = 'atelier_promo_feed_v1';
+const PROMO_REFRESH_MS = 2 * 60 * 60 * 1000;
+let promoFeedMeta = { generatedAt: '', source: '' };
+let promoLastFetch = 0;
+
+function promoStamp(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function applyPromoFeed(feed) {
+  if (!feed || !Array.isArray(feed.items) || !feed.generatedAt) return false;
+  const byId = new Map(feed.items.filter(x => x && x.id).map(x => [x.id, x]));
+  let applied = 0;
+  for (const item of [...DB, ...MEN_SALE, ...KAMERON_DEEP]) {
+    const p = byId.get(item.id);
+    if (!p) continue;
+    item.curUAH = Number(p.curUAH) || 0;
+    item.origUAH = Number(p.origUAH) || 0;
+    item.discountPct = Number(p.discountPct) || 0;
+    item.priceNote = p.priceNote || '';
+    if (p.priceEUR) item.priceEUR = p.priceEUR;
+    if (p.priceCNY) item.priceCNY = p.priceCNY;
+    applied++;
+  }
+  promoFeedMeta = { generatedAt: feed.generatedAt, source: feed.source || '远端促销数据' };
+  return applied > 0;
+}
+
+function restorePromoFeed() {
+  try {
+    const raw = localStorage.getItem(PROMO_CACHE_KEY);
+    if (raw) applyPromoFeed(JSON.parse(raw));
+  } catch { /* 隐私模式或缓存损坏时不阻断应用 */ }
+}
+
+async function fetchPromoFeed() {
+  for (const base of PROMO_FEED_URLS) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+      const res = await fetch(`${base}?t=${Date.now()}`, { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const feed = await res.json();
+      if (!applyPromoFeed(feed)) continue;
+      promoLastFetch = Date.now();
+      try { localStorage.setItem(PROMO_CACHE_KEY, JSON.stringify(feed)); } catch { /* 忽略存储配额 */ }
+      renderPromo();
+      renderGarments();
+      return;
+    } catch { /* 换下一个源 */ }
+  }
+}
+
+function initPromoFeed() {
+  restorePromoFeed();
+  fetchPromoFeed();
+  setInterval(fetchPromoFeed, PROMO_REFRESH_MS);
+  /* 移动端后台会节流定时器；回到前台时发现超过 2 小时未拉取就立刻补刷。 */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - promoLastFetch > PROMO_REFRESH_MS) fetchPromoFeed();
+  });
+}
+
+/* 限时折扣独立标签页：女装来自高分库，男装来自 Symbol / Domino 男装 sale 页，
+   按折扣降序全部展示。男装只展示价格与来源，不进入女装试穿流程。 */
+function renderPromo() {
+  if (!els.promoList || !els.promoStrip) return;
+  const sale = state.brand === SALE_TAB.id;
+  const left = document.querySelector('.page-left');
+  if (left) left.dataset.mode = sale ? 'sale' : 'catalog';
+  els.promoStrip.hidden = false;
+  els.promoStrip.classList.remove('collapsed');
+  if (els.promoUpdated) {
+    els.promoUpdated.textContent = promoFeedMeta.generatedAt
+      ? `更新 ${promoStamp(promoFeedMeta.generatedAt)} · 每2小时` : '每2小时刷新';
+  }
+  const top = saleItems();
+  const titleEl = document.getElementById('promo-title-text');
+  if (titleEl) titleEl.textContent = sale ? `限时折扣 · ${top.length} 条在售折扣 · 含男装` : '限时折扣';
+  if (!sale) { els.promoList.innerHTML = ''; return; }
+
+  const brandLabel = g => (g.gender === 'men' || g.onlyBrowse
+    ? (g.brandLabel || g.brand)
+    : (resolveBrandLabel({ brand: g.brand }) || g.brand));
+  els.promoList.innerHTML = top.map((g, i) => {
+    const men = g.gender === 'men';
+    const detail = men
+      ? `男装 · 仅浏览 · ${g.platform} · ${g.kind || '男装'}`
+      : g.onlyBrowse
+        ? `${g.platform} · 2 折深折 · 仅浏览外链`
+        : `${g.platform} · ${g.fitScore || 0} 分 · 可试穿`;
+    return `
+    <button class="promo-item${men ? ' is-men' : ''}" data-id="${g.id}" type="button" title="${g.priceNote || g.url || ''}">
+      <span class="promo-rank">${i + 1}</span>
+      <img class="promo-thumb" src="${assetURL(g.image)}" alt="" loading="lazy"${REMOTE_ASSET_BASE ? ' crossorigin="anonymous"' : ''}/>
+      <span class="promo-off">-${g.discountPct}%</span>
+      <span class="promo-info">
+        <span class="promo-name">${brandLabel(g)} · ${g.name}</span>
+        <span class="promo-sub">${detail}</span>
+        <span class="promo-price"><s>₴${g.origUAH.toLocaleString()}</s> <b>₴${g.curUAH.toLocaleString()}</b></span>
+      </span>
+    </button>`;
+  }).join('');
+  /* 预览图兜底：任一图片加载失败都用衣形占位替换，保证每条折扣都有预览。 */
+  els.promoList.querySelectorAll('.promo-thumb').forEach(img => {
+    img.addEventListener('error', () => {
+      if (img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      img.src = PROMO_PLACEHOLDER;
+    });
+  });
+  els.promoList.querySelectorAll('.promo-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const men = MEN_SALE.find(x => x.id === id);
+      const promoted = men || KAMERON_BY_ID[id] || DB_BY_ID[id];
+      if (!promoted) return;
+      /* 折扣条目点击一律打开平台商品详情页外链（网页新标签，APK 走系统浏览器）。
+         没有链接时才回退到站内试穿。 */
+      if (promoted.url) {
+        try { window.open(promoted.url, '_blank', 'noopener'); return; } catch { /* 落到站内 */ }
+      }
+      if (men) {
+        toast(`男装折扣仅浏览：${men.brand} · ${men.name} · ${men.platform}`);
+        return;
+      }
+      state.category = promoted.category || DB_CATEGORIES[0].id;
+      renderCategories(); clearSearch(); clearFilters();
+      selectGarment(id);
     });
   });
 }
@@ -1410,8 +1841,16 @@ function renderCategories() {
   });
 }
 
-/** 价格区块：在售款给欧元与原价；停产档案款标当年零售价并注明不可购。 */
+/** 价格区块：HIGH UA 直接给平台原价与折扣价（格里夫纳），不折算人民币；
+    官网档案款仍按欧元与当年零售价标注。 */
 function priceMarkup(item) {
+  if (item.premium && item.curUAH > 0) {
+    const orig = item.origUAH > item.curUAH
+      ? `<s>₴${item.origUAH.toLocaleString()}</s> ` : '';
+    const off = item.discountPct > 0 ? ` · -${item.discountPct}%` : '';
+    return `<span class="price-eur">${orig}₴${item.curUAH.toLocaleString()}</span>` +
+      `<span class="price-cny">${item.platform || '平台'} 在售价${off}</span>`;
+  }
   if (item.discontinued) {
     return `<span class="price-eur">€${item.priceEUR.toLocaleString()}</span><span class="price-cny">${item.archiveYear || ''} 年零售价 · 已停产</span>`;
   }
@@ -1419,11 +1858,13 @@ function priceMarkup(item) {
 }
 
 function renderGarments() {
+  /* 折扣页用独立列表渲染，不占商品网格。 */
+  if (state.brand === SALE_TAB.id) return;
   const searching = !!(state.query || '').trim();
   const filtering = !!(state.filterColor || state.filterStyle || state.filterGrade);
   const matched = matchingItems();
-  /* 按合身评分降序：满分档（★★★）在最前，其余依次往后 */
-  const items = sortByFit(matched);
+  /* HIGH UA 按现价从低到高；HIGH EU 等保持合身评分降序。 */
+  const items = state.brand === PREMIUM_TAB.id ? sortByPriceAsc(matched) : sortByFit(matched);
   const starCount = matched.filter(i => gradeOf(i).stars === 3).length;
   /* 副标题要说明当前看到的是「筛选后」还是「该品牌全部」，
      否则 1922 款和筛选出的 463 款看起来像数据对不上。 */
@@ -1446,8 +1887,7 @@ function renderGarments() {
   }
   els.list.innerHTML = items.map(item => {
     const chosen = Object.values(state.outfit).some(o => o && o.id === item.id);
-    const brand = [...BRANDS, VINTAGE_BRAND].find(b => b.id === item.brand)
-      || (item.vintage ? { short: 'VINTAGE', name: 'vintage' } : null);
+    const brandLabel = resolveBrandLabel(item);
     const cat = DB_CATEGORIES.find(c => c.id === item.category);
     return `<div class="garment-card db-card ${chosen ? 'selected' : ''} ${gradeOf(item).stars === 3 ? 'is-perfect' : ''}" data-id="${item.id}">
       <span class="garment-check"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -1459,27 +1899,53 @@ function renderGarments() {
       <div class="db-card-head">
         <span class="db-code">${item.code}</span>
         ${starBadge(item)}
-        ${item.vintage ? `<span class="db-tag vintage">Vintage</span>` : ''}
+        ${item.premium && item.platform ? `<span class="db-tag platform">${item.platform}</span>` : ''}
+        ${item.premium && item.discountPct > 0 ? `<span class="db-tag discount">-${item.discountPct}%</span>` : ''}
         ${item.composite === false ? `<span class="db-tag nofit">仅浏览</span>` : ''}
         ${item.discontinued ? `<span class="db-tag archive">停产 ${item.archiveYear || ''}</span>` : ''}
         <span class="db-fit">${item.fit}</span>
       </div>
       <div class="garment-name">${item.name}</div>
-      <div class="db-meta">${item.fabric}${(searching || filtering || item.premium) ? ` · ${item.premium ? (PREMIUM_BRANDS.find(b => b.id === item.brand) || { short: item.brand }).name : (brand ? brand.short : item.brand)} · ${cat ? cat.name : item.category}` : ''}</div>
+      <div class="db-meta"><span class="db-brand">${brandLabel}</span> · ${item.fabric}${cat ? ` · ${cat.name}` : ''}</div>
       <div class="db-price">${priceMarkup(item)}</div>
       ${item.premium && item.availSizesText ? `<div class="db-avail">平台在售尺码 ${item.availSizesText}</div>` : ''}
       <div class="db-foot"><span class="db-spec">${item.premium ? premiumSpecText(item, state.size) : specText(item, state.size)}</span></div>
     </div>`;
   }).join('');
   els.list.querySelectorAll('.garment-card').forEach(card => {
+    const item = DB_BY_ID[card.dataset.id] || KAMERON_BY_ID[card.dataset.id];
+    /* 左页悬停先预览右页封面，点击才真正翻页；离开后回到已试穿款。 */
+    if (item) {
+      card.addEventListener('mouseenter', () => {
+        if (bookEls.book && bookEls.book.dataset.page === 'catalog') paintCover(item);
+      });
+      card.addEventListener('mouseleave', () => {
+        if (bookEls.book && bookEls.book.dataset.page === 'catalog') paintCover(selectedCoverItem);
+      });
+    }
+    /* 配件没有成衣槽位，点击只提示，不进入 3D/2D 换装流程。 */
+    if (item && item.category === 'accessories' && !item.onlyBrowse) {
+      card.addEventListener('click', () =>
+        toast(`配件仅浏览：${item.name} · ${item.platform}；不参与 2D 试穿`));
+      return;
+    }
+    /* Kameron 深折款没有成衣围度，点击直接打开平台商品页，不进试穿流程。 */
+    if (item && item.onlyBrowse) {
+      card.addEventListener('click', () => {
+        if (item.url) { try { window.open(item.url, '_blank', 'noopener'); return; } catch { /* 落到提示 */ } }
+        toast(`仅浏览：${item.brandLabel} · ${item.name} · ${item.platform}`);
+      });
+      return;
+    }
     card.addEventListener('click', () => selectGarment(card.dataset.id));
   });
   if (els.wardrobeSub) {
     if (state.brand === PREMIUM_TAB.id && !filtering) {
       const best = matched.reduce((m, i) => Math.max(m, gradeOf(i).score), 0);
       const brs = new Set(matched.map(i => i.brand)).size;
+      const browse = matched.filter(i => i.onlyBrowse).length;
       els.wardrobeSub.textContent =
-        `${matched.length} 款 · ${brs} 个奢侈品牌女装 · 全部为合身 90 分以上 · 当前最高 ${best} 分`;
+        `${matched.length} 款 · ${brs} 个奢侈品牌女装 · 合身 80 分以上 + ${browse} 款深折仅浏览 · 当前最高 ${best} 分`;
     } else {
       els.wardrobeSub.textContent = (searching || filtering)
         ? `${scope()} · ${items.length} 款（全品牌全品类）`
@@ -1516,7 +1982,11 @@ function sizeText(size) {
     const lab = premiumSizeLabel(worn.brand, n);
     return l ? `${lab} · ${l}` : lab;
   }
-  if (state.brand === 'BL') {
+  /* DG/BL 合并进 HIGH EU 后，state.brand 不再区分品牌；
+     按当前试穿商品的 brand 判断码制：BL 用 FR，其余用 IT。 */
+  const active = wornIds.map(id => DB_BY_ID[id]).find(Boolean);
+  const brandId = active ? active.brand : state.brand;
+  if (brandId === 'BL') {
     const fr = IT_TO_FR[n];
     return fr != null ? `FR ${fr} · ${l}` : (l ? `${n} · ${l}` : String(n ?? size));
   }
@@ -1595,36 +2065,68 @@ function renderSummary() {
   }).join('');
 }
 /* 合身诊断：按成衣固定尺寸 vs 模特身体尺寸判断 */
-/** 高分库商品的诊断结果：与列表评分同一套判据
-    （平台在售尺码 + 品牌官方 IT 码表），只是针对当前选中的那一档码。 */
+/** 高分库商品的诊断结果：与 DG 库同一个 fitEngine 判据，
+    只是针对当前选中的那一档码（列表排序用的是在售码里的最优档）。 */
 function premiumFitResult(item, size, model) {
-  const itNum = sizeNumber(size);
-  const avail = item.availSizes || [];
-  const r = judgeAt(item, itNum, model);
+  const r = evaluateItem(item, size, model);
   if (!r) return null;
+  const avail = item.availSizes || [];
   const onSale = avail.length ? avail.includes(size) : true;
-  const parts = r.parts.map(p => ({
-    ...p,
-    baseline: p.body,             // 基准线 = 模特该部位围度
-    designEase: p.ease,
-  }));
-  const score = r.score;
-  let verdict;
+  const g = fitGrade(item.id, model);
+  let verdict = r.verdict;
   if (!onSale) verdict = '平台无此码';
-  else if (score >= 90) verdict = '非常合身';
-  else if (score >= 75) verdict = '合身';
-  else if (score >= 60) verdict = '基本合身';
-  else if (r.blocked) verdict = '偏小 / 偏大';
-  else verdict = '略有取舍';
-  const level = !onSale ? 'tooLoose' : score >= 90 ? 'perfect' : score >= 75 ? 'good' : score >= 60 ? 'good' : 'tight';
+  const level = !onSale ? 'tooLoose' : r.level;
   return {
-    score, level, verdict, parts,
-    recommendation: item.fitSize,
-    summary: '',
-    recommendationNote: onSale
+    score: r.score, level, verdict, parts: r.parts,
+    recommendation: g.size || item.fitSize,
+    summary: r.summary,
+    recommendationNote: (onSale
       ? `平台在售尺码 ${item.availSizesText}`
-      : `平台在售尺码 ${item.availSizesText}（不含当前这一档）`,
+      : `平台在售尺码 ${item.availSizesText}（不含当前这一档）`
+    ) + ' · 成衣尺寸按官方码表+版型余量估算，非逐款实测',
   };
+}
+
+/** 准确度细节：只拆解 evaluateItem 返回的同一份结果，不另立评分体系。 */
+function renderAccuracy(result, item) {
+  if (!bookEls.accuracy) return;
+  if (!result || !result.parts || !result.parts.length) {
+    bookEls.accuracy.innerHTML = '<p class="fit-empty">当前款式没有可核验的围度数据</p>';
+    return;
+  }
+  const totalW = result.parts.reduce((s, p) => s + (p.weight || 1), 0) || 1;
+  const roleText = p => p.role === 'baseline' ? '基准线 ×2'
+    : p.role === 'reference' ? '参考位 ×0.25' : '主判据 ×1';
+  const rows = result.parts.map(p => {
+    const w = p.weight || 1;
+    const contribution = Math.round(p.score * w / totalW);
+    return `<div class="acc-row">
+      <div class="acc-row-head">
+        <b>${p.label} <em class="acc-role ${p.role === 'baseline' ? 'base' : ''}">${roleText(p)}</em></b>
+        <span>${p.statusLabel} · 该项 ${p.score} 分</span>
+      </div>
+      <div class="acc-row-data">
+        <span>成衣 ${p.garment} · 基准 ${p.baseline} · 身体 ${p.body}cm</span>
+        <span>偏差 ${p.delta > 0 ? '+' : ''}${p.delta}cm · 贡献 ${contribution}</span>
+      </div>
+    </div>`;
+  }).join('');
+  /* 封顶只认主判据，和 evaluateItem 完全一致：参考位不合身不触发封顶。 */
+  const cappedPart = result.parts.find(p => p.role !== 'reference' && /tight|loose/.test(p.status));
+  const capText = cappedPart
+    ? `<div class="acc-cap">主判据短板封顶：${cappedPart.label} ${cappedPart.statusLabel}，总分最高 ${/^too/.test(cappedPart.status) ? 59 : 77}。</div>`
+    : '';
+  const source = item && item.premium
+    ? `成衣：平台码表 + 版型余量估算（${item.availSizesText || '以平台在售码为准'}），非逐款实测；身体：锁定档案。`
+    : `成衣：官网码表 + 档案测量；身体：锁定档案。均非逐款实测。`;
+  bookEls.accuracy.innerHTML = `
+    <div class="acc-summary">
+      <div class="acc-total"><b>${result.score}</b><span>分 · ${result.verdict}</span></div>
+      <div class="acc-formula">口径：加权均分（Σ权重 ${totalW.toFixed(2)}）+ 主判据短板封顶；参考位只计权重、不封顶。</div>
+      ${capText}
+      <div class="acc-source">${source}</div>
+    </div>
+    <div class="acc-rows">${rows}</div>`;
 }
 
 function renderFitReport() {
@@ -1633,18 +2135,24 @@ function renderFitReport() {
     els.fitVerdict.textContent = '未试穿';
     els.fitVerdict.className = 'fit-badge';
     els.fitReport.innerHTML = '<p class="fit-empty">试穿任意款式后，这里会给出各部位的合身判断</p>';
+    if (bookEls.accuracy) bookEls.accuracy.innerHTML = '<p class="fit-empty">试穿后显示评分权重、偏差与数据来源</p>';
+    if (bookEls.sheetItem) bookEls.sheetItem.textContent = '未选择款式';
     return;
   }
 
   // 以当前选中服饰为判断对象；无选中则取第一件
   const entry = (state.activeSlot && state.outfit[state.activeSlot]) || worn[0];
   const wornItem = DB_BY_ID[entry.id];
-  /* 高分库商品没有官方平铺尺寸，判定依据是平台在售尺码 + 品牌官方码表，
-     与列表里的评分同一口径（platformFit.js）。 */
+  /* 高分库商品与 DG 库同一套 fitEngine 判据，只是测量结果来源不同。 */
   const result = wornItem && wornItem.premium
     ? premiumFitResult(wornItem, state.size, state.model)
     : evaluateFit(entry.id, state.size, state.model);
   if (!result) return;
+
+  if (bookEls.sheetItem) {
+    const label = wornItem ? `${resolveBrandLabel(wornItem)} · ${wornItem.name}` : entry.id;
+    bookEls.sheetItem.textContent = `${label} · ${state.size}`;
+  }
 
   const levelClass = 'fit-' + result.level;
   els.fitVerdict.textContent = result.verdict;
@@ -1652,8 +2160,10 @@ function renderFitReport() {
 
   const partsHtml = result.parts.map(p => {
     const fill = Math.max(4, Math.min(100, p.score));
+    const roleTag = p.role === 'baseline' ? '<em class="fit-role-base">基准线</em>'
+      : p.role === 'reference' ? '<em class="fit-role-ref">参考</em>' : '';
     return `<div class="fit-part">
-      <div class="fit-part-head"><span>${p.label}</span><span class="fit-part-status ${p.status}">${p.statusLabel}</span></div>
+      <div class="fit-part-head"><span>${p.label}${roleTag}</span><span class="fit-part-status ${p.status}">${p.statusLabel}</span></div>
       <div class="fit-part-bar"><i class="${p.status}" style="width:${fill}%"></i></div>
       <div class="fit-part-data">成衣 ${p.garment} · 合身基准 ${p.baseline} · 身体 ${p.body}<span>基准放松 ${p.designEase > 0 ? '+' : ''}${p.designEase} · 偏差 ${p.delta > 0 ? '+' : ''}${p.delta}cm</span></div>
     </div>`;
@@ -1681,6 +2191,7 @@ function renderFitReport() {
     ${gradeHtml}
     ${partsHtml}
     ${recHtml}`;
+  renderAccuracy(result, wornItem);
 }
 
 function updateStatus() {
@@ -1931,8 +2442,12 @@ const detectedTypeName = document.getElementById('detected-type-name');
 const detectedSpec = document.getElementById('detected-spec');
 const matchSelect = document.getElementById('detected-match');
 const applyBtn = document.getElementById('photo-apply');
+const matchImg = document.getElementById('match-img');
+const matchCaption = document.getElementById('match-caption');
+const matchThumbs = document.getElementById('match-thumbs');
 let detected = null;
 let detectedSize = null;
+let detectedMatches = [];
 
 function openPhotoModal() {
   if (!state.model) { toast('请先建立模特档案'); return; }
@@ -1962,9 +2477,12 @@ dropZone.addEventListener('drop', e => {
 });
 
 function resetScanUI() {
-  detected = null; applyBtn.disabled = true;
+  detected = null; detectedMatches = []; applyBtn.disabled = true;
   scanResult.hidden = true; dropZone.style.display = '';
   photoFile.value = ''; scanImg.removeAttribute('src');
+  if (matchImg) matchImg.removeAttribute('src');
+  if (matchCaption) matchCaption.textContent = '库内匹配';
+  if (matchThumbs) matchThumbs.innerHTML = '';
   if (applyBtn) applyBtn.textContent = '试穿到模特';
   const hint = document.getElementById('scan-fallback-hint');
   if (hint) hint.hidden = true;
@@ -2001,41 +2519,71 @@ function handlePhoto(file) {
 function analyzePhoto(url) {
   const img = new Image();
   img.onload = () => {
-    const color = extractDominantColor(img);
-    const guess = guessGarment(img, color, color.subjectRatio);
+    /* 真正的以图搜图：用 pHash / dHash / HSV 直方图 / 灰度结构在全库比对，
+       不再靠长宽比猜品类，也不再被当前品牌 tab 限制候选集。 */
+    let result;
+    try { result = matchImage(img, 8); }
+    catch (err) { console.warn('图片指纹比对失败', err); toast('图片分析失败，请换一张试试'); return; }
+    const { dominantHex, matches } = result;
+    const best = matches.find(m => DB_BY_ID[m.id]);
+    const bestItem = best && DB_BY_ID[best.id];
+    const pct = best ? Math.round(best.score * 100) : 0;
+    const reliable = !!best && best.score >= 0.86;
+
     scanImg.src = url;
-    const cssHex = '#' + color.hex.toString(16).padStart(6, '0');
-    detectedSwatch.style.background = cssHex;
-    detectedColorName.textContent = color.name;
-    detectedTypeName.textContent = SILHOUETTE_NAMES[guess.silhouette] || guess.label;
-    const reliable = guess.confidence >= 0.85;
-    detectedSpec.textContent = reliable
-      ? `${guess.item.name} · ${guess.item.code}`
-      : '无法确认款号 · 将直接使用上传照片';
+    const rs = (dominantHex >> 16) & 255, gs = (dominantHex >> 8) & 255, bs = dominantHex & 255;
+    detectedSwatch.style.background = '#' + dominantHex.toString(16).padStart(6, '0');
+    detectedColorName.textContent = colorName(rs, gs, bs);
+    detectedTypeName.textContent = bestItem
+      ? (SILHOUETTE_NAMES[bestItem.silhouette] || bestItem.style || bestItem.category)
+      : '—';
+    detectedSpec.textContent = bestItem
+      ? `${bestItem.name} · ${bestItem.code} · 相似度 ${pct}%`
+      : '未找到相似款 · 将直接使用上传照片';
     const badge = document.getElementById('scan-badge');
-    if (badge) badge.textContent = reliable ? '识别完成' : '未匹配到款号';
+    if (badge) badge.textContent = reliable ? `识别完成 · ${pct}%` : (bestItem ? `找到相似款 · ${pct}%` : '未匹配到款号');
     const hint = document.getElementById('scan-fallback-hint');
     if (hint) hint.hidden = reliable;
-    if (matchSelect) matchSelect.style.display = reliable ? '' : 'none';
-    applyBtn.textContent = reliable ? '试穿到模特' : '直接贴到模特身上';
+    if (matchSelect) matchSelect.style.display = bestItem ? '' : 'none';
+    applyBtn.textContent = reliable ? '试穿到模特' : (bestItem ? '按所选款式试穿' : '直接贴到模特身上');
 
-    // 下拉框：按品类分组，识别结果置顶选中
+    // 视觉匹配结果置顶，按相似度排序；其余款仍可手动选择
     matchSelect.innerHTML = '';
+    const matchedIds = new Set(matches.map(m => m.id));
+    if (matches.length) {
+      const og = document.createElement('optgroup');
+      og.label = '视觉匹配 · 按相似度';
+      matches.forEach(m => {
+        const g = DB_BY_ID[m.id];
+        if (!g) return;
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = `${Math.round(m.score * 100)}% · ${g.name}`;
+        if (bestItem && g.id === bestItem.id) opt.selected = true;
+        og.appendChild(opt);
+      });
+      matchSelect.appendChild(og);
+    }
     DB_CATEGORIES.forEach(cat => {
       const og = document.createElement('optgroup');
       og.label = cat.name;
-      currentBrandItems().filter(g => g.category === cat.id).forEach(g => {
+      DB.filter(g => g.category === cat.id && !matchedIds.has(g.id)).forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.id; opt.textContent = g.name;
-        if (g.id === guess.item.id) opt.selected = true;
         og.appendChild(opt);
       });
       matchSelect.appendChild(og);
     });
     detected = {
-      hex: color.hex, colorName: color.name, garmentId: guess.item.id,
-      reliable, url, category: guess.category,
+      hex: dominantHex,
+      colorName: colorName(rs, gs, bs),
+      garmentId: best ? best.id : null,
+      reliable, url, category: bestItem ? bestItem.category : 'dresses',
+      score: pct,
     };
+    detectedMatches = matches;
+    renderMatchThumbnails(matches);
+    renderMatchCompare(best);
     detectedSize = recommendSize(state.model);
     renderScanSizes();
     dropZone.style.display = 'none';
@@ -2044,6 +2592,67 @@ function analyzePhoto(url) {
   };
   img.onerror = () => { toast('图片解码失败，请换一张试试'); URL.revokeObjectURL(url); };
   img.src = url;
+}
+
+/* 候选缩略图：每张都是库内真实商品图，点选即更新右侧对比图与试穿目标 */
+function renderMatchThumbnails(matches) {
+  if (!matchThumbs) return;
+  matchThumbs.innerHTML = '';
+  matches.forEach(m => {
+    const g = DB_BY_ID[m.id];
+    if (!g) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'match-thumb';
+    btn.dataset.id = g.id;
+    btn.title = `${g.name} · ${Math.round(m.score * 100)}%`;
+    const im = document.createElement('img');
+    im.src = assetURL(m.img || g.image);
+    im.alt = g.name;
+    im.loading = 'lazy';
+    const sp = document.createElement('span');
+    sp.className = 'thumb-score';
+    sp.textContent = Math.round(m.score * 100) + '%';
+    btn.appendChild(im); btn.appendChild(sp);
+    btn.addEventListener('click', () => renderMatchCompare(m));
+    matchThumbs.appendChild(btn);
+  });
+}
+
+/* 把选中的候选画到对比栏；试穿按钮读取同一个 detected.garmentId，所见即所穿 */
+function renderMatchCompare(m) {
+  const g = m && DB_BY_ID[m.id];
+  if (!g) {
+    if (matchImg) matchImg.removeAttribute('src');
+    if (matchCaption) matchCaption.textContent = '库内匹配';
+    if (detectedSpec) detectedSpec.textContent = '未找到相似款 · 将直接使用上传照片';
+    return;
+  }
+  const pct = Math.round((m.score || 0) * 100);
+  if (matchImg) matchImg.src = assetURL(m.img || g.image);
+  if (matchCaption) matchCaption.textContent = `库内匹配 · ${pct}%`;
+  if (detectedSpec) detectedSpec.textContent = `${g.name} · ${g.code} · 相似度 ${pct}%`;
+  if (matchSelect) matchSelect.value = g.id;
+  if (detected) { detected.garmentId = g.id; detected.score = pct; }
+  if (matchThumbs) {
+    matchThumbs.querySelectorAll('.match-thumb').forEach(b =>
+      b.classList.toggle('active', b.dataset.id === g.id));
+  }
+}
+
+if (matchSelect) {
+  matchSelect.addEventListener('change', () => {
+    const m = detectedMatches.find(x => x.id === matchSelect.value);
+    if (m) { renderMatchCompare(m); return; }
+    const g = DB_BY_ID[matchSelect.value];
+    if (g) {
+      if (matchImg) matchImg.src = assetURL(g.image);
+      if (matchCaption) matchCaption.textContent = '库内候选 · 手动选择';
+      if (detectedSpec) detectedSpec.textContent = `${g.name} · ${g.code} · 手动选择`;
+      if (detected) detected.garmentId = g.id;
+      if (matchThumbs) matchThumbs.querySelectorAll('.match-thumb').forEach(b => b.classList.remove('active'));
+    }
+  });
 }
 
 /* 主体主色：四角背景估计 + 中心加权 + 低饱和过滤 + 颜色量化 */
@@ -2213,9 +2822,26 @@ applyBtn.addEventListener('click', () => {
   if (!detected) return;
   // 识图尺码同样落到全局，2D 图样按这个码放码
   if (detectedSize) { state.size = detectedSize; renderSizes(); }
-  if (detected.reliable) {
-    selectGarment(matchSelect.value || detected.garmentId);
-    toast('照片识别换衣完成');
+  const chosenId = matchSelect.value || detected.garmentId;
+  if (detected.reliable || chosenId) {
+    /* 图像检索是全库范围，命中的款可能不在当前品牌 tab；先把 tab 切过去，
+       否则用户试穿成功却看不到对应卡片。 */
+    const item = DB_BY_ID[chosenId];
+    if (item) {
+      const tab = item.premium ? PREMIUM_TAB.id : EU_TAB.id;
+      if (tab && state.brand !== tab && els.brands) {
+        const btn = els.brands.querySelector(`.brand-tab[data-brand="${tab}"]`);
+        if (btn) btn.click();
+      }
+      /* 命中的是配件/下装时要同步品类，否则卡片留在原分类里看不见。 */
+      if (state.category !== item.category) {
+        state.category = item.category;
+        renderCategories(); renderGarments();
+      }
+    }
+    selectGarment(chosenId);
+    renderGarments();   // 让卡片高亮跟上本次选中
+    toast(detected.reliable ? '照片识别换衣完成' : '已按所选款式试穿');
   } else {
     applyUploadedPhoto(detected.url, detected.category);
     toast('未认出款号，已把照片直接贴到模特身上');
@@ -2238,6 +2864,7 @@ function applyUploadedPhoto(url, category) {
   }
   flatMark();
   updateStatus();
+  setBookPage('fitting', uploadedPhotoItem(), { refresh: bookEls.book && bookEls.book.dataset.page === 'fitting' });
 }
 
 function uploadedPhotoItem() {
@@ -2262,7 +2889,10 @@ state.size = recommendSize(state.model);
 // 打开即构建并显示 3D 人体模型
 rebuildAvatar();
 renderBrands();
+setBrandHeading(PREMIUM_TAB);   // 默认目录从 HIGH UA 开始，不再显示杜嘉班纳单品牌页
 renderCategories();
+initPromoFeed();
+renderPromo();
 renderFilterOptions();
 renderColors();
 renderSizes();
@@ -2286,6 +2916,43 @@ initUpdate();
 /* 调试/自动化接口 */
 window.__atelier = {
   state, DB,
+  setBookPage,
+  debugFit(id) {
+    const item = DB_BY_ID[id];
+    if (!item || !item.image) return Promise.resolve(null);
+    return cutFor(item).then(cut => {
+      if (!cut) return null;
+      const pf = fitPlacement(item, cut);
+      const { cat, sh, kSh, kLen, kw, kh, lenCm } = pf;
+      let opaque = 0;
+      try {
+        const px = cut.canvas.getContext('2d').getImageData(0, 0, cut.canvas.width, cut.canvas.height).data;
+        for (let i = 3; i < px.length; i += 4) if (px[i] > 16) opaque++;
+      } catch (e) {}
+      return {
+        id, cat, name: item.name, image: item.image,
+        composite: item.composite, photoCut: item.photoCut, brand: item.brand,
+        imgWH: [cut.canvas.width, cut.canvas.height],
+        opaque,
+        box: cut.box, shoulder: sh,
+        kSh: +kSh.toFixed(3), kLen: +kLen.toFixed(3), k: +Math.min(kSh, kLen).toFixed(3),
+        kw: +kw.toFixed(3), kh: +kh.toFixed(3),
+        renderW: Math.round(cut.canvas.width * kw),
+        renderH: Math.round(cut.canvas.height * kh),
+        garmentW: Math.round(cut.box.w * kw),
+        garmentH: Math.round(cut.box.h * kh),
+        shoulderRenderW: sh ? Math.round(sh.w * kw) : null,
+        anchorY: pf.anchorY, srcY: pf.srcY,
+        dx: Math.round(pf.dx), dy: Math.round(pf.dy),
+        lenCm,
+      };
+    });
+  },
+  debugTryOn(id) {
+    if (!DB_BY_ID[id]) return false;
+    selectGarment(id);
+    return true;
+  },
   debugAvatar() {
     return {
       avatarChildren: avatarGroup.children.length,
