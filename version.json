@@ -1,15 +1,15 @@
 {
-  "versionCode": 67,
-  "versionName": "4.16",
-  "releaseDate": "2026-11-27",
-  "size": 63488640,
-  "sha256": "0ac72af8f567b27531c2e65eda8b369827ed0aa502066621793965c4e281a358",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk",
-  "notes": "按用户要求删除所有吊带类产品：通过商品图拼版复核，在 tops 品类中找出23件被平台误译为「背心」的细肩带吊带上衣（spaghetti strap/camisole）并下架；连同此前已清空的吊带连衣裙，全库吊带残留为0。宽肩带背心、挂脖、抹胸、内衣不在下架范围。库存降至1726件，图片白名单1737张。资源版本v66。",
+  "versionCode": 68,
+  "versionName": "4.17",
+  "releaseDate": "2026-11-28",
+  "size": 64973078,
+  "sha256": "2b8bc1f625fd4022e0ec53af99911c43e81ed20b37dd5074d288cfa054f7d1ea",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.17/ATELIER-3D-Fitting-v4.17.apk",
+  "notes": "Kameron 2折深折80款纳入限时折扣与HIGH UA（排除童装），外链浏览",
   "apk": {
-    "size": 63488640,
-    "sha256": "0ac72af8f567b27531c2e65eda8b369827ed0aa502066621793965c4e281a358",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.16/ATELIER-3D-Fitting-v4.16.apk"
+    "size": 64973078,
+    "sha256": "2b8bc1f625fd4022e0ec53af99911c43e81ed20b37dd5074d288cfa054f7d1ea",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.17/ATELIER-3D-Fitting-v4.17.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.17/ATELIER-3D-Fitting-v4.17.apk"
   }
 }
