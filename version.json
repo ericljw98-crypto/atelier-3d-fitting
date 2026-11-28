@@ -1,15 +1,15 @@
 {
-  "versionCode": 71,
-  "versionName": "4.20",
+  "versionCode": 72,
+  "versionName": "4.21",
   "releaseDate": "2026-11-28",
-  "size": 63585838,
-  "sha256": "e4e440cba9cadb4a609ee0f9c8f2fc59a3aa3289956e710053b9ccf62d23ff99",
-  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.20/ATELIER-3D-Fitting-v4.20.apk",
-  "notes": "HIGH UA 只保留女装，男装仅在限时折扣区；鞋履全库删除",
+  "size": 63563186,
+  "sha256": "44aa8af6be3a69cdce2586c6bf097ee386b1f2ab0b8c6281dd151a711587e631",
+  "downloadUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk",
+  "notes": "Polo Ralph Lauren 仅保留 Collection 与紫标产品线；其余商品全部删除",
   "apk": {
-    "size": 63585838,
-    "sha256": "e4e440cba9cadb4a609ee0f9c8f2fc59a3aa3289956e710053b9ccf62d23ff99",
-    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.20/ATELIER-3D-Fitting-v4.20.apk",
-    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.20/ATELIER-3D-Fitting-v4.20.apk"
+    "size": 63563186,
+    "sha256": "44aa8af6be3a69cdce2586c6bf097ee386b1f2ab0b8c6281dd151a711587e631",
+    "url": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk",
+    "fallbackUrl": "https://github.com/ericljw98-crypto/atelier-3d-fitting/releases/download/v4.21/ATELIER-3D-Fitting-v4.21.apk"
   }
 }
