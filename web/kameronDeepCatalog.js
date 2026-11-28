@@ -3,7 +3,7 @@
    与吊带衫。女装成衣按高分库测量模板经统一 fitEngine 评分，只留在售尺码里
    90 分以上的款（可试穿）；男装与配件仅浏览 + 外链，不产生伪评分。
    测量为官方净体码表 + 版型余量估算，非官网逐款实测。
-   生成时间：2026-11-28T15:40:59.687Z
+   生成时间：2026-11-28T16:51:01.547Z
  */
 export const KAMERON_DEEP = [
  {
@@ -369,108 +369,6 @@ export const KAMERON_DEEP = [
   "gender": "women"
  },
  {
-  "id": "km-deep-491364",
-  "code": "491364",
-  "name": "靴子",
-  "nameEn": "Чоботи",
-  "brand": "DG",
-  "brandLabel": "杜嘉班纳",
-  "category": "accessories",
-  "style": "鞋履",
-  "cut": "",
-  "silhouette": "straight",
-  "fit": "直筒",
-  "season": "Current",
-  "platform": "Kameron",
-  "collection": "Kameron（乌克兰奢侈品电商）",
-  "fabric": "见图",
-  "colorName": "",
-  "colorHex": "#888888",
-  "curUAH": 7010,
-  "origUAH": 35050,
-  "discountPct": 80,
-  "priceEUR": 145,
-  "priceCNY": 1131,
-  "priceNote": "平台价 7 010 грн（原价 35 050 грн，约 €145）",
-  "image": "images/km_deep_491364.webp",
-  "images": [
-   "images/km_deep_491364.webp"
-  ],
-  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/a080f0783b3586e209fd42a820976eb9.WebP",
-  "url": "https://kameron.ua/ua/store/sapogi-dolce-gabbana-cu0776-aq654-serebranyj",
-  "source": "Kameron（乌克兰奢侈品电商）",
-  "premium": true,
-  "composite": false,
-  "onlyBrowse": true,
-  "photoCut": false,
-  "sizes": [
-   "IT 37"
-  ],
-  "availSizes": [
-   "IT 37"
-  ],
-  "availSizesText": "37",
-  "colors": [
-   {
-    "name": "",
-    "hex": "#888888"
-   }
-  ],
-  "gender": "women"
- },
- {
-  "id": "km-deep-138904",
-  "code": "138904",
-  "name": "短靴",
-  "nameEn": "Ботильйони",
-  "brand": "DG",
-  "brandLabel": "杜嘉班纳",
-  "category": "accessories",
-  "style": "鞋履",
-  "cut": "",
-  "silhouette": "straight",
-  "fit": "直筒",
-  "season": "Current",
-  "platform": "Kameron",
-  "collection": "Kameron（乌克兰奢侈品电商）",
-  "fabric": "见图",
-  "colorName": "",
-  "colorHex": "#888888",
-  "curUAH": 6520,
-  "origUAH": 32600,
-  "discountPct": 80,
-  "priceEUR": 134,
-  "priceCNY": 1045,
-  "priceNote": "平台价 6 520 грн（原价 32 600 грн，约 €134）",
-  "image": "images/km_deep_138904.webp",
-  "images": [
-   "images/km_deep_138904.webp"
-  ],
-  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/639d819408ee567f34c57eb032f29ff6.WebP",
-  "url": "https://kameron.ua/ua/store/botilony-dolce-gabbana-ct0728-a8m54-cernyj",
-  "source": "Kameron（乌克兰奢侈品电商）",
-  "premium": true,
-  "composite": false,
-  "onlyBrowse": true,
-  "photoCut": false,
-  "sizes": [
-   "IT 38",
-   "IT 39"
-  ],
-  "availSizes": [
-   "IT 38",
-   "IT 39"
-  ],
-  "availSizesText": "38,38,5,39",
-  "colors": [
-   {
-    "name": "",
-    "hex": "#888888"
-   }
-  ],
-  "gender": "women"
- },
- {
   "id": "km-deep-242116",
   "code": "242116",
   "name": "真丝头巾",
@@ -665,56 +563,6 @@ export const KAMERON_DEEP = [
    }
   ],
   "gender": "men"
- },
- {
-  "id": "km-deep-139022",
-  "code": "139022",
-  "name": "短靴",
-  "nameEn": "Ботильйони",
-  "brand": "DG",
-  "brandLabel": "杜嘉班纳",
-  "category": "accessories",
-  "style": "鞋履",
-  "cut": "",
-  "silhouette": "straight",
-  "fit": "直筒",
-  "season": "Current",
-  "platform": "Kameron",
-  "collection": "Kameron（乌克兰奢侈品电商）",
-  "fabric": "见图",
-  "colorName": "",
-  "colorHex": "#888888",
-  "curUAH": 5830,
-  "origUAH": 29150,
-  "discountPct": 80,
-  "priceEUR": 120,
-  "priceCNY": 936,
-  "priceNote": "平台价 5 830 грн（原价 29 150 грн，约 €120）",
-  "image": "images/km_deep_139022.webp",
-  "images": [
-   "images/km_deep_139022.webp"
-  ],
-  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/4fa7562b3d3349846674390489cd7c00.WebP",
-  "url": "https://kameron.ua/ua/store/botilony-dolce-gabbana-ct0729-a8m46-cernyj",
-  "source": "Kameron（乌克兰奢侈品电商）",
-  "premium": true,
-  "composite": false,
-  "onlyBrowse": true,
-  "photoCut": false,
-  "sizes": [
-   "IT 38"
-  ],
-  "availSizes": [
-   "IT 38"
-  ],
-  "availSizesText": "37,5,38",
-  "colors": [
-   {
-    "name": "",
-    "hex": "#888888"
-   }
-  ],
-  "gender": "women"
  },
  {
   "id": "km-deep-249088",
@@ -963,102 +811,6 @@ export const KAMERON_DEEP = [
    }
   ],
   "gender": "men"
- },
- {
-  "id": "km-deep-34319",
-  "code": "34319",
-  "name": "Sorrento 运动鞋",
-  "nameEn": "Кросівки Sorrento",
-  "brand": "DG",
-  "brandLabel": "杜嘉班纳",
-  "category": "accessories",
-  "style": "鞋履",
-  "cut": "",
-  "silhouette": "straight",
-  "fit": "直筒",
-  "season": "Current",
-  "platform": "Kameron",
-  "collection": "Kameron（乌克兰奢侈品电商）",
-  "fabric": "见图",
-  "colorName": "",
-  "colorHex": "#888888",
-  "curUAH": 4980,
-  "origUAH": 24900,
-  "discountPct": 80,
-  "priceEUR": 103,
-  "priceCNY": 803,
-  "priceNote": "平台价 4 980 грн（原价 24 900 грн，约 €103）",
-  "image": "images/km_deep_34319.webp",
-  "images": [
-   "images/km_deep_34319.webp"
-  ],
-  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/e19030098b6eecaea3c69edb38ddaef5.WebP",
-  "url": "https://kameron.ua/ua/store/krossovki-sorrento-dolce-gabbana-ck1641-az235-cernyj",
-  "source": "Kameron（乌克兰奢侈品电商）",
-  "premium": true,
-  "composite": false,
-  "onlyBrowse": true,
-  "photoCut": false,
-  "sizes": [],
-  "availSizes": [],
-  "availSizesText": "35,5",
-  "colors": [
-   {
-    "name": "",
-    "hex": "#888888"
-   }
-  ],
-  "gender": "women"
- },
- {
-  "id": "km-deep-34318",
-  "code": "34318",
-  "name": "Sorrento 运动鞋",
-  "nameEn": "Кросівки Sorrento",
-  "brand": "DG",
-  "brandLabel": "杜嘉班纳",
-  "category": "accessories",
-  "style": "鞋履",
-  "cut": "",
-  "silhouette": "straight",
-  "fit": "直筒",
-  "season": "Current",
-  "platform": "Kameron",
-  "collection": "Kameron（乌克兰奢侈品电商）",
-  "fabric": "见图",
-  "colorName": "",
-  "colorHex": "#888888",
-  "curUAH": 4980,
-  "origUAH": 24900,
-  "discountPct": 80,
-  "priceEUR": 103,
-  "priceCNY": 803,
-  "priceNote": "平台价 4 980 грн（原价 24 900 грн，约 €103）",
-  "image": "images/km_deep_34318.webp",
-  "images": [
-   "images/km_deep_34318.webp"
-  ],
-  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/ecf6f61e21a5f2daf48fba426bc3a630.WebP",
-  "url": "https://kameron.ua/ua/store/krossovki-sorrento-dolce-gabbana-ck1641-az235-belyj",
-  "source": "Kameron（乌克兰奢侈品电商）",
-  "premium": true,
-  "composite": false,
-  "onlyBrowse": true,
-  "photoCut": false,
-  "sizes": [
-   "IT 35"
-  ],
-  "availSizes": [
-   "IT 35"
-  ],
-  "availSizesText": "35",
-  "colors": [
-   {
-    "name": "",
-    "hex": "#888888"
-   }
-  ],
-  "gender": "women"
  },
  {
   "id": "km-deep-245883",

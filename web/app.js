@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DB, DB_BY_ID, DB_CATEGORIES, DB_META, BRANDS, PREMIUM_BRANDS, PREMIUM_TAB, EU_TAB, SIZE_CHART, SIZES, SILHOUETTE_NAMES, PALETTE, slotOf, normalizeSize, sizeLetter, sizeNumber } from './data.js';
+import { isShoe } from './shoeFilter.js';
 import { MEN_SALE } from './menSaleCatalog.js';
 import { KAMERON_DEEP } from './kameronDeepCatalog.js';
 import { DEFAULT_MODEL, FIELD_META, FOOT_Y, buildBody, modelSummary, bodyMetrics } from './body.js';
@@ -1179,7 +1180,7 @@ function renderFilterOptions() {
   if (els.filterPBrand) {
     const cur = state.filterPBrand;
     const counts = new Map();
-    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)].forEach(g => {
+    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse && g.gender !== 'men' && !isShoe(g))].forEach(g => {
       if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1);
     });
     const known = PREMIUM_BRANDS.filter(b => counts.get(b.id))
@@ -1197,7 +1198,7 @@ function renderFilterOptions() {
   if (els.filterPlatform) {
     const cur = state.filterPlatform;
     const pc = new Map();
-    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)].forEach(g => {
+    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse && g.gender !== 'men' && !isShoe(g))].forEach(g => {
       if (g.premium) { const p = g.platform || '其他'; pc.set(p, (pc.get(p) || 0) + 1); }
     });
     els.filterPlatform.innerHTML = `<option value="">全部平台</option>` +
@@ -1435,11 +1436,11 @@ const SALE_MIN_DISCOUNT = 80;
 function saleItems() {
   const women = DB.filter(g => g.premium && g.category !== 'accessories' && hasFittingSaleSize(g) &&
     g.discountPct >= SALE_MIN_DISCOUNT && g.curUAH > 0 && g.origUAH > g.curUAH);
-  const men = MEN_SALE.filter(g => g.discountPct >= SALE_MIN_DISCOUNT &&
+  const men = MEN_SALE.filter(g => !isShoe(g) && g.discountPct >= SALE_MIN_DISCOUNT &&
     g.curUAH > 0 && g.origUAH > g.curUAH);
   /* Kameron 深折女装成衣已在构建期按 fitEngine 90 分入库，随 DB 一起展示；
      这里只补入仅浏览的男装与配件，避免重复。 */
-  const kameron = KAMERON_DEEP.filter(g => g.onlyBrowse &&
+  const kameron = KAMERON_DEEP.filter(g => g.onlyBrowse && !isShoe(g) &&
     g.discountPct >= SALE_MIN_DISCOUNT && g.curUAH > 0 && g.origUAH > g.curUAH);
   return [...women, ...men, ...kameron]
     .sort((a, b) => b.discountPct - a.discountPct || (b.fitScore || 0) - (a.fitScore || 0));
@@ -1463,10 +1464,10 @@ function currentBrandItems() {
   /* HIGH UA：四个乌克兰平台在售的女装高分款，逐款带平台标注。 */
   if (state.brand === PREMIUM_TAB.id) {
     /* 在售码里没有一档合身（90+）的平台款不进 HIGH UA。
-       Kameron 女装成衣已按同一门槛入库并走试穿；余下的男装与配件
-       仅浏览 + 外链，不参与评分。 */
+       Kameron 女装成衣已按同一门槛入库并走试穿；余下的女装配件
+       仅浏览 + 外链。男装一律不进 HIGH UA，只在限时折扣区展示。 */
     return [...DB.filter(g => g.premium && hasFittingSaleSize(g)),
-      ...KAMERON_DEEP.filter(g => g.onlyBrowse)];
+      ...KAMERON_DEEP.filter(g => g.onlyBrowse && g.gender !== 'men' && !isShoe(g))];
   }
   /* HIGH EU：杜嘉班纳、巴尔曼官网库，以及各奢侈品牌官网当季款。
      只保留合身评分 80 分以上的款——按新判据重算后低于 80 的一律不显示。 */
@@ -1579,9 +1580,9 @@ function matchingItems() {
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
   const brandName = Object.fromEntries([...BRANDS, ...PREMIUM_BRANDS].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
-  /* 搜索池同时包含 HIGH UA 高分款与 Kameron 仅浏览款，否则深折款一搜就消失。 */
+  /* 搜索池同时包含 HIGH UA 高分款与 Kameron 女装仅浏览款；男装只在折扣区出现。 */
   const pool = state.brand === PREMIUM_TAB.id
-    ? [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)] : DB;
+    ? [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse && g.gender !== 'men' && !isShoe(g))] : DB;
   return pool.filter(g => {
     /* 跨品牌搜索也执行同一条 HIGH UA 在售合身门槛。 */
     if (!hasFittingSaleSize(g)) return false;
