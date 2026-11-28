@@ -2,7 +2,7 @@
    来源：kameron.ua 全站 SALE 页 JSON API，折扣 >=80%，已排除童装（gender 3/4）
    与吊带/细肩带款。此清单同时进入限时折扣页与 HIGH UA 默认页。
    深折款没有逐款成衣围度，一律仅浏览 + 外链，不进 fitEngine 评分。
-   生成时间：2026-11-28T14:52:28.392Z
+   生成时间：2026-11-28T15:02:29.057Z
  */
 export const KAMERON_DEEP = [
  {
@@ -3468,6 +3468,58 @@ export const KAMERON_DEEP = [
   "gender": "women"
  },
  {
+  "id": "km-deep-8608",
+  "code": "8608",
+  "name": "Мереживний топ",
+  "nameEn": "Мереживний топ",
+  "brand": "DG",
+  "brandLabel": "杜嘉班纳",
+  "category": "tops",
+  "style": "上衣",
+  "cut": "",
+  "silhouette": "straight",
+  "fit": "直筒",
+  "season": "Current",
+  "platform": "Kameron",
+  "collection": "Kameron（乌克兰奢侈品电商）",
+  "fabric": "见图",
+  "colorName": "",
+  "colorHex": "#888888",
+  "curUAH": 4170,
+  "origUAH": 20850,
+  "discountPct": 80,
+  "priceEUR": 86,
+  "priceCNY": 671,
+  "priceNote": "平台价 4 170 грн（原价 20 850 грн，约 €86）",
+  "image": "images/km_deep_8608.jpg",
+  "images": [
+   "images/km_deep_8608.jpg"
+  ],
+  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/134d90dc126078328bcd4c99c5975d77.WebP",
+  "url": "https://kameron.ua/ua/store/kruzevnoj-top-dolce-gabbana-f73e8z-hhmbd-belyj",
+  "source": "Kameron（乌克兰奢侈品电商）",
+  "premium": true,
+  "composite": false,
+  "onlyBrowse": true,
+  "photoCut": false,
+  "sizes": [
+   "40",
+   "42"
+  ],
+  "availSizes": [
+   "40",
+   "42"
+  ],
+  "availSizesText": "40,42",
+  "colors": [
+   {
+    "name": "",
+    "hex": "#888888"
+   }
+  ],
+  "gender": "women"
+ },
+ {
   "id": "km-deep-226392",
   "code": "226392",
   "name": "羊毛长裤",
@@ -3823,6 +3875,56 @@ export const KAMERON_DEEP = [
    "42"
   ],
   "availSizesText": "36,38,42",
+  "colors": [
+   {
+    "name": "",
+    "hex": "#888888"
+   }
+  ],
+  "gender": "women"
+ },
+ {
+  "id": "km-deep-7314",
+  "code": "7314",
+  "name": "Майка лляна",
+  "nameEn": "Майка лляна",
+  "brand": "BL",
+  "brandLabel": "巴尔曼",
+  "category": "tops",
+  "style": "上衣",
+  "cut": "",
+  "silhouette": "straight",
+  "fit": "直筒",
+  "season": "Current",
+  "platform": "Kameron",
+  "collection": "Kameron（乌克兰奢侈品电商）",
+  "fabric": "见图",
+  "colorName": "",
+  "colorHex": "#888888",
+  "curUAH": 3230,
+  "origUAH": 16150,
+  "discountPct": 80,
+  "priceEUR": 67,
+  "priceCNY": 523,
+  "priceNote": "平台价 3 230 грн（原价 16 150 грн，约 €67）",
+  "image": "images/km_deep_7314.webp",
+  "images": [
+   "images/km_deep_7314.webp"
+  ],
+  "remoteImg": "https://kameron.ua/images/f_auto,q_auto,c_fill,h_644,w_521/3d4913a011b7232254e019f9b0ff623f.WebP",
+  "url": "https://kameron.ua/ua/store/lnanaa-majka-balmain-rf11130i073-raznocvetnyj",
+  "source": "Kameron（乌克兰奢侈品电商）",
+  "premium": true,
+  "composite": false,
+  "onlyBrowse": true,
+  "photoCut": false,
+  "sizes": [
+   "34"
+  ],
+  "availSizes": [
+   "34"
+  ],
+  "availSizesText": "34",
   "colors": [
    {
     "name": "",
