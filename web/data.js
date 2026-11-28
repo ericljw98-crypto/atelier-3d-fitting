@@ -2,7 +2,13 @@ import { buildRealDB } from './realDB.js';
 import { DG_CATALOG } from './dgCatalog.js';
 import { EXTRA_CATALOG } from './extraCatalog.js';
 import { PREMIUM_CATALOG } from './premiumCatalog.js';
-import { PREMIUM_BRANDS, PREMIUM_TAB } from './premiumBrands.js';
+import { PREMIUM_BRANDS, PREMIUM_TAB, EU_TAB } from './premiumBrands.js';
+import { EXPAND_CATALOG } from './expandCatalog.js';
+import { HIGH90_IDS } from './high90Ids.js';
+import { SLIP_DRESS_IDS } from './slipDressIds.js';
+import { SLIP_TOP_IDS } from './slipTopIds.js';
+import { MARKDOWN_IDS } from './markdownIds.js';
+import { KAMERON_DEEP } from './kameronDeepCatalog.js';
 
 /* ============================================================
    ATELIER · 杜嘉班纳（Dolce & Gabbana）女装参数数据库
@@ -151,6 +157,7 @@ export const DB_CATEGORIES = [
   { id: 'tops',    name: '上装',   en: 'Tops' },
   { id: 'bottoms', name: '下装',   en: 'Bottoms' },
   { id: 'outer',   name: '外套',   en: 'Outerwear' },
+  { id: 'accessories', name: '配件', en: 'Accessories' },
 ];
 
 /* silhouette → 中文版型名 */
@@ -182,9 +189,9 @@ export const BRANDS = [
   { id: 'BL', name: '巴尔曼', en: 'Balmain',          short: 'BL' },
 ];
 
-/* 「高分服饰」页：15 个奢侈品牌女装里，合身评分 90 分以上的款集中在这里。
+/* 「高分服饰」页：15 个奢侈品牌女装里，合身评分 80 分以上的款集中在这里。
    这些品牌各自有独立品牌页会造成标签栏过长，因此只在同一页内用品牌标记区分。 */
-export { PREMIUM_BRANDS, PREMIUM_TAB };
+export { PREMIUM_BRANDS, PREMIUM_TAB, EU_TAB };
 
 /* 往季款（vintage）：官网当前目录已下架、但仍可购买的旧季单品。
    单独做成一个品牌页，不新增试衣槽位——这些款的 category 仍是
@@ -200,10 +207,14 @@ export const VINTAGE_BRAND = {
    判定看英文名里的核心名词，避免把 "belted trench" 一类误杀。 */
 const NON_APPAREL = /\b(handbag|bag|tote|clutch|pouch|backpack|wallet|card holder|belt bag|perfume|parfum|eau de|fragrance|candle|sunglasses|eyewear|eyeglasses|sneakers?|sandals?|boots?|loafers?|pumps?|heels?|necklace|earrings?|bracelet|ring|watch|scarf|shawl|gloves?|tights|socks?)\b/i;
 
-const isWearable = it =>
-  ['dresses', 'tops', 'bottoms', 'outer'].includes(it.category) &&
-  !NON_APPAREL.test(it.nameEn || '') &&
-  !NON_APPAREL.test(it.name || '');
+/* 配件单独建类：围巾/帽子/皮带没有成衣围度，不做合身评分，
+   但仍要有真实商品图与平台来源，作为「仅浏览」款进入 2D 左栏。 */
+const isWearable = it => {
+  if (it.category === 'accessories') return true;
+  return ['dresses', 'tops', 'bottoms', 'outer'].includes(it.category) &&
+    !NON_APPAREL.test(it.nameEn || '') &&
+    !NON_APPAREL.test(it.name || '');
+};
 
 /** 全量数据库：只保留官方在售款。
     · CC0 非卖展示款、历史停产档案款均已移除：档案款没有官方商品图，
@@ -244,13 +255,29 @@ const mergeById = (...lists) => {
   return [...m.values()];
 };
 
+/* 从 priceNote 解析乌克兰平台的真实促销信息（原价 / 现价 / 折扣百分比）。
+   原始抓取数据在 priceNote 里写明「平台价 X грн（原价 Y грн）」，
+   这里结构化成字段，供促销提示按折扣排序。无原价的款折扣为 0。 */
+function parsePromo(it) {
+  const m = String(it.priceNote || '').match(/平台价\s*([\d\s\u00a0]+)грн（原价\s*([\d\s\u00a0]+)грн/);
+  if (!m) return { curUAH: 0, origUAH: 0, discountPct: 0 };
+  const cur = parseInt(m[1].replace(/[^\d]/g, ''), 10) || 0;
+  const orig = parseInt(m[2].replace(/[^\d]/g, ''), 10) || 0;
+  return {
+    curUAH: cur, origUAH: orig,
+    discountPct: (orig > cur) ? Math.round((1 - cur / orig) * 100) : 0,
+  };
+}
+
 export const DB = mergeById(
   buildRealDB(PALETTE, ALL),
   PREMIUM_CATALOG.map(it => ({
     ...it,
+    ...parsePromo(it),
     nameEn: it.nameEn || it.name,
     colors: [{ name: it.colorName, hex: it.colorHex }],
-    sizes: ALL,
+    /* 平台商品只保留详情页抓到的在售码，fitGrade 才不会跨全部码取最优 */
+    sizes: (it.availSizes && it.availSizes.length) ? it.availSizes : ALL,
   })),
   DG_CATALOG.map(it => ({
     ...it,
@@ -264,9 +291,57 @@ export const DB = mergeById(
     colors: [{ name: it.colorName, hex: it.colorHex }],
     sizes: ALL,
   })),
+  /* 官网扩充款：sizes 用官网产品页抓到的真实在售码，不覆盖成 ALL，
+     否则会把已下架/缺货的码算进最优合身分。 */
+  EXPAND_CATALOG.map(it => ({
+    ...it,
+    nameEn: it.nameEn || it.name,
+    colors: [{ name: it.colorName, hex: it.colorHex }],
+    sizes: (it.availSizes && it.availSizes.length) ? it.availSizes
+         : (it.sizes && it.sizes.length) ? it.sizes : ALL,
+  })),
+  /* Kameron 2 折深折女装成衣：构建期已用同一 fitEngine 在真实在售尺码里
+     筛出 90 分以上款，进普通高分库后即可走完整 2D/3D 试穿流程。 */
+  KAMERON_DEEP.filter(it => it.gender === 'women' && !it.onlyBrowse)
+    .map(it => ({ ...it, sizes: it.availSizes })),
 )
   .filter(isWearable)
   .filter(it => !!(it.image && it.image.trim()))
+  /* 90 分以下商品整体下架：全库只保留 fitEngine 按锁定档案算出的
+     90+ 白名单，HIGH EU / HIGH UA 两个标签页同一口径。
+     vintage 按用户要求整体下架，不再出现在任何页面。 */
+  /* 配件按用户要求只收「3 折及以下」款：现价不超过原价 30%，即折扣 >= 70%。
+     标准由原先的低于 2 折上调到 3 折，浅折扣配件仍不入库。 */
+  /* 所有吊带类产品按用户要求全部下架，不限品类：
+     - 连衣裙：silhouette=slip、名称含吊带/细肩带，及商品图复核补录的细肩带款；
+     - 上装：商品图复核确认的细肩带上衣（平台误译为「背心」）。
+     挂脖/抹胸/宽肩带背心/内衣不在下架范围。 */
+  .filter(it => !(it.silhouette === 'slip' || SLIP_DRESS_IDS.has(it.id) || SLIP_TOP_IDS.has(it.id) ||
+    /吊带|细肩带|camisol|spaghetti/i.test(`${it.name || ''}${it.nameEn || ''}`)))
+  /* Domino 商品页标记 is_markdown（Уцінка）的是瑕疵/清仓品，按用户要求不入库。
+     用详情 URL 末尾的平台商品号匹配，限定 domino.ua 避免与其他平台同号误伤。 */
+  .filter(it => {
+    if (!/domino\.ua/.test(it.url || '')) return true;
+    const pid = String(it.url).match(/(\d+)\/?$/)?.[1];
+    return !pid || !MARKDOWN_IDS.has(pid);
+  })
+  /* Twin Set（品牌缩写 TS）按用户要求整体下架，不再进入任何试穿或折扣页面。 */
+  .filter(it => it.brand !== 'TS' && !/twin[- ]?set/i.test(it.url || ''))
+  /* 品牌错标修正：这几款此前被统一误标成 BU（博柏利），实际并非该品牌。
+     Dore & Rose 按用户要求整体下架；Off-White 此前已要求移除，因错标漏网，
+     这里一并剔除。Peserico / Herno 品牌合规，按 URL 真实品牌改正归属。 */
+  .filter(it => !/dore[- ]?rose/i.test(it.url || '') && !/off[- ]?white/i.test(it.url || ''))
+  /* Gran Sasso（品牌缩写 GS）按用户「品牌价值不行」要求整体下架。 */
+  .filter(it => it.brand !== 'GS' && !/gran[\s-]?sasso/i.test(it.url || ''))
+  .map(it => {
+    if (it.brand !== 'BU') return it;
+    if (/peserico/i.test(it.url || '')) return { ...it, brand: 'PE', brandZh: '佩塞里科' };
+    if (/herno/i.test(it.url || '')) return { ...it, brand: 'HN', brandZh: 'Herno' };
+    return it;
+  })
+  .filter(it => it.category === 'accessories'
+    ? (it.discountPct >= 70 && it.curUAH > 0 && it.origUAH > 0)
+    : (!it.vintage && HIGH90_IDS.has(it.id)))
   .map(it => ({ ...it, style: inferStyle(it) }));
 
 export const DB_BY_ID = {};

@@ -1179,7 +1179,7 @@ function renderFilterOptions() {
   if (els.filterPBrand) {
     const cur = state.filterPBrand;
     const counts = new Map();
-    [...DB, ...KAMERON_DEEP].forEach(g => {
+    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)].forEach(g => {
       if (g.premium) counts.set(g.brand, (counts.get(g.brand) || 0) + 1);
     });
     const known = PREMIUM_BRANDS.filter(b => counts.get(b.id))
@@ -1197,7 +1197,7 @@ function renderFilterOptions() {
   if (els.filterPlatform) {
     const cur = state.filterPlatform;
     const pc = new Map();
-    [...DB, ...KAMERON_DEEP].forEach(g => {
+    [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)].forEach(g => {
       if (g.premium) { const p = g.platform || '其他'; pc.set(p, (pc.get(p) || 0) + 1); }
     });
     els.filterPlatform.innerHTML = `<option value="">全部平台</option>` +
@@ -1437,10 +1437,10 @@ function saleItems() {
     g.discountPct >= SALE_MIN_DISCOUNT && g.curUAH > 0 && g.origUAH > g.curUAH);
   const men = MEN_SALE.filter(g => g.discountPct >= SALE_MIN_DISCOUNT &&
     g.curUAH > 0 && g.origUAH > g.curUAH);
-  /* Kameron 2 折及以下深折：女装 + 男装都在促销页展示，童装已在抓取层排除。
-     这批没有逐款成衣围度，仅浏览 + 外链，不进 fitEngine。 */
-  const kameron = KAMERON_DEEP.filter(g => g.discountPct >= SALE_MIN_DISCOUNT &&
-    g.curUAH > 0 && g.origUAH > g.curUAH);
+  /* Kameron 深折女装成衣已在构建期按 fitEngine 90 分入库，随 DB 一起展示；
+     这里只补入仅浏览的男装与配件，避免重复。 */
+  const kameron = KAMERON_DEEP.filter(g => g.onlyBrowse &&
+    g.discountPct >= SALE_MIN_DISCOUNT && g.curUAH > 0 && g.origUAH > g.curUAH);
   return [...women, ...men, ...kameron]
     .sort((a, b) => b.discountPct - a.discountPct || (b.fitScore || 0) - (a.fitScore || 0));
 }
@@ -1463,9 +1463,10 @@ function currentBrandItems() {
   /* HIGH UA：四个乌克兰平台在售的女装高分款，逐款带平台标注。 */
   if (state.brand === PREMIUM_TAB.id) {
     /* 在售码里没有一档合身（90+）的平台款不进 HIGH UA。
-       Kameron 2 折及以下深折款一并纳入（男女装均收，童装已在抓取层排除），
-       无成衣围度，标为仅浏览 + 外链。 */
-    return [...DB.filter(g => g.premium && hasFittingSaleSize(g)), ...KAMERON_DEEP];
+       Kameron 女装成衣已按同一门槛入库并走试穿；余下的男装与配件
+       仅浏览 + 外链，不参与评分。 */
+    return [...DB.filter(g => g.premium && hasFittingSaleSize(g)),
+      ...KAMERON_DEEP.filter(g => g.onlyBrowse)];
   }
   /* HIGH EU：杜嘉班纳、巴尔曼官网库，以及各奢侈品牌官网当季款。
      只保留合身评分 80 分以上的款——按新判据重算后低于 80 的一律不显示。 */
@@ -1578,8 +1579,9 @@ function matchingItems() {
   const terms = q.split(/\s+/).filter(Boolean);
   const catName = Object.fromEntries(DB_CATEGORIES.map(c => [c.id, c.name + ' ' + c.en]));
   const brandName = Object.fromEntries([...BRANDS, ...PREMIUM_BRANDS].map(b => [b.id, `${b.name} ${b.en} ${b.short}`]));
-  /* 搜索池同时包含 HIGH UA 高分款与 Kameron 深折款，否则深折款一搜就消失。 */
-  const pool = state.brand === PREMIUM_TAB.id ? [...DB, ...KAMERON_DEEP] : DB;
+  /* 搜索池同时包含 HIGH UA 高分款与 Kameron 仅浏览款，否则深折款一搜就消失。 */
+  const pool = state.brand === PREMIUM_TAB.id
+    ? [...DB, ...KAMERON_DEEP.filter(g => g.onlyBrowse)] : DB;
   return pool.filter(g => {
     /* 跨品牌搜索也执行同一条 HIGH UA 在售合身门槛。 */
     if (!hasFittingSaleSize(g)) return false;
@@ -1945,7 +1947,7 @@ function renderGarments() {
       const brs = new Set(matched.map(i => i.brand)).size;
       const browse = matched.filter(i => i.onlyBrowse).length;
       els.wardrobeSub.textContent =
-        `${matched.length} 款 · ${brs} 个奢侈品牌女装 · 合身 80 分以上 + ${browse} 款深折仅浏览 · 当前最高 ${best} 分`;
+        `${matched.length} 款 · ${brs} 个品牌女装 · 合身 90 分以上 + ${browse} 款深折仅浏览 · 当前最高 ${best} 分`;
     } else {
       els.wardrobeSub.textContent = (searching || filtering)
         ? `${scope()} · ${items.length} 款（全品牌全品类）`

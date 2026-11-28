@@ -902,26 +902,60 @@ input[type="range"]::-moz-range-thumb {
 .drop-zone p { font-size: 14px; color: var(--text); }
 .drop-zone span { font-size: 11px; color: var(--text-faint); }
 
-/* 识别结果 */
+/* 识别结果：上传图与库内图并排，便于肉眼确认是不是同一款 */
 .scan-result {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin-top: 4px;
 }
 .scan-result[hidden] { display: none; }
-.scan-preview { position: relative; }
-.scan-preview img {
-  width: 100%; height: 220px; object-fit: cover;
-  border-radius: 11px; border: 1px solid var(--border);
+.compare-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.compare-card { margin: 0; min-width: 0; }
+.compare-card img {
+  display: block; width: 100%; height: 190px; object-fit: contain;
+  border-radius: 10px; border: 1px solid var(--border);
   background: #0b0d12;
 }
+.compare-card figcaption {
+  margin-top: 6px; text-align: center;
+  font-size: 11px; color: var(--text-faint); letter-spacing: .04em;
+}
+.compare-arrow {
+  text-align: center; color: var(--accent); font-size: 18px; opacity: .75;
+}
 .scan-badge {
-  position: absolute; top: 9px; left: 9px;
+  position: absolute; top: 8px; right: 8px; z-index: 2;
   padding: 5px 10px; border-radius: 20px;
   background: rgba(201,168,124,0.92); color: #1a140c;
   font-size: 11px; font-weight: 600;
 }
+.match-thumbs {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+.match-thumb {
+  flex: 0 0 auto; width: 68px; padding: 0; cursor: pointer;
+  background: transparent; border: 2px solid transparent;
+  border-radius: 7px; transition: border-color .18s, transform .18s;
+}
+.match-thumb img {
+  display: block; width: 64px; height: 78px; object-fit: cover;
+  border-radius: 5px; border: 1px solid var(--border); background: #0b0d12;
+}
+.match-thumb .thumb-score {
+  display: block; margin-top: 3px; text-align: center;
+  font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+.match-thumb:hover { transform: translateY(-2px); }
+.match-thumb.active { border-color: var(--accent); }
+.match-thumb.active .thumb-score { color: var(--accent); font-weight: 600; }
 .scan-info { display: flex; flex-direction: column; gap: 14px; justify-content: center; }
 .scan-field { display: flex; flex-direction: column; gap: 7px; }
 .scan-label { font-size: 11px; color: var(--text-faint); letter-spacing: 1px; }
@@ -1126,13 +1160,23 @@ input[type="range"]::-moz-range-thumb {
 }
 .db-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .garment-card.db-card {
-  padding: 8px 10px 10px; min-height: 250px;
+  padding: 8px 10px 10px;
   display: flex; flex-direction: column; gap: 5px;
+  /* 高度按内容自适应：窄屏下价格行不被固定高度裁掉。
+     min-height 必须 auto，写 0 会让 grid 行塌缩到只剩 padding。 */
+  min-height: auto;
+  overflow: visible;
 }
-.db-card-head { display: flex; justify-content: space-between; align-items: center; }
+.db-card-head {
+  display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center;
+  gap: 3px 5px; width: 100%;
+}
 .db-code {
   font-size: 9.5px; letter-spacing: .05em; color: var(--accent);
   font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  /* 窄卡片里款号截断成一行省略，不再换行把标签挤乱。 */
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
 }
 .db-fit {
   font-size: 9.5px; color: var(--text-dim); padding: 1px 6px;
@@ -1140,6 +1184,77 @@ input[type="range"]::-moz-range-thumb {
 }
 .db-card .garment-name { font-size: 12.5px; text-align: left; line-height: 1.35; }
 .db-meta { font-size: 10px; color: var(--text-faint); text-align: left; line-height: 1.4; }
+.db-brand { color: var(--accent); font-weight: 600; letter-spacing: .02em; }
+
+/* ---------- 促销提示（高分库折扣 TOP5） ---------- */
+.promo-strip {
+  margin: 0 14px 10px;
+  border: 1px solid rgba(201, 168, 124, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(201, 168, 124, 0.08), rgba(201, 168, 124, 0.02));
+  overflow: hidden;
+}
+.promo-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 11px;
+}
+.promo-title {
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  color: var(--accent);
+}
+.promo-toggle {
+  border: none; background: none; cursor: pointer;
+  font-size: 10px; color: var(--text-dim); padding: 2px 4px;
+}
+.promo-toggle:hover { color: var(--accent); }
+.promo-updated {
+  margin-left: 6px; font-size: 9px; font-weight: 400;
+  letter-spacing: 0; color: var(--text-faint);
+}
+.promo-list {
+  display: flex; flex-direction: column;
+  padding: 0 7px 7px;
+  gap: 2px;
+}
+.promo-strip.collapsed .promo-list { display: none; }
+.promo-item {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid transparent; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 5px 7px;
+  color: var(--text);
+}
+.promo-item:hover {
+  border-color: rgba(201, 168, 124, 0.4);
+  background: rgba(201, 168, 124, 0.08);
+}
+.promo-rank {
+  flex: 0 0 16px; font-size: 10px; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.promo-off {
+  flex: 0 0 auto; font-size: 12px; font-weight: 700;
+  color: #e8705a; letter-spacing: .01em;
+}
+.promo-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.promo-name {
+  font-size: 11px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.promo-sub {
+  font-size: 9.5px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.promo-sub s { color: var(--text-faint); opacity: .75; }
+.promo-price {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  overflow: visible;
+}
+.promo-price s { color: var(--text-faint); opacity: .8; font-weight: 400; margin-right: 3px; }
+.promo-price b { color: #e8705a; font-weight: 700; }
+
 .db-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
 .db-swatches { display: flex; gap: 3px; }
 .db-swatches i {
@@ -1165,6 +1280,8 @@ input[type="range"]::-moz-range-thumb {
 .db-tag.vintage { color: #b08c5a; }
 .db-tag.nofit { color: #8fa3b8; }
 .db-tag.demo { color: #8fa3b8; }
+.db-tag.platform { color: #5b7590; border-color: rgba(91,117,144,.5); background: rgba(91,117,144,.06); }
+.db-tag.discount { color: #d9534f; border-color: rgba(217,83,79,.55); background: rgba(217,83,79,.08); font-weight: 700; }
 /* 合身星级：满分档用金底，其余两档只描边，避免整页都是标签 */
 .db-tag.star3 {
   color: #2c1f06; background: linear-gradient(180deg, #e3c477, #c9a35c);
@@ -1177,9 +1294,15 @@ input[type="range"]::-moz-range-thumb {
 .db-card.is-perfect { border-color: rgba(201,163,92,.55); }
 .db-card.is-perfect .db-thumb { box-shadow: inset 0 0 0 1px rgba(201,163,92,.30); }
 .price-none { color: var(--text-dim); font-weight: 500; letter-spacing: .04em; }
-.db-price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.price-eur { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
-.price-cny { font-size: 9.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* 价格行独立成两行、固定不压缩：窄屏下原价与现价一起显示，不被上方标签挤掉。 */
+.db-price {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: 1px; flex: 0 0 auto; width: 100%;
+  padding-top: 4px; border-top: 1px solid var(--border-soft);
+}
+.price-eur { font-size: 13.5px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.price-eur s { color: var(--text-faint); opacity: .8; font-weight: 400; font-size: 11px; margin-right: 4px; }
+.price-cny { font-size: 9.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ============================================================
    模特信息条 / 尺码
@@ -1369,6 +1492,9 @@ input[type="range"]::-moz-range-thumb {
 .fit-part { margin-bottom: 11px; }
 .fit-part-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .fit-part-head > span:first-child { color: var(--text); font-weight: 600; }
+.fit-role-base, .fit-role-ref { font-style: normal; font-size: 9px; font-weight: 500; margin-left: 6px; padding: 1px 5px; border-radius: 3px; }
+.fit-role-base { background: rgba(121,150,240,.18); color: #9db4ff; }
+.fit-role-ref { background: rgba(150,150,150,.15); color: var(--text-dim); }
 .fit-part-status { font-size: 10px; padding: 1px 7px; border-radius: 3px; background: rgba(76,175,120,.14); color: #7fd6a0; }
 .fit-part-status.tight, .fit-part-status.loose { background: rgba(224,168,76,.14); color: #e8bf7a; }
 .fit-part-status.tooTight, .fit-part-status.tooLoose { background: rgba(224,92,80,.14); color: #ea8a80; }
@@ -1559,3 +1685,619 @@ input[type="range"]::-moz-range-thumb {
   color: var(--accent);
 }
 .scan-fallback-hint.hidden, .scan-fallback-hint[hidden] { display: none; }
+
+/* ============================================================
+   书页式左右联动：左页商品/促销，右页翻页显示试衣与准确度
+   ============================================================ */
+.page-nav {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: #10131a;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.page-nav-btn {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color .18s, background .18s;
+}
+
+.page-nav-btn:hover { color: var(--text); }
+.page-nav-btn.active {
+  background: rgba(201, 168, 124, .16);
+  color: var(--accent);
+}
+
+.workspace.book {
+  gap: 0;
+  padding: 14px 18px 16px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(201, 168, 124, .06), transparent 58%),
+    linear-gradient(180deg, #0b0d12, #090b0f);
+  perspective: 2400px;
+}
+
+.book .book-page {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.book .page-left {
+  width: clamp(360px, 38%, 560px);
+  flex: 0 0 clamp(360px, 38%, 560px);
+  border: 1px solid var(--border);
+  border-right: 1px solid #080a0e;
+  border-radius: 12px 3px 3px 12px;
+  background: linear-gradient(105deg, #171b24 0%, #12161d 100%);
+}
+
+.book .page-left::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .018), transparent 18%);
+}
+
+/* 左页顶部控件统一收紧，商品列表不能被搜索/筛选/促销挤没 */
+.book .panel-heading { padding: 16px 18px 12px; }
+.book .search-box { margin: 0 18px 10px; padding: 8px 12px; }
+.book .filter-row { margin: 0 18px 10px; }
+.book .photo-entry { margin: 0 18px 10px; padding: 10px 12px; }
+.book .category-tabs { padding: 0 18px 10px; }
+.book .promo-list { max-height: 132px; overflow-y: auto; }
+.book .garment-list { min-height: 220px; }
+
+.page-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 2px;
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.page-rail .page-no {
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.page-rail i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+.page-fold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .42) 72%, rgba(0, 0, 0, .66));
+}
+
+.book .page-right {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 3px 12px 12px 3px;
+  background: #0d1016;
+  perspective: 2000px;
+}
+
+.page-flipper {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  transition: transform .82s cubic-bezier(.22, .78, .24, 1);
+}
+
+/* 负向旋转：右页右缘先抬起，翻过去后书页正面朝向读者 */
+.book[data-page="fitting"] .page-flipper { transform: rotateY(-180deg); }
+
+.page-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.page-face-back { transform: rotateY(180deg); }
+
+/* 右页背面：封面 */
+.cover-sheet {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 34px 12% 44px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 40%, #1b2029 0%, #0e1117 72%);
+}
+
+.cover-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border: 1px solid rgba(201, 168, 124, .18);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.cover-kicker {
+  font-size: 10.5px;
+  letter-spacing: .42em;
+  color: var(--accent);
+}
+
+.cover-figure {
+  width: min(260px, 62%);
+  height: min(44vh, 320px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-figure img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .5));
+}
+
+.cover-placeholder {
+  width: 100%;
+  padding: 34px 16px;
+  border: 1px dashed rgba(201, 168, 124, .3);
+  border-radius: 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.cover-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 58px;
+}
+
+.cover-meta span {
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+}
+
+.cover-meta b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 460px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cover-cta {
+  appearance: none;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: rgba(201, 168, 124, .12);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .08em;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+
+.cover-cta span { margin-left: 8px; }
+.cover-cta:hover:not(:disabled) { background: var(--accent); color: #17130d; }
+.cover-cta:disabled { opacity: .38; cursor: default; }
+
+.cover-foot {
+  position: absolute;
+  bottom: 24px;
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  color: var(--text-faint);
+}
+
+.cover-corner {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 36px 36px;
+  border-color: transparent transparent rgba(201, 168, 124, .15) transparent;
+}
+
+/* 右页正面：试衣数据与准确度 */
+.fitting-sheet {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0d1016;
+}
+
+.sheet-head {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #171b23, #12151c);
+}
+
+.sheet-back {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sheet-back:hover { color: var(--accent); border-color: rgba(201, 168, 124, .5); }
+.sheet-title { font-size: 11px; letter-spacing: .14em; color: var(--text-dim); }
+.sheet-item {
+  margin-left: auto;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.fitting-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fitting-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.fitting-body .stage { flex: 1 1 auto; min-width: 0; }
+.fitting-body .controls {
+  width: 268px;
+  flex: 0 0 268px;
+  border-left: 1px solid var(--border);
+  padding-bottom: 18px;
+  overflow-y: auto;
+}
+
+.fitting-body .control-group { padding: 15px 16px; }
+
+/* 准确度细节：全部取自 fitEngine 的同一份结果，不另算分 */
+.accuracy-dock {
+  flex: 0 0 auto;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 9px 16px 12px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, #151922, #101319);
+}
+
+.dock-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 7px; }
+.dock-head b { font-size: 11px; letter-spacing: .1em; color: var(--text-dim); }
+.dock-head span { font-size: 9.5px; color: var(--text-faint); }
+
+.accuracy-report {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.acc-summary { flex: 0 0 168px; }
+.acc-rows {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 0 12px;
+}
+
+.acc-total { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.acc-total b { font-size: 21px; font-weight: 600; color: var(--accent); }
+.acc-total span { font-size: 10px; color: var(--text-dim); }
+.acc-formula { color: var(--text-faint); font-size: 9.5px; line-height: 1.6; margin-bottom: 6px; }
+.acc-row { border-left: 1px solid var(--border-soft); padding: 0 10px; }
+.acc-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.acc-row-head b { font-weight: 600; font-size: 10.5px; }
+.acc-role { font-size: 9px; color: var(--text-faint); white-space: nowrap; }
+.acc-role.base { color: #9db4ff; }
+.acc-row-data {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 9.5px;
+}
+.acc-cap { margin-top: 6px; color: #e8bf7a; font-size: 9.5px; }
+.acc-source {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text-faint);
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+
+/* 翻页后的内容呼吸一下，表示左页选择已同步到右页 */
+.page-flipper.refreshed .page-face-back .fitting-sheet { animation: sheet-refresh .5s ease-out; }
+@keyframes sheet-refresh {
+  0% { opacity: .62; transform: translateX(10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 1080px) {
+  .book .page-left { width: 340px; flex-basis: 340px; }
+  .fitting-body .controls { width: 240px; flex-basis: 240px; }
+  .fitting-body .control-group { padding: 13px 13px; }
+}
+
+/* 窄屏：两页叠放在同一视口里，靠整页横移+微旋转完成翻页，
+   不再上下堆叠。页面状态仍由 #book[data-page] 驱动，与桌面同一套逻辑。 */
+@media (max-width: 900px) {
+  body { overflow: hidden; }
+  .app-shell { height: 100vh; height: 100dvh; min-height: 0; }
+
+  .topbar { height: 58px; flex-basis: 58px; gap: 8px; padding: 0 12px; }
+  .brand-mark { width: 26px; height: 26px; }
+  .brand-name { font-size: 13px; letter-spacing: 3px; }
+  .brand-sub { display: none; }
+  .top-btn { height: 32px; padding: 0 9px; font-size: 11px; }
+  .top-btn svg { width: 14px; height: 14px; }
+  .page-nav-btn { padding: 5px 8px; font-size: 10px; }
+
+  .workspace.book {
+    display: block;
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px;
+    overflow: hidden;
+    perspective: 1200px;
+  }
+
+  .book .book-page {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto !important;
+    min-height: 0;
+    flex: none !important;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px !important;
+    overflow: hidden;
+    transition: transform .52s cubic-bezier(.22, .78, .24, 1), opacity .42s ease;
+    will-change: transform;
+  }
+
+  .book .page-left {
+    transform: translateX(0) rotateY(0);
+    opacity: 1;
+    z-index: 2;
+  }
+
+  .book .page-right {
+    transform: translateX(102%) rotateY(12deg);
+    transform-origin: left center;
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .book[data-page="fitting"] .page-left {
+    transform: translateX(-24%) rotateY(-8deg);
+    transform-origin: right center;
+    opacity: .22;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .book[data-page="fitting"] .page-right {
+    transform: translateX(0) rotateY(0);
+    opacity: 1;
+    z-index: 2;
+    pointer-events: auto;
+  }
+
+  .book .page-fold { display: none; }
+  .page-flipper, .book[data-page="fitting"] .page-flipper { transform: none !important; }
+  .page-face-front { display: none !important; }
+  .page-face-back { transform: none !important; }
+
+  .book .panel-heading { padding: 8px 14px 6px; }
+  .book .panel-heading h2 { font-size: 14px; }
+  .book .panel-heading p { margin-top: 3px; font-size: 10px; }
+  .book .brand-tabs { margin: 0 12px 8px; gap: 5px; }
+  .book .brand-tab { padding: 6px 4px; font-size: 11px; }
+  .book .search-box { margin: 0 12px 8px; padding: 7px 10px; }
+  .book .filter-row {
+    margin: 0 12px 8px;
+    gap: 5px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .book .filter-row::-webkit-scrollbar,
+  .book .category-tabs::-webkit-scrollbar { display: none; }
+  .book .filter-sel { flex: 0 0 auto; padding: 6px 8px; }
+  .book .photo-entry { margin: 0 12px 8px; padding: 8px 10px; }
+  .book .photo-entry b { font-size: 12px; }
+  .book .photo-entry small { font-size: 9.5px; }
+  .book .photo-entry > svg:first-child { width: 20px; height: 20px; flex-basis: 20px; }
+  .book .category-tabs {
+    padding: 0 12px 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .book .category-tab { flex: 0 0 auto; padding: 6px 10px; font-size: 11px; }
+  /* 促销 TOP5 在手机上改成横向卡片条，不再吃掉整屏高度 */
+  .book .promo-strip { margin: 0 12px 8px; }
+  .book .promo-head { padding: 6px 9px; }
+  .book .promo-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0 7px 7px;
+    gap: 6px;
+    scrollbar-width: thin;
+  }
+  .book .promo-item { flex: 0 0 220px; width: auto; }
+  .book .promo-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book .garment-list {
+    max-height: none;
+    min-height: 240px;
+    padding: 0 12px 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 124, .5) transparent;
+  }
+  .book .garment-list::-webkit-scrollbar { width: 5px; display: block; }
+  .book .garment-list::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 124, .45);
+    border-radius: 4px;
+  }
+  /* 手机两列窄卡片：图略缩、款号截断、价格两行完整可见。 */
+  .book .db-thumb { height: 116px; flex-basis: 116px; min-height: 116px; }
+  .book .db-card-head .db-fit { margin-left: auto; }
+  .book .db-price .price-eur { font-size: 13px; }
+
+  .fitting-sheet { overflow-y: auto; }
+  .fitting-body { flex: 0 0 auto; }
+  .fitting-main { flex: 0 0 auto; flex-direction: column; }
+  /* 旧竖屏规则把 .controls 设成 display:contents 并重排子节点，
+     那套顺序属于「上下堆叠」布局；这里必须还原成正常容器，否则尺码和诊断会跑到模特前面。 */
+  .fitting-body .stage {
+    flex: 0 0 360px;
+    height: 360px;
+    min-height: 360px;
+    order: 0;
+  }
+  .fitting-body .controls {
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    flex: 0 0 auto;
+    order: 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+  .fitting-body .controls > * { order: 0 !important; }
+  .fitting-body .control-group { padding: 13px 16px; }
+  .accuracy-dock { max-height: none; overflow: visible; }
+
+  .accuracy-report { flex-direction: column; gap: 8px; }
+  .acc-summary { flex-basis: auto; }
+  .acc-rows { grid-template-columns: 1fr; }
+  .acc-row { border-left: 0; border-top: 1px solid var(--border-soft); padding: 6px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book .book-page { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-flipper { transition: none; }
+  .page-flipper.refreshed .page-face-back .fitting-sheet { animation: none; }
+}
+
+/* ---------- 限时折扣独立标签页 ----------
+   折扣区不再是目录页的小条，只在 SALE 标签下占满左页；
+   男装条目与女装同列展示，但只浏览、不试穿。 */
+.book .promo-strip { display: none; }
+.book .page-left[data-mode="sale"] .search-box,
+.book .page-left[data-mode="sale"] .filter-row,
+.book .page-left[data-mode="sale"] .photo-entry,
+.book .page-left[data-mode="sale"] .category-tabs,
+.book .page-left[data-mode="sale"] .garment-list { display: none !important; }
+
+.book .page-left[data-mode="sale"] .promo-strip {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0 14px 14px;
+}
+.book .page-left[data-mode="sale"] .promo-head { flex: 0 0 auto; padding: 9px 11px; }
+.book .page-left[data-mode="sale"] .promo-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 3px;
+  padding: 3px 7px 9px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 168, 124, .5) transparent;
+}
+.book .page-left[data-mode="sale"] .promo-item {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 7px 8px;
+  gap: 8px;
+  align-items: flex-start;
+}
+.book .page-left[data-mode="sale"] .promo-info { gap: 2px; }
+.book .page-left[data-mode="sale"] .promo-price { font-size: 12px; }
+.book .page-left[data-mode="sale"] .promo-thumb {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--panel-2);
+}
+.book .page-left[data-mode="sale"] .promo-off { flex-basis: 44px; }
+.book .page-left[data-mode="sale"] .promo-name { font-size: 11px; white-space: normal; line-height: 1.35; }
+.book .page-left[data-mode="sale"] .promo-sub { font-size: 9.5px; }
+.book .page-left[data-mode="sale"] .promo-item.is-men .promo-off { color: #e8bf7a; }

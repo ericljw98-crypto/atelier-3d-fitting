@@ -14,9 +14,9 @@
    · 尺码档误差：来自**品牌官方尺码表**该档的净体围度，与模特围度
      比较。独立、真实、随平台在售尺码变化。
    · 设计余量：版型的行业余量（T恤 10cm、卫衣 16cm…），是版型属性，
-     不是从成衣尺寸反算的量。它不参与「偏紧/偏松」判定，
-     而是**放宽容差**：余量大的款（卫衣、廓形）尺码档差几档也还穿得下，
-     余量小的款（收腰、贴身）差一档就勒。
+     只用于给出成衣围度和诊断文字。它不能再用来放宽评分容差：
+     成衣围度已经含了这份余量，若拿它二次放大档差容差，
+     小两码（净体差 6cm）也会被判成合身，全库会清一色 100 分。
 
    判据链条（三段都来自外部事实）：
      ① 平台在售尺码 → 该款真正能买到的码（字母码按欧码字母序列落
@@ -114,21 +114,38 @@ function partsFor(item, ease) {
 const REF_PART = { waist: 0 };
 
 /* 基础容差：净体围度与模特围度相差多少算「这一档的码不对」。
-   余量大的款可以差得更多（卫衣大一码照样穿），所以容差随余量放大。 */
-const BASE_TOL = { bust: 2, waist: 2, hip: 2, shoulder: 1 };
+   成衣围度 = 净体围度 + 设计余量，净体档差每差 1cm，成衣也差 1cm；
+   容差只能用「人体可感知的偏差」这一口径，不能随余量再加宽，
+   否则 S 码（净体胸 88）与模特（94.5）差 6.5cm 仍会被判合身。 */
+const BASE_TOL = { bust: 2.5, waist: 2.5, hip: 2.5, shoulder: 1.5 };
 
-function tolOf(part, ease) {
-  const e = ease[part] || 0;
-  return (BASE_TOL[part] || 2) + e * 0.55;
+function tolOf(part) {
+  return BASE_TOL[part] || 2.5;
 }
 
+/* 按偏差连续打分，不做人为分档：
+   · |偏差| ≤ 容差      100 → 80（越接近 0 越贴合）
+   · 容差 < |偏差| ≤ +3  80 → 60（偏紧 / 偏松）
+   · 再往外             60 → 20（过紧 / 过松）
+   试衣要实事求是：差 0.5cm 与差 2.5cm 不该同分，但也不该为了
+   凑「高分」把本来勉强能穿的款硬抬进库。 */
 function grade(err, part, ease) {
-  const tol = tolOf(part, ease);
-  if (err < -tol - 3) return { status: 'tooTight', statusLabel: '过紧', score: 20 };
-  if (err < -tol)     return { status: 'tight',    statusLabel: '偏紧', score: 60 };
-  if (err > tol + 3)  return { status: 'tooLoose', statusLabel: '过松', score: 25 };
-  if (err > tol)      return { status: 'loose',    statusLabel: '偏松', score: 65 };
-  return { status: 'good', statusLabel: '合身', score: 100 };
+  const tol = tolOf(part);
+  const a = Math.abs(err);
+  let score, status, statusLabel;
+  if (a <= tol) {
+    score = 100 - (a / tol) * 20;
+    status = 'good'; statusLabel = '合身';
+  } else if (a <= tol + 3) {
+    score = 80 - ((a - tol) / 3) * 20;
+    status = err < 0 ? 'tight' : 'loose';
+    statusLabel = err < 0 ? '偏紧' : '偏松';
+  } else {
+    score = Math.max(20, 60 - ((a - tol - 3) / 6) * 40);
+    status = err < 0 ? 'tooTight' : 'tooLoose';
+    statusLabel = err < 0 ? '过紧' : '过松';
+  }
+  return { status, statusLabel, score: Math.round(score) };
 }
 
 /** 该码的官方净体围度（肩宽按胸围比例推：肩/胸比例在欧码表里基本恒定） */

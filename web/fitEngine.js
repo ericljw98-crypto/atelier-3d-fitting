@@ -18,6 +18,7 @@
    ============================================================ */
 import { SIZE_CHART, SIZES, DB_BY_ID } from './data.js';
 import { DEFAULT_MODEL } from './body.js';
+import { VISUAL_WAIST_IDS } from './visualWaistIds.js';
 
 const BASE_SIZE = 'IT 42';
 
@@ -81,7 +82,7 @@ export function garmentMeasurements(itemId, size, model) {
 }
 
 /** 同一套计算，但接受一个「脱离数据库的商品对象」——
-    高分服饰库在入库前要独立打分（先筛出 90 分以上的再入库），
+    高分服饰库在入库前要独立打分（先筛出 80 分以上的再入库），
     那时它们还不在 DB_BY_ID 里。 */
 export function garmentMeasurementsOf(item, size, model) {
   if (!item) return null;
@@ -112,20 +113,82 @@ function judgePart(delta, tol) {
 const PART_LABEL = { bust: '胸围', waist: '腰围', hip: '臀围', shoulder: '肩宽' };
 const TOL = { bust: 2.5, waist: 2.5, hip: 2.5, shoulder: 1.2 };
 
+/** 只有 T 恤、卫衣、毛衣（针织衫 / 套头衫 / 高领衫）这三类垂坠上装，
+    胸围才按「实际穿着余量 = 成衣胸围 − 身体胸围」判断，而不是按
+    「设计余量是否兑现」。设计余量是版型给的松量上限参考，不是必须
+    撑满的目标；这三类成衣比身体大 2–8cm 时穿着依然合身。
+    合身区间：余量 2cm 起（低于身体会绷），到设计余量 +4cm 止（再宽
+    就垮）。其余上装（衬衫、上衣、开衫、吊带、马甲、背心、雪纺衫…
+    ）以及收腰款仍按基准线判胸围+腰围+肩宽，不用这条宽松判据。 */
+function judgeHangTopBust(delta, designEase) {
+  const lo = 2 - (designEase || 0);   // delta = 余量 − 设计余量，余量 2cm 对应此下界
+  const hi = 4;                       // 余量 = 设计余量 + 4cm
+  if (delta < lo - 3) return { status: 'tooTight', statusLabel: '过紧', score: 20 };
+  if (delta < lo)     return { status: 'tight',    statusLabel: '偏紧', score: 60 };
+  if (delta > hi + 4) return { status: 'tooLoose', statusLabel: '过松', score: 25 };
+  if (delta > hi)     return { status: 'loose',    statusLabel: '偏松', score: 65 };
+  return { status: 'good', statusLabel: '合身', score: 100 };
+}
+/* 垂坠上装白名单：T 恤、卫衣、毛衣（针织衫 / 套头衫 / 高领衫）。
+   Polo 衫有领口结构、开衫/衬衫/上衣有门襟或版型约束，不在此列。 */
+function isHangTop(item) {
+  if (!item || item.category !== 'tops') return false;
+  const t = `${item.style || ''} ${item.cut || ''}`;
+  if (/peplum|束腰|收腰/i.test(`${item.style || ''}${item.silhouette || ''}${item.fit || ''}`)) return false;
+  return /T恤|卫衣|毛衣|针织衫|套头衫|高领衫|\btee\b|sweatshirt|knit/i.test(t);
+}
+
 /** 该部位参与合身判断的清单：上装没有臀围，外套不看臀围。
-    垂坠款（直筒 T 恤、卫衣、箱型连衣裙…）另作处理：
-    这类衣服是整片从肩/胸挂下来的，腰围根本不随身体走——
-    按「腰围 = 身体腰围 + 放松量」的基准去判，会把一件本来就不收腰的
-    T 恤判成「腰围偏紧 3cm」，整件衣服凭空掉到 63 分。
-    垂坠款的合身只看上身开口（胸围，外套再加肩宽），腰围不参与判定。 */
+    垂坠款（T 恤、套头衫、针织衫、卫衣、开衫、衬衫…）整片从肩胸挂下来，
+    腰围不随身体收紧——按「腰围 = 身体腰围 + 放松量」去判，会把一件
+    根本不收腰的上衣判成「腰围偏紧」，整件凭空掉到 63 分。
+    这类款只判上身开口（胸围）。只有明确收腰的上装（标注 fitted /
+    修身、或商品自己标 hangWaist:false 且版型是 peplum、束腰）才判胸+腰。 */
+/* 直筒 / 收腰识别：连衣裙、外套的腰围权重取决于版型。
+   直筒（straight / shift / boxy / slip / oversize / trench / 廓形 / 直筒）
+   腰围只是参考位——裙身整片挂下来，腰不贴身体；
+   收腰（fitted / peplum / pencil / 合体 / 修身）以腰围为基准线：
+   腰围权重 2，胸围与肩宽各 1（仍是主判据，一处不合身照样封顶）。
+   判定优先级：silhouette 字段最可靠，先看它；只有它没写明时才看
+   fit/style/cut。DG 库里 11 款「晚礼服 / fitted / 直筒」的 fit 字段
+   写的是面料垂感，silhouette 才是 fitted，按 fit 判会把收腰款误降为
+   直筒款，把腰围从基准位降成参考位。 */
+function isStraight(item) {
+  const t = `${item.style || ''} ${item.silhouette || ''} ${item.fit || ''} ${item.cut || ''}`;
+  return /straight|shift|boxy|slip|oversize|trench|aline|直筒|宽松|廓形|垂坠/i.test(t);
+}
+function dressIsStraight(item) {
+  /* 商品图逐张识别确认的束腰款优先：文本字段写 slip/straight 也不采信。 */
+  if (item && item.id && VISUAL_WAIST_IDS.has(item.id)) return false;
+  const sil = `${item.silhouette || ''}`;
+  if (/fitted|peplum|pencil|合体|修身|收腰|束腰|包裹|wrap/i.test(sil)) return false;
+  if (/straight|shift|boxy|slip|oversize|trench|aline|直筒|宽松|廓形|垂坠/i.test(sil)) return true;
+  return isStraight(item);
+}
+/* 返回 [{ part, role }]，role = baseline（收腰款腰围，基准判据，权重 2）
+   / primary（主判据，权重 1、参与封顶）
+   / reference（参考位，权重 0.25、不触发封顶）。 */
 function fitParts(item) {
   const cat = (item && item.category) || 'tops';
-  if (item && item.hangWaist) {
-    return cat === 'outer' ? ['bust', 'shoulder'] : ['bust'];
+  const P = p => ({ part: p, role: 'primary' });
+  const R = p => ({ part: p, role: 'reference' });
+  const B = p => ({ part: p, role: 'baseline' });
+  if (cat === 'dresses') {
+    if (dressIsStraight(item)) return [P('bust'), P('shoulder'), R('waist')];
+    return [P('bust'), B('waist'), P('shoulder')];
   }
-  if (cat === 'bottoms') return ['waist', 'hip'];
-  if (cat === 'outer') return ['bust', 'waist', 'shoulder'];
-  return ['bust', 'waist'];
+  if (cat === 'bottoms') return [P('waist'), P('hip')];
+  if (cat === 'outer') {
+    if (isStraight(item)) return [P('bust'), P('shoulder'), R('waist')];
+    return [P('bust'), P('waist'), P('shoulder')];
+  }
+  /* 上装：只有 T 恤、卫衣、毛衣三类垂坠款只判胸围；
+     其余上装胸围、腰围、肩宽都是主判据。 */
+  if (cat === 'tops') {
+    return isHangTop(item) ? [P('bust')] : [P('bust'), P('waist'), P('shoulder')];
+  }
+  if (item && item.hangWaist) return [P('bust')];
+  return [P('bust'), P('waist')];
 }
 
 /**
@@ -144,14 +207,19 @@ export function evaluateItem(item, size, model) {
   const ease = fitEase(item);
 
   const details = [];
-  let totalScore = 0;
-  fitParts(item).forEach(part => {
+  let totalScore = 0, totalWeight = 0;
+  fitParts(item).forEach(({ part, role }) => {
     if (gm[part] == null || model[part] == null) return;
     const baseline = Math.round((model[part] + (ease[part] || 0)) * 10) / 10;
     const delta = Math.round((gm[part] - baseline) * 10) / 10;
-    const j = judgePart(delta, TOL[part] || 2.5);
+    const j = (part === 'bust' && isHangTop(item))
+      ? judgeHangTopBust(delta, ease[part])
+      : judgePart(delta, TOL[part] || 2.5);
+    /* 收腰连衣裙腰围是基准判据，权重 2；直筒款腰围是参考位 0.25，
+       仍显示偏差提示但不主导总分、不触发封顶。 */
+    const weight = role === 'baseline' ? 2 : role === 'reference' ? 0.25 : 1;
     details.push({
-      part, label: PART_LABEL[part] || part,
+      part, role, label: PART_LABEL[part] || part,
       garment: gm[part],
       body: model[part],
       baseline,                                   // 合身基准围度
@@ -159,16 +227,27 @@ export function evaluateItem(item, size, model) {
       designEase: ease[part] || 0,                // 设计放松量
       delta,                                      // 相对基准线的偏差
       status: j.status, statusLabel: j.statusLabel,
-      score: j.score,
+      score: j.score, weight,
     });
-    totalScore += j.score;
+    totalScore += j.score * weight;
+    totalWeight += weight;
   });
 
   if (!details.length) return null;
-  const score = details.length ? Math.round(totalScore / details.length) : 0;
-  const has = s => details.some(d => d.status === s);
+  /* 封顶只看主判据：参考位不合身不拖垮整件，但会反映在加权分里。 */
+  const primary = details.filter(d => d.role !== 'reference');
+  const has = s => primary.some(d => d.status === s);
+  /* 一处不合格，整件就不能算高分。均分会被其它合身部位拉高
+     （例如腰围过紧 20 分、臀围合身 100 分，均分 60 尚可；
+      腰围偏紧 60 分、臀围合身 100 分，均分 80 会冒充「满分档」）。
+     用最差部位给总分封顶，Math.min 只会压低、不会抬高均分：
+       · 出现「过紧 / 过松」→ 最高 59 分，连基本合身都算不上；
+       · 出现「偏紧 / 偏松」→ 最高 77 分，够不到三星门槛。 */
+  let score = Math.round(totalScore / totalWeight);
+  if (has('tooTight') || has('tooLoose')) score = Math.min(score, 59);
+  else if (has('tight') || has('loose')) score = Math.min(score, 77);
   let level, verdict;
-  if (score >= 92) { level = 'perfect'; verdict = '非常合身'; }
+  if (score >= 92 && !has('tight') && !has('loose')) { level = 'perfect'; verdict = '非常合身'; }
   else if (score >= 78 && !has('tight') && !has('loose')) { level = 'good'; verdict = '合身'; }
   else if (score >= 70) { level = 'good'; verdict = '基本合身'; }
   else if (has('tooTight')) { level = 'tooTight'; verdict = '偏小 / 过紧'; }
@@ -181,15 +260,26 @@ export function evaluateItem(item, size, model) {
   return { score, level, verdict, parts: details, recommendation, summary, size, itemId: item.id };
 }
 
-/** 某尺码相对基准线的最大偏差（cm）：用于选码时比较「差多少」 */
-function maxDeviation(item, size, model) {
+/** 某尺码相对基准线的偏差（cm）：用于选码时比较「差多少」。
+    与评分同口径——收腰连衣裙的腰围是基准判据，偏差乘以权重 2，
+    直筒款腰围是参考位，不让它主导选码。 */
+function sizeDeviation(item, size, model) {
   const gm = garmentMeasurementsOf(item, size, model) || {};
   const ease = fitEase(item);
   let worst = 0;
-  fitParts(item).forEach(part => {
+  fitParts(item).forEach(({ part, role }) => {
     if (gm[part] == null || model[part] == null) return;
     const baseline = model[part] + (ease[part] || 0);
-    worst = Math.max(worst, Math.abs(gm[part] - baseline));
+    const delta = gm[part] - baseline;
+    let dev;
+    if (part === 'bust' && isHangTop(item)) {
+      /* 垂坠上装用穿着余量区间选码，与评分判据一致。 */
+      const lo = 2 - (ease[part] || 0), hi = 4;
+      dev = delta < lo ? lo - delta : delta > hi ? delta - hi : 0;
+    } else {
+      dev = Math.abs(delta);
+    }
+    worst = Math.max(worst, dev * (role === 'baseline' ? 2 : role === 'reference' ? 0.25 : 1));
   });
   return worst;
 }
@@ -206,10 +296,10 @@ function maxDeviation(item, size, model) {
    换码能解决「同一件衣服偏大/偏小」，解决不了「版型与身形不符」。
 
    所以等级按这一档的短板来定，分三档：
-     ★★★  没有「过紧」「过松」，也没有「一处偏紧、一处偏松」这种
-           自相矛盾，并且至少有一个部位完全合身——库里能挑出来的
-           最好状态，也就是满分档。
-     ★★   没有过紧也没有过松，偏差只在「偏紧/偏松」之间。
+     ★★★  所有参与判定的部位都落在合身容差内——一处不合身都不能
+           叫满分档。评分也同步封顶：出现偏紧/偏松最多 77 分，
+           出现过紧/过松最多 59 分，不会出现「部位不合身却 100 分」。
+     ★★   没有过紧也没有过松，但有一处「偏紧/偏松」的取舍。
      ★    出现「过紧」或「过松」，穿上去会勒住或会垮掉。
 
    等级跟尺码无关（永远取该款最优的一档），所以它衡量的是
@@ -229,7 +319,19 @@ export function bestFitForItem(itemId, model) {
 /** 接受脱离数据库的商品对象 */
 export function bestFitOf(item, model) {
   if (!item) return null;
-  const key = `${item.category}|${JSON.stringify(item.measurements || {})}|${JSON.stringify(item.ease || null)}`;
+  /* 在售尺码必须进键：平台商品按品牌/品类共用一条测量模板，
+     但各款实际能买到的码不同，最优分也就不同。漏掉 sizes 会让
+     同模板的商品串到同一个分数上。 */
+  /* 缓存键必须包含款式字段：DG 全库上装共用同一个 88/68 测量模板，
+     但 T 恤只判胸围、衬衫要判胸+腰+肩，不含款式就会让第一条的
+     判定部位被后续所有款复用。model 也要进键，换档案才重新算。 */
+  const key = [
+    item.category, item.style || '', item.cut || '', item.silhouette || '', item.fit || '',
+    /* 视觉覆盖的束腰款与同模板的 slip 直筒款判据不同，必须分开缓存。 */
+    item.id && VISUAL_WAIST_IDS.has(item.id) ? 'visualWaist' : '',
+    JSON.stringify(item.measurements || {}), JSON.stringify(item.ease || null),
+    JSON.stringify(item.sizes || []), JSON.stringify(model || {}),
+  ].join('|');
   if (_bestFitCache.has(key)) return _bestFitCache.get(key);
   const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
   let best = null;
@@ -242,19 +344,25 @@ export function bestFitOf(item, model) {
 }
 
 /** 合身等级（0–3 星）与该款最优尺码。
-    星级直接对应合身评分（评分取该款在可选尺码里的最好一档）：
-      ★★★ 满分档  评分 ≥ 78，即「合身」及以上。库里只有针织、
-                   垂坠缎面这类胸腰差不做收腰的版型能进这一档。
-      ★★          评分 70–77，「基本合身」：不勒不垮，但有取舍。
+    星级取该款在可选尺码里的最好一档，且以短板为准：
+      ★★★ 满分档  评分 ≥ 78 且所有参与部位都「合身」。库里只有
+                   针织、垂坠缎面这类胸腰差不做收腰的版型能进这一档。
+      ★★          评分 70–77，「基本合身」：有一处偏紧/偏松的取舍。
       ★           评分 60–69，「略紧/略松」：能穿，但要留意版型。
       （0 星       评分 < 60，「偏小/偏大」，这一版库里为空）
+    评分已按最差部位封顶（过紧/过松 ≤59、偏紧/偏松 ≤77），
+    所以「某部位不合身却拿三星」不可能发生。
     等级与尺码无关，永远取该款最优的一档，所以它衡量的是
     「这件衣服对这个身形有多友好」，可以用来排序与筛选。 */
 export function fitGrade(itemId, model) {
   const best = bestFitForItem(itemId, model);
   if (!best) return { stars: 0, score: 0, size: null, verdict: '无数据', parts: [] };
   const score = best.score;
-  const stars = score >= 78 ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
+  /* 三星（满分档）必须所有参与判定的部位都「合身」。
+     只看均分会放过「一处偏紧、其余合身」的商品，和诊断面板里
+     「这一处不合身」的显示自相矛盾——用户看到的就是这种错。 */
+  const allGood = best.parts.length > 0 && best.parts.every(p => p.status === 'good');
+  const stars = (score >= 78 && allGood) ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
   const absd = best.parts.map(p => Math.abs(p.delta));
   return {
     stars, score, size: best.size,
@@ -279,7 +387,7 @@ export function recommendSizeOf(item, model) {
   const sizes = (item.sizes && item.sizes.length) ? item.sizes : SIZES;
   let best = null, bestDev = Infinity;
   sizes.forEach(s => {
-    const dev = maxDeviation(item, s, model);
+    const dev = sizeDeviation(item, s, model);
     if (dev < bestDev - 1e-6) { bestDev = dev; best = s; }
   });
   return best || fitSizeForModel(model);
@@ -309,8 +417,8 @@ export function fitSizeForModel(model) {
 }
 
 function buildSummary(verdict, details, recommendation) {
-  const tightParts = details.filter(d => d.status.includes('tight')).map(d => d.label);
-  const looseParts = details.filter(d => d.status.includes('Loose') || d.status === 'loose').map(d => d.label);
+  const tightParts = details.filter(d => d.status === 'tight' || d.status === 'tooTight').map(d => d.label);
+  const looseParts = details.filter(d => d.status === 'loose' || d.status === 'tooLoose').map(d => d.label);
   let s = `以合身基准线判断：${verdict}。`;
   if (tightParts.length) s += `${tightParts.join('、')}小于合身基准。`;
   if (looseParts.length) s += `${looseParts.join('、')}大于合身基准。`;
